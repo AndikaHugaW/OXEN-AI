@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI Administrative Assistant
 
 Aplikasi asisten administrasi berbasis AI yang menggunakan Next.js, Tailwind CSS, dan LLM dengan RAG (Retrieval-Augmented Generation) untuk menghasilkan jawaban dan surat.
@@ -172,3 +173,7 @@ MIT
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+=======
+# OXEN-AI
+Oxen AI adalah solusi cerdas untuk bisnis modern—membantu mengotomatisasi proses, menganalisis data dengan cepat, dan mengambil keputusan lebih tepat. Lebih efisien, lebih akurat, dan jelas lebih pintar (tanpa minta lembur).
+>>>>>>> 7e9dfd56e5ff9a31c4730f52551954f024865589
