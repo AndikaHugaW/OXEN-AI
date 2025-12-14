@@ -1,7 +1,8 @@
-<<<<<<< HEAD
-# AI Administrative Assistant
+# OXEN-AI
 
-Aplikasi asisten administrasi berbasis AI yang menggunakan Next.js, Tailwind CSS, dan LLM dengan RAG (Retrieval-Augmented Generation) untuk menghasilkan jawaban dan surat.
+Oxen AI adalah solusi cerdas untuk bisnis modern—membantu mengotomatisasi proses, menganalisis data dengan cepat, dan mengambil keputusan lebih tepat. Lebih efisien, lebih akurat, dan jelas lebih pintar (tanpa minta lembur).
+
+Aplikasi asisten bisnis berbasis AI yang menggunakan Next.js, Tailwind CSS, dan LLM dengan RAG (Retrieval-Augmented Generation) untuk menghasilkan jawaban dan dokumen bisnis dengan style Gen-Z yang engaging tapi tetap professional.
 
 ## 🏗️ Arsitektur
 
@@ -19,10 +20,13 @@ Jawaban / Surat
 
 ## ✨ Fitur
 
-- 💬 **Chat Interface**: Berinteraksi dengan AI untuk mendapatkan jawaban tentang administrasi
+- 💬 **Chat Interface**: Berinteraksi dengan AI untuk mendapatkan jawaban tentang bisnis dan administrasi
 - 📄 **Letter Generator**: Generate surat resmi dengan berbagai jenis format
 - 🔍 **RAG Integration**: Menggunakan Retrieval-Augmented Generation untuk memberikan jawaban yang lebih akurat
 - 🎨 **Modern UI**: Interface yang modern dan responsif menggunakan Tailwind CSS
+- ⚡ **Streaming Response**: Respons cepat dengan streaming untuk pengalaman yang lebih baik
+- 🎯 **Business-Focused**: Fokus ke kebutuhan bisnis dan perusahaan
+- 💬 **Gen-Z Style**: Komunikasi dengan style Gen-Z yang engaging tapi tetap professional
 
 ## 🚀 Getting Started
 
@@ -30,7 +34,7 @@ Jawaban / Surat
 
 - Node.js 18+ 
 - npm atau yarn
-- OpenAI API Key ([Lihat panduan lengkap cara mendapatkannya](./CARA_MENDAPATKAN_API_KEY.md))
+- LLM Provider API Key (OpenAI, Groq, Ollama, atau Hugging Face)
 
 ### Installation
 
@@ -52,7 +56,7 @@ npm install
    ```
    Lihat [Quick Setup Llama](./QUICK_SETUP_LLAMA.md) untuk panduan lengkap.
 
-   **Untuk menggunakan Groq (GRATIS - Cloud):**
+   **Untuk menggunakan Groq (GRATIS - Cloud, CEPAT):**
    ```env
    LLM_PROVIDER=groq
    GROQ_API_KEY=your_groq_api_key_here
@@ -91,6 +95,7 @@ npm run dev
 │   └── LetterGenerator.tsx # Komponen generator surat
 ├── lib/
 │   └── llm/
+│       ├── providers.ts   # Multi-provider LLM support
 │       └── rag-service.ts # Service untuk LLM dan RAG
 └── package.json
 ```
@@ -100,24 +105,31 @@ npm run dev
 - **Next.js 14**: Framework React untuk production
 - **TypeScript**: Type safety
 - **Tailwind CSS**: Utility-first CSS framework
-- **OpenAI API**: Large Language Model
-- **LangChain**: Framework untuk aplikasi LLM (optional)
+- **Multi-Provider LLM**: Support OpenAI, Groq, Ollama, Hugging Face, Gemini
+- **RAG (Retrieval-Augmented Generation)**: Untuk jawaban yang lebih akurat
+- **Streaming**: Untuk respons yang lebih cepat
 
 ## 📝 API Endpoints
 
 ### POST `/api/chat`
 
-Mengirim pesan chat dan mendapatkan jawaban dari AI.
+Mengirim pesan chat dan mendapatkan jawaban dari AI dengan streaming support.
 
 **Request Body:**
 ```json
 {
   "message": "Pertanyaan Anda",
-  "conversationHistory": [] // Optional
+  "conversationHistory": [], // Optional
+  "stream": true // Optional, default: true
 }
 ```
 
-**Response:**
+**Response (Streaming):**
+```
+text/event-stream dengan chunks
+```
+
+**Response (Non-streaming):**
 ```json
 {
   "success": true,
@@ -156,7 +168,7 @@ Untuk meningkatkan kualitas jawaban, Anda dapat menambahkan dokumen ke vector st
 
 ### Mengubah Model LLM
 
-Edit file `lib/llm/rag-service.ts` dan ubah `modelName` pada inisialisasi `ChatOpenAI` atau pada pemanggilan OpenAI API.
+Edit file `.env.local` dan ubah `LLM_PROVIDER` atau model spesifik untuk provider yang dipilih.
 
 ## 🚢 Production Build
 
@@ -172,8 +184,3 @@ MIT
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-=======
-# OXEN-AI
-Oxen AI adalah solusi cerdas untuk bisnis modern—membantu mengotomatisasi proses, menganalisis data dengan cepat, dan mengambil keputusan lebih tepat. Lebih efisien, lebih akurat, dan jelas lebih pintar (tanpa minta lembur).
->>>>>>> 7e9dfd56e5ff9a31c4730f52551954f024865589
