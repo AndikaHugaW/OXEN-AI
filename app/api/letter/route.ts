@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateLetter } from '@/lib/llm/rag-service';
+import { routeAIRequest, AIRequestContext, RequestMode } from '@/lib/llm/ai-request-router';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,20 +23,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate LLM provider configuration
-    // The getLLMProvider() function will throw appropriate error if config is missing
-
-    const letter = await generateLetter(
+    // Use AI Request Router with LETTER_GENERATOR mode
+    const context: AIRequestContext = {
+      message: `Generate letter: ${letterType} to ${recipient}`,
+      mode: RequestMode.LETTER_GENERATOR,
       letterType,
       recipient,
       subject,
       content,
-      additionalContext
-    );
+      additionalContext,
+    };
+
+    const routerResponse = await routeAIRequest(context);
+
+    if (!routerResponse.success) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: routerResponse.error || 'Failed to generate letter'
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      letter: letter,
+      letter: routerResponse.letter,
     });
   } catch (error: any) {
     console.error('Letter API error:', error);

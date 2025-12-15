@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Copy } from 'lucide-react';
 
 export default function LetterGenerator() {
   const [formData, setFormData] = useState({
@@ -82,17 +83,17 @@ export default function LetterGenerator() {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 rounded-lg bg-[hsl(var(--card))]/50 backdrop-blur-md border border-[hsl(var(--border))]/50">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Jenis Surat *
+          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
+            Jenis Surat <span className="text-[hsl(var(--destructive))]">*</span>
           </label>
           <select
             name="letterType"
             value={formData.letterType}
             onChange={handleChange}
             required
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
           >
             <option value="">Pilih jenis surat...</option>
             <option value="resmi">Surat Resmi</option>
@@ -105,8 +106,8 @@ export default function LetterGenerator() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Penerima / Tujuan *
+          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
+            Penerima / Tujuan <span className="text-[hsl(var(--destructive))]">*</span>
           </label>
           <input
             type="text"
@@ -115,13 +116,13 @@ export default function LetterGenerator() {
             onChange={handleChange}
             required
             placeholder="Contoh: Kepala Dinas..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Perihal *
+          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
+            Perihal <span className="text-[hsl(var(--destructive))]">*</span>
           </label>
           <input
             type="text"
@@ -130,13 +131,13 @@ export default function LetterGenerator() {
             onChange={handleChange}
             required
             placeholder="Contoh: Permohonan Izin..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Isi Surat *
+          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
+            Isi Surat <span className="text-[hsl(var(--destructive))]">*</span>
           </label>
           <textarea
             name="content"
@@ -145,13 +146,13 @@ export default function LetterGenerator() {
             required
             rows={4}
             placeholder="Jelaskan isi surat yang ingin dibuat..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="w-full px-4 py-2.5 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))] text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none transition-colors"
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Konteks Tambahan (Opsional)
+          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
+            <span>Konteks Tambahan</span> <span className="text-[hsl(var(--muted-foreground))] text-xs">(Opsional)</span>
           </label>
           <textarea
             name="additionalContext"
@@ -159,22 +160,22 @@ export default function LetterGenerator() {
             onChange={handleChange}
             rows={2}
             placeholder="Informasi tambahan yang mungkin diperlukan..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="w-full px-4 py-2.5 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))] text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none transition-colors"
           />
         </div>
 
-        <div className="md:col-span-2 flex gap-2">
+        <div className="md:col-span-2 flex gap-3">
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-6 py-3 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm"
           >
             {isLoading ? 'Membuat Surat...' : 'Generate Surat'}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+            className="px-6 py-3 bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] rounded-lg hover:bg-[hsl(var(--secondary))]/80 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all font-medium"
           >
             Reset
           </button>
@@ -183,20 +184,21 @@ export default function LetterGenerator() {
 
       {/* Generated Letter Display */}
       {generatedLetter && (
-        <div className="mt-6 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+        <div className="mt-6 p-6 bg-[hsl(var(--card))]/50 backdrop-blur-md border border-[hsl(var(--border))]/50 rounded-lg shadow-lg">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-xl font-semibold text-[hsl(var(--card-foreground))]">
               Surat yang Dihasilkan
             </h3>
             <button
               onClick={handleCopy}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+              className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
             >
-              📋 Salin
+              <Copy className="w-4 h-4" />
+              <span>Salin</span>
             </button>
           </div>
           <div className="prose dark:prose-invert max-w-none">
-            <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700">
+            <pre className="whitespace-pre-wrap text-sm text-[hsl(var(--card-foreground))] font-mono bg-[hsl(var(--input))]/50 backdrop-blur-sm p-4 rounded-lg border border-[hsl(var(--border))]/50">
               {generatedLetter}
             </pre>
           </div>

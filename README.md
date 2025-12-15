@@ -27,6 +27,8 @@ Jawaban / Surat
 - ⚡ **Streaming Response**: Respons cepat dengan streaming untuk pengalaman yang lebih baik
 - 🎯 **Business-Focused**: Fokus ke kebutuhan bisnis dan perusahaan
 - 💬 **Gen-Z Style**: Komunikasi dengan style Gen-Z yang engaging tapi tetap professional
+- 📊 **Data Visualization**: Menampilkan grafik dan chart untuk data bisnis (line chart, bar chart, pie chart)
+- 🖼️ **Image Support**: Support untuk menampilkan gambar dalam response (extendable untuk image generation)
 
 ## 🚀 Getting Started
 

@@ -4,11 +4,11 @@
 interface LLMProvider {
   generateResponse(
     messages: Array<{ role: string; content: string }>,
-    options?: { temperature?: number; model?: string; stream?: boolean }
+    options?: { temperature?: number; model?: string; stream?: boolean; format?: 'json' | string }
   ): Promise<string>;
   generateStreamResponse?(
     messages: Array<{ role: string; content: string }>,
-    options?: { temperature?: number; model?: string },
+    options?: { temperature?: number; model?: string; format?: 'json' | string },
     onChunk?: (chunk: string) => void
   ): Promise<ReadableStream<Uint8Array>>;
 }
@@ -320,40 +320,96 @@ class OllamaProvider implements LLMProvider {
   private baseURL: string;
   private model: string;
 
-  constructor(baseURL: string = "http://localhost:11434", model: string = "llama3") {
+  constructor(baseURL: string = "http://127.0.0.1:11434", model: string = "llama3") {
+    // Use 127.0.0.1 instead of localhost untuk menghindari DNS resolution issues
+    // Convert localhost ke 127.0.0.1 jika user provide localhost
+    if (baseURL.includes('localhost')) {
+      baseURL = baseURL.replace('localhost', '127.0.0.1');
+    }
     this.baseURL = baseURL;
     this.model = model;
   }
 
   async generateResponse(
     messages: Array<{ role: string; content: string }>,
-    options: { temperature?: number; model?: string; stream?: boolean } = {}
+    options: { temperature?: number; model?: string; stream?: boolean; format?: 'json' | string } = {}
   ): Promise<string> {
     const model = options.model || this.model;
     const temperature = options.temperature || 0.7;
     const stream = options.stream || false;
+    const format = options.format;
 
-    const response = await fetch(`${this.baseURL}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const requestBody: any = {
+      model,
+      messages: messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      stream: stream, // Support streaming
+      options: {
+        temperature,
       },
-      body: JSON.stringify({
-        model,
-        messages: messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        stream: stream, // Support streaming
-        options: {
-          temperature,
-        },
-      }),
-    });
+    };
 
+    // Tambahkan format: json untuk JSON only mode (Ollama support)
+    if (format === 'json') {
+      requestBody.format = 'json';
+    }
+
+    console.log(`🔌 [Ollama] Connecting to: ${this.baseURL}/api/chat`);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseURL}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(60000), // 60 seconds timeout
+      });
+    } catch (fetchError: any) {
+      console.error('❌ [Ollama] Fetch failed:', {
+        url: `${this.baseURL}/api/chat`,
+        error: fetchError.message,
+        name: fetchError.name,
+      });
+      
+      // Check for timeout errors
+      if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+        throw new Error(`Ollama request timeout (60s). Pastikan model ${model} sudah di-download dan Ollama berjalan.`);
+      }
+      
+      // Check for connection errors (Windows and Unix)
+      const errorMsg = (fetchError.message || '').toLowerCase();
+      const isConnectionError = 
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('fetch failed') ||
+        errorMsg.includes('networkerror') ||
+        errorMsg.includes('failed to fetch') ||
+        errorMsg.includes('err_connection_refused') ||
+        errorMsg.includes('connection refused') ||
+        errorMsg.includes('connect econnrefused') ||
+        errorMsg.includes('getaddrinfo enotfound') ||
+        errorMsg.includes('network request failed');
+      
+      if (isConnectionError) {
+        throw new Error(`Tidak dapat terhubung ke Ollama di ${this.baseURL}.\n\nPastikan:\n1. Ollama sudah berjalan: ollama serve\n2. Port 11434 tidak digunakan aplikasi lain\n3. Test manual: curl ${this.baseURL}/api/tags\n\nJika menggunakan Windows, pastikan Ollama service berjalan atau jalankan dari Command Prompt/PowerShell.`);
+      } else {
+        throw new Error(`Network error: ${fetchError.message || 'Unknown error'}`);
+      }
+    }
+
+    console.log(`📡 [Ollama] Response status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
-      let errorMessage = `Ollama API error: ${errorText}`;
+      console.error('❌ [Ollama] API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText.substring(0, 200),
+      });
+      let errorMessage = `Ollama API error (${response.status}): ${errorText}`;
       
       // Provide helpful error messages
       try {
@@ -373,7 +429,7 @@ class OllamaProvider implements LLMProvider {
             `1. Pastikan Ollama sudah terinstall dan berjalan\n` +
             `2. Jalankan: ollama serve\n` +
             `3. Atau restart aplikasi Ollama\n` +
-            `4. Pastikan OLLAMA_BASE_URL=http://localhost:11434 benar\n\n` +
+            `4. Pastikan OLLAMA_BASE_URL=http://127.0.0.1:11434 benar (gunakan 127.0.0.1, bukan localhost)\n\n` +
             `Error detail: ${errorText}`;
         }
       } catch {
@@ -440,33 +496,85 @@ class OllamaProvider implements LLMProvider {
 
   async generateStreamResponse(
     messages: Array<{ role: string; content: string }>,
-    options: { temperature?: number; model?: string } = {},
+    options: { temperature?: number; model?: string; format?: 'json' | string } = {},
     onChunk?: (chunk: string) => void
   ): Promise<ReadableStream<Uint8Array>> {
     const model = options.model || this.model;
     const temperature = options.temperature || 0.7;
+    const format = options.format;
 
-    const response = await fetch(`${this.baseURL}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const requestBody: any = {
+      model,
+      messages: messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      stream: true,
+      options: {
+        temperature,
       },
-      body: JSON.stringify({
-        model,
-        messages: messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        stream: true,
-        options: {
-          temperature,
-        },
-      }),
-    });
+    };
 
+    // Tambahkan format: json untuk JSON only mode (Ollama support)
+    if (format === 'json') {
+      requestBody.format = 'json';
+    }
+
+    console.log(`🔌 [Ollama Stream] Connecting to: ${this.baseURL}/api/chat`);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseURL}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        // Add timeout untuk streaming juga
+        signal: AbortSignal.timeout(120000), // 120 seconds untuk streaming (lebih lama)
+      });
+    } catch (fetchError: any) {
+      console.error('❌ [Ollama Stream] Fetch failed:', {
+        url: `${this.baseURL}/api/chat`,
+        error: fetchError.message,
+        name: fetchError.name,
+      });
+      
+      // Check for timeout errors
+      if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
+        throw new Error(`Ollama streaming timeout (120s). Request terlalu lama.`);
+      }
+      
+      // Check for connection errors (Windows and Unix)
+      const errorMsg = (fetchError.message || '').toLowerCase();
+      const isConnectionError = 
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('fetch failed') ||
+        errorMsg.includes('networkerror') ||
+        errorMsg.includes('failed to fetch') ||
+        errorMsg.includes('err_connection_refused') ||
+        errorMsg.includes('connection refused') ||
+        errorMsg.includes('connect econnrefused') ||
+        errorMsg.includes('getaddrinfo enotfound') ||
+        errorMsg.includes('network request failed');
+      
+      if (isConnectionError) {
+        throw new Error(`Tidak dapat terhubung ke Ollama di ${this.baseURL}.\n\nPastikan:\n1. Ollama sudah berjalan: ollama serve\n2. Port 11434 tidak digunakan aplikasi lain\n3. Test manual: curl ${this.baseURL}/api/tags\n\nJika menggunakan Windows, pastikan Ollama service berjalan atau jalankan dari Command Prompt/PowerShell.`);
+      } else {
+        throw new Error(`Network error: ${fetchError.message || 'Unknown error'}`);
+      }
+    }
+    
+    console.log(`📡 [Ollama Stream] Response status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
-      throw new Error(`Ollama API error: ${errorText}`);
+      console.error('❌ [Ollama Stream] API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText.substring(0, 200),
+      });
+      throw new Error(`Ollama API error (${response.status}): ${errorText}`);
     }
 
     if (!response.body) {
@@ -576,7 +684,7 @@ export function getLLMProvider(): LLMProvider {
 
     case "ollama":
       return new OllamaProvider(
-        process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+        (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace('localhost', '127.0.0.1'),
         process.env.OLLAMA_MODEL || "llama3"
       );
 

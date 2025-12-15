@@ -3,14 +3,37 @@ import { NextRequest, NextResponse } from 'next/server';
 // Get list of available models
 export async function GET(request: NextRequest) {
   try {
-    const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    let baseURL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+    if (baseURL.includes('localhost')) {
+      baseURL = baseURL.replace('localhost', '127.0.0.1');
+    }
     
-    const response = await fetch(`${baseURL}/api/tags`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${baseURL}/api/tags`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (fetchError: any) {
+      const errorMsg = (fetchError.message || '').toLowerCase();
+      const isConnectionError = 
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('fetch failed') ||
+        errorMsg.includes('networkerror') ||
+        errorMsg.includes('failed to fetch') ||
+        errorMsg.includes('err_connection_refused') ||
+        errorMsg.includes('connection refused') ||
+        errorMsg.includes('connect econnrefused') ||
+        errorMsg.includes('getaddrinfo enotfound') ||
+        errorMsg.includes('network request failed');
+      
+      if (isConnectionError) {
+        throw new Error(`Tidak dapat terhubung ke Ollama di ${baseURL}.\n\nPastikan:\n1. Ollama sudah berjalan: ollama serve\n2. Port 11434 tidak digunakan aplikasi lain\n3. Test manual: curl ${baseURL}/api/tags`);
+      }
+      throw fetchError;
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
@@ -52,19 +75,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    let baseURL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+    if (baseURL.includes('localhost')) {
+      baseURL = baseURL.replace('localhost', '127.0.0.1');
+    }
 
     // Start pulling the model
-    const response = await fetch(`${baseURL}/api/pull`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: model,
-        stream: false, // We'll handle streaming separately if needed
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${baseURL}/api/pull`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: model,
+          stream: false, // We'll handle streaming separately if needed
+        }),
+      });
+    } catch (fetchError: any) {
+      const errorMsg = (fetchError.message || '').toLowerCase();
+      const isConnectionError = 
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('fetch failed') ||
+        errorMsg.includes('networkerror') ||
+        errorMsg.includes('failed to fetch') ||
+        errorMsg.includes('err_connection_refused') ||
+        errorMsg.includes('connection refused') ||
+        errorMsg.includes('connect econnrefused') ||
+        errorMsg.includes('getaddrinfo enotfound') ||
+        errorMsg.includes('network request failed');
+      
+      if (isConnectionError) {
+        throw new Error(`Tidak dapat terhubung ke Ollama di ${baseURL}.\n\nPastikan:\n1. Ollama sudah berjalan: ollama serve\n2. Port 11434 tidak digunakan aplikasi lain\n3. Test manual: curl ${baseURL}/api/tags`);
+      }
+      throw fetchError;
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
