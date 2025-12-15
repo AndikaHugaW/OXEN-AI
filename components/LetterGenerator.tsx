@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy } from 'lucide-react';
+import { Copy, Download } from 'lucide-react';
 
 export default function LetterGenerator() {
   const [formData, setFormData] = useState({
@@ -57,6 +57,9 @@ export default function LetterGenerator() {
           `Silakan setup API key di file .env.local:\n` +
           `- Untuk Groq (gratis): LLM_PROVIDER=groq dan GROQ_API_KEY=your_key\n` +
           `- Lihat panduan di ALTERNATIF_API_GRATIS.md`;
+      } else if (errorMessage.includes('Ollama') || errorMessage.includes('tidak dapat terhubung')) {
+        // Error message sudah informatif dari provider, langsung gunakan
+        errorMessage = errorMessage;
       }
       
       setGeneratedLetter(`❌ Error: ${errorMessage}`);
@@ -68,6 +71,51 @@ export default function LetterGenerator() {
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedLetter);
     alert('Surat berhasil disalin ke clipboard!');
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!generatedLetter) return;
+
+    try {
+      // Dynamic import untuk jsPDF (client-side only)
+      const { jsPDF } = await import('jspdf');
+      
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
+
+      // Set font
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+
+      // Split text into lines that fit the page width
+      const lines = doc.splitTextToSize(generatedLetter, maxWidth);
+
+      // Add lines to PDF
+      lines.forEach((line: string) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - margin - 10) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        doc.text(line, margin, yPosition);
+        yPosition += 7; // Line height
+      });
+
+      // Generate filename
+      const filename = `Surat_${formData.letterType || 'Surat'}_${formData.subject || 'Document'}_${new Date().toISOString().split('T')[0]}.pdf`
+        .replace(/[^a-z0-9]/gi, '_')
+        .toLowerCase();
+
+      // Save PDF
+      doc.save(filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Terjadi kesalahan saat membuat PDF. Silakan coba lagi.');
+    }
   };
 
   const handleReset = () => {
@@ -189,13 +237,22 @@ export default function LetterGenerator() {
             <h3 className="text-xl font-semibold text-[hsl(var(--card-foreground))]">
               Surat yang Dihasilkan
             </h3>
-            <button
-              onClick={handleCopy}
-              className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              <span>Salin</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                <span>Salin</span>
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download PDF</span>
+              </button>
+            </div>
           </div>
           <div className="prose dark:prose-invert max-w-none">
             <pre className="whitespace-pre-wrap text-sm text-[hsl(var(--card-foreground))] font-mono bg-[hsl(var(--input))]/50 backdrop-blur-sm p-4 rounded-lg border border-[hsl(var(--border))]/50">
