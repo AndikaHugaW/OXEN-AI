@@ -134,6 +134,47 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Helper to determine mode from activeView
+  const getModeFromView = (view: string) => {
+    switch (view) {
+      case 'market':
+        return 'MODE_MARKET_ANALYSIS';
+      case 'reports':
+        return 'MODE_BUSINESS_ADMIN';
+      case 'visualization':
+        return 'MODE_BUSINESS_ADMIN'; // Data viz is part of business admin for now
+      case 'letter':
+        return 'MODE_LETTER_GENERATOR';
+      default:
+        return 'MODE_BUSINESS_ADMIN';
+    }
+  };
+
+  // Handle view change to reset chat or set initial context
+  useEffect(() => {
+    if (activeView !== 'chat' && activeView !== 'letter') {
+      createNewChat();
+      
+      // Optional: Set initial greeting based on view
+      let initialMessage = '';
+      if (activeView === 'market') {
+        initialMessage = "👋 **Welcome to Market Trends Analysis!**\n\nI can help you with:\n- analyzing stock & crypto performance\n- comparing assets (e.g., BTC vs ETH)\n- providing market insights.\n\nWhat market would you like to explore today?";
+      } else if (activeView === 'reports') {
+         initialMessage = "👋 **Welcome into Report Generator.**\n\nI can help you create professional reports for:\n- Startups\n- Agencies\n- Corporate Business\n\nWhat kind of report do you need?";
+      } else if (activeView === 'visualization') {
+         initialMessage = "👋 **Data Visualization Studio.**\n\nPlease provide the data you'd like to visualize, or describe the chart you need. I can create:\n- Bar/Line/Pie Charts\n- Comparison Graphs\n- Trend Analysis";
+      }
+
+      if (initialMessage) {
+        setMessages([{
+          role: 'assistant',
+          content: initialMessage,
+          timestamp: new Date()
+        }]);
+      }
+    }
+  }, [activeView]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -169,9 +210,16 @@ export default function ChatInterface() {
 
     // Create placeholder for streaming response
     // ✅ UX TRICK: Send partial response immediately
+    // Dynamic loading message
+    let loadingText = 'Thinking...';
+    if (activeView === 'market') loadingText = '📊 Analyzing market data...';
+    else if (activeView === 'reports') loadingText = '📝 Generating report...';
+    else if (activeView === 'visualization') loadingText = '📈 Visualizing data...';
+    else loadingText = '🤖 Thinking...';
+
     const assistantMessage: Message = {
       role: 'assistant',
-      content: '📊 Sedang menganalisis data pasar...',
+      content: loadingText,
       timestamp: new Date(),
     };
     const streamingMessages = [...newMessages, assistantMessage];
@@ -197,6 +245,7 @@ export default function ChatInterface() {
             message: input,
             conversationHistory,
             stream: true, // Enable streaming for faster response
+            mode: getModeFromView(activeView),
           }),
         });
       } catch (fetchError: any) {
@@ -806,6 +855,10 @@ export default function ChatInterface() {
     window.location.href = '/auth/sign-in';
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  };
+
   return (
     <>
       <LoginAlert 
@@ -845,49 +898,12 @@ export default function ChatInterface() {
             {/* Messages Area */}
             <div className={`flex-1 overflow-y-auto ${messages.length === 0 ? 'flex items-center justify-center' : ''}`} style={{ padding: '24px' }}>
               {messages.length === 0 ? (
-                <div className="max-w-4xl w-full mx-auto text-center px-6">
-                  <div className="mb-10">
-                    <h2 className="text-4xl font-bold text-white mb-4">
-                      Hi! AI-powered growth for your business.
-                    </h2>
-                    <p className="text-2xl text-cyan-400">
-                      How can I assist you today?
-                    </p>
-                  </div>
-                  
-                  {/* Suggested Actions */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-16 mb-8">
-                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                          <Activity className="w-6 h-6 text-cyan-400" />
-                        </div>
-                        <h3 className="text-white font-semibold">Market Trends</h3>
-                      </div>
-                      <p className="text-cyan-200/60 text-sm">Research market trends</p>
-                    </button>
-
-                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-6 h-6 text-cyan-400" />
-                        </div>
-                        <h3 className="text-white font-semibold">Generate Reports</h3>
-                      </div>
-                      <p className="text-cyan-200/60 text-sm">Create detailed reports</p>
-                    </button>
-
-                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                          <PieChart className="w-6 h-6 text-cyan-400" />
-                        </div>
-                        <h3 className="text-white font-semibold">Data Visualization</h3>
-                      </div>
-                      <p className="text-cyan-200/60 text-sm">Create data visualizations</p>
-                    </button>
-                  </div>
-                </div>
+                <>
+                  {activeView === 'market' && <MarketTrendsHero setInput={setInput} />}
+                  {activeView === 'reports' && <ReportGeneratorHero setInput={setInput} />}
+                  {activeView === 'visualization' && <VisualizationHero setInput={setInput} />}
+                  {activeView === 'chat' && <DefaultHero setInput={setInput} setActiveView={setActiveView} />}
+                </>
               ) : (
                 <div className="max-w-5xl mx-auto px-6 space-y-6 py-6">
                   {messages.map((message, index) => (
@@ -991,8 +1007,13 @@ export default function ChatInterface() {
                     <input
                       type="text"
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="What do you want to know..."
+                      onChange={handleInputChange}
+                      placeholder={
+                        activeView === 'market' ? "Ask about stocks, crypto, or comparisons..." :
+                        activeView === 'reports' ? "Describe the report you need..." :
+                        activeView === 'visualization' ? "Paste your data or describe a chart..." :
+                        "What do you want to know..."
+                      }
                       className="w-full px-6 py-4 pr-24 bg-[#18181b] border-2 border-cyan-500/30 rounded-2xl focus:outline-none focus:border-cyan-500 text-white placeholder-cyan-400/50 transition-all"
                       disabled={isLoading}
                     />
@@ -1008,9 +1029,7 @@ export default function ChatInterface() {
                         disabled={isLoading || !input.trim()}
                         className="p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
+                        <Send className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -1039,3 +1058,161 @@ export default function ChatInterface() {
     </>
   );
 }
+
+
+
+// --- Helper Components for Hero Sections ---
+
+const MarketTrendsHero = ({ setInput }: { setInput: (s: string) => void }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+    <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
+       <Activity className="w-10 h-10 text-cyan-400" />
+    </div>
+    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+       Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Intelligence</span>
+    </h1>
+    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+       Real-time data analysis for stocks and crypto. 
+       Get deep insights, technical indicators, and market sentiment in seconds.
+    </p>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+       {[
+         { title: "Analisis Saham", desc: "Analisis fundamental & teknikal", prompt: "Analisis saham BBCA secara lengkap" },
+         { title: "Crypto Trends", desc: "Momentum pasar & prediksi", prompt: "Tren harga Bitcoin minggu ini" },
+         { title: "Market Comparison", desc: "Bandingkan performa aset", prompt: "Bandingkan performa ETH vs SOL" }
+       ].map((item, i) => (
+         <button key={i} onClick={() => setInput(item.prompt)} 
+            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-cyan-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+            <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-3 mb-3 relative z-10">
+               <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+               </div>
+               <h3 className="font-semibold text-white">{item.title}</h3>
+            </div>
+            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+         </button>
+       ))}
+    </div>
+  </div>
+);
+
+const ReportGeneratorHero = ({ setInput }: { setInput: (s: string) => void }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+    <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mb-6 border border-indigo-500/20 shadow-[0_0_30px_-10px_rgba(99,102,241,0.3)]">
+       <FileText className="w-10 h-10 text-indigo-400" />
+    </div>
+    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+       Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">Reports</span>
+    </h1>
+    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+       Generate comprehensive business reports, proposals, and analysis documents tailored to your needs.
+    </p>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+       {[
+         { title: "Startup Analysis", desc: "Evaluate market fit & growth", prompt: "Buat laporan analisis pasar untuk startup teknologi" },
+         { title: "Monthly Report", desc: "Track KPIs and performance", prompt: "Buat laporan performa bulanan untuk klien" },
+         { title: "Business Proposal", desc: "Win new clients with data", prompt: "Buat proposal bisnis untuk proyek baru" }
+       ].map((item, i) => (
+         <button key={i} onClick={() => setInput(item.prompt)} 
+            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-indigo-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+            <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-3 mb-3 relative z-10">
+               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                  <FileText className="w-4 h-4 text-indigo-400" />
+               </div>
+               <h3 className="font-semibold text-white">{item.title}</h3>
+            </div>
+            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+         </button>
+       ))}
+    </div>
+  </div>
+);
+
+const VisualizationHero = ({ setInput }: { setInput: (s: string) => void }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+    <div className="w-20 h-20 bg-pink-500/10 rounded-3xl flex items-center justify-center mb-6 border border-pink-500/20 shadow-[0_0_30px_-10px_rgba(236,72,153,0.3)]">
+       <PieChart className="w-10 h-10 text-pink-400" />
+    </div>
+    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+       Data <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">Visualization</span>
+    </h1>
+    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+       Transform raw numbers into beautiful, interactive charts. 
+       Paste your data or describe what you want to see.
+    </p>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+       {[
+         { title: "Sales Overview", desc: "Visualise revenue trends", prompt: "Tampilkan grafik tren penjualan tahun ini", icon: <TrendingUp className="w-4 h-4 text-pink-400" /> },
+         { title: "Budget Allocation", desc: "Pie charts for distribution", prompt: "Buat pie chart alokasi budget marketing", icon: <PieChart className="w-4 h-4 text-pink-400" /> },
+         { title: "Comparative Data", desc: "Bar charts for comparison", prompt: "Bandingkan performa penjualan Q1 vs Q2", icon: <BarChart3 className="w-4 h-4 text-pink-400" /> }
+       ].map((item, i) => (
+         <button key={i} onClick={() => setInput(item.prompt)} 
+            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-pink-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+            <div className="absolute inset-0 bg-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-3 mb-3 relative z-10">
+               <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
+                  {item.icon}
+               </div>
+               <h3 className="font-semibold text-white">{item.title}</h3>
+            </div>
+            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+         </button>
+       ))}
+    </div>
+  </div>
+);
+
+const DefaultHero = ({ setInput, setActiveView }: { setInput: (s: string) => void, setActiveView: (v: any) => void }) => (
+    <div className="max-w-4xl w-full mx-auto text-center px-6 animate-fade-in">
+        <div className="mb-10">
+        <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-500">
+               Next Gen 
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 block mt-2">
+               Intelligence
+            </span>
+        </h2>
+        <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            Sistem analitik berbasis AI untuk pengambilan keputusan bisnis yang lebih cepat dan akurat.
+        </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-8">
+            <button onClick={() => setActiveView('market')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-cyan-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                <Activity className="w-5 h-5 text-cyan-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Market Trends</h3>
+            <p className="text-sm text-gray-500">Real-time market insights</p>
+            </button>
+
+            <button onClick={() => setActiveView('reports')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-indigo-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                <TrendingUp className="w-5 h-5 text-indigo-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Generate Reports</h3>
+            <p className="text-sm text-gray-500">Automated business reports</p>
+            </button>
+
+            <button onClick={() => setActiveView('visualization')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-pink-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
+                <PieChart className="w-5 h-5 text-pink-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Data Viz</h3>
+            <p className="text-sm text-gray-500">Interactive charts</p>
+            </button>
+        </div>
+    </div>
+);

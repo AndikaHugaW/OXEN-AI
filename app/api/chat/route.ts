@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, conversationHistory = [], stream = true } = body;
+    const { message, conversationHistory = [], stream = true, mode } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -96,16 +96,41 @@ export async function POST(request: NextRequest) {
     // which uses parallel fetching and cache. The router will handle it efficiently.
     // We don't need to pre-fetch here to avoid double fetching.
     
+    // Detect if visualization is needed (charts/tables)
+    const needsChart = needsVisualization(message);
+
+    // Determine if we should stream
+    // Stream if:
+    // 1. Streaming is enabled AND provider supports it
+    // 2. It is NOT a market request (market requests need structured data for charts immediately)
+    // 3. It is NOT a letter request (letter requests need structured JSON)
+    // 4. It does NOT need a chart (visualizations need structured output)
+    // 5. Mode is explicitly BUSINESS_ADMIN or not set (default)
+    const isLetterRequest = message.toLowerCase().includes('surat') || message.toLowerCase().includes('letter');
+    
+    // Check mode-specific streaming rules
+    // If mode is provided:
+    // - MARKET_ANALYSIS: No streaming (needs structured data)
+    // - LETTER_GENERATOR: No streaming (needs structured data)
+    // - BUSINESS_ADMIN: Stream unless chart is needed
+    const isExemptFromStreaming = 
+      (mode === RequestMode.MARKET_ANALYSIS) || 
+      (mode === RequestMode.LETTER_GENERATOR) ||
+      needsChart || 
+      isMarketRequest || 
+      isLetterRequest;
+
+    const shouldStream = useStreaming && llmProvider.generateStreamResponse && !isExemptFromStreaming;
+
     // ✅ STREAMING FIRST: Always try streaming for LLM responses (even for comparison)
     // Chart will be added to response after streaming completes
-    if (useStreaming && llmProvider.generateStreamResponse) {
+    if (shouldStream) {
       // For business admin mode (non-market, non-letter)
-      if (!isMarketRequest && !message.toLowerCase().includes('surat') && !message.toLowerCase().includes('letter')) {
-        try {
+       try {
           // Get context from RAG
           let context = "";
           const needsRAG = message.length > 10 && 
-            ['surat', 'letter', 'format', 'prosedur', 'procedure', 'dokumen', 'document', 
+            ['prosedur', 'procedure', 'dokumen', 'document', 
              'cara', 'how to', 'bagaimana', 'strategi', 'strategy', 'bisnis', 'business',
              'perusahaan', 'company', 'marketing', 'hr', 'recruitment', 'finance', 'keuangan',
              'sales', 'customer', 'client', 'proposal', 'laporan', 'report', 'analisis', 'analysis',
@@ -131,7 +156,6 @@ export async function POST(request: NextRequest) {
           const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
           
           // Build business admin prompt for streaming
-          const needsChart = needsVisualization(message);
           const globalRules = getGlobalPromptRules();
 
           const businessPrompt = `━━━━━━━━━━━━━━━━━━━━━━
