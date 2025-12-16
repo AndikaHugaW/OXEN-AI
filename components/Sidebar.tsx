@@ -26,29 +26,28 @@ export default function Sidebar({
 
   return (
     <div
-      className={`fixed left-0 top-0 h-full bg-black border-r border-cyan-500/30 z-50 transition-all duration-300 ${
+      className={`fixed left-0 top-0 h-full bg-black border-r border-cyan-500/30 z-[100] transition-all duration-300 ${
         sidebarOpen ? 'w-64' : 'w-20'
       }`}
       style={{ height: '100vh' }}
     >
       <div className="h-full flex flex-col p-4">
         {/* Logo */}
-        <div className="mb-8 flex items-center">
-          {sidebarOpen ? (
-            <img 
-              src="/logos/oxen.svg" 
-              alt="OXEN Logo" 
-              className="h-12 w-auto"
-            />
-          ) : (
-            <div className="flex items-center justify-center mx-auto">
-              <img 
-                src="/logos/oxen.svg" 
-                alt="OXEN Logo" 
-                className="h-10 w-auto"
-              />
-            </div>
-          )}
+        <div className="mb-8 flex items-center justify-center">
+          <img 
+            src="/logos/oxen.svg" 
+            alt="OXEN Logo" 
+            className={`w-auto transition-all duration-300 ${
+              sidebarOpen ? 'h-10' : 'h-8'
+            }`}
+            style={{ 
+              minWidth: sidebarOpen ? 'auto' : '32px'
+            }}
+            onError={(e) => {
+              // Fallback jika logo tidak ditemukan
+              console.error('Logo not found');
+            }}
+          />
         </div>
 
         {/* New Chat Button */}

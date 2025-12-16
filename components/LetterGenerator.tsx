@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Download } from 'lucide-react';
+import LoginAlert from './LoginAlert';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LetterGenerator() {
   const [formData, setFormData] = useState({
@@ -13,6 +15,8 @@ export default function LetterGenerator() {
   });
   const [generatedLetter, setGeneratedLetter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const supabase = createClient();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -25,6 +29,18 @@ export default function LetterGenerator() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 🔒 Check authentication before submitting (only if Supabase is configured)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co') {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        setShowLoginAlert(true);
+        return;
+      }
+    }
+
     setIsLoading(true);
     setGeneratedLetter('');
 
@@ -36,6 +52,13 @@ export default function LetterGenerator() {
         },
         body: JSON.stringify(formData),
       });
+
+      // Handle 401 Unauthorized - show login alert
+      if (response.status === 401) {
+        setShowLoginAlert(true);
+        setIsLoading(false);
+        return;
+      }
 
       const data = await response.json().catch((parseError) => {
         console.error('JSON parse error:', parseError);
@@ -129,7 +152,19 @@ export default function LetterGenerator() {
     setGeneratedLetter('');
   };
 
+  const handleLoginClick = () => {
+    setShowLoginAlert(false);
+    // Scroll to Sign In/Sign Up buttons in navbar
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
+    <>
+      <LoginAlert 
+        isOpen={showLoginAlert}
+        onClose={() => setShowLoginAlert(false)}
+        onLogin={handleLoginClick}
+      />
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 rounded-lg bg-[hsl(var(--card))]/50 backdrop-blur-md border border-[hsl(var(--border))]/50">
         <div className="md:col-span-2">
@@ -262,6 +297,7 @@ export default function LetterGenerator() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -1,14 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bot, FileText } from 'lucide-react';
 import ChatInterface from '@/components/ChatInterface';
 import LetterGenerator from '@/components/LetterGenerator';
+import UserMenu from '@/components/UserMenu';
+import { createClient } from '@/lib/supabase/client';
 
 type TabType = 'chat' | 'letter';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Only check auth if Supabase is configured
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co') {
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   return (
     <main className="min-h-screen bg-black">
@@ -30,12 +67,12 @@ export default function Home() {
         )}
 
         {/* Tabs - Web3 Modern Style */}
-        <div className="relative bg-gradient-to-b from-black/80 via-black/60 to-black/40 backdrop-blur-2xl border-b border-cyan-500/20 shadow-[0_4px_20px_rgba(6,182,212,0.1)]">
+        <div className="fixed top-0 left-0 right-0 bg-gradient-to-b from-black/80 via-black/60 to-black/40 backdrop-blur-2xl border-b border-cyan-500/20 shadow-[0_4px_20px_rgba(6,182,212,0.1)]" style={{ zIndex: 50 }}>
           {/* Animated gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
           
           <div className="relative flex items-center justify-between w-full">
-            <div className="flex max-w-7xl mx-auto flex-1 pl-8">
+            <div className="flex max-w-7xl mx-auto flex-1 pl-12">
               <button
                 onClick={() => setActiveTab('chat')}
                 className={`group px-8 py-4 text-center font-semibold transition-all duration-300 relative overflow-hidden ${
@@ -91,20 +128,34 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Sign In & Sign Up Buttons - Pojok Kanan */}
+            {/* User Menu or Sign In/Sign Up Buttons - Pojok Kanan */}
             <div className="flex items-center gap-3 pr-8">
-              <button className="px-4 py-2 text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-200">
-                Sign In
-              </button>
-              <button className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-cyan-500/50">
-                Sign Up
-              </button>
+              {isLoading ? (
+                <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 animate-pulse"></div>
+              ) : user ? (
+                <UserMenu user={user} />
+              ) : (
+                <>
+                  <a 
+                    href="/auth/sign-in"
+                    className="px-4 py-2 text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-200"
+                  >
+                    Sign In
+                  </a>
+                  <a 
+                    href="/auth/sign-up"
+                    className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-cyan-500/50"
+                  >
+                    Sign Up
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div>
+        <div style={{ paddingTop: '64px' }}>
           {activeTab === 'chat' && <ChatInterface />}
           {activeTab === 'letter' && (
             <div className="max-w-6xl mx-auto p-8">

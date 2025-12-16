@@ -5,6 +5,8 @@ import { Plus, BarChart3, TrendingUp, FileText, Send, Sparkles, X, Paperclip, Mi
 import Sidebar from './Sidebar';
 import ChartRenderer, { ChartData } from './ChartRenderer';
 import DataTable, { TableData } from './DataTable';
+import LoginAlert from './LoginAlert';
+import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -30,7 +32,45 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Only check auth if Supabase is configured
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co') {
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsCheckingAuth(false);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setIsCheckingAuth(false);
+      }
+    };
+    checkAuth();
+
+    // Listen for auth changes (only if Supabase is configured)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co') {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setShowLoginAlert(false);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [supabase]);
 
   // Load chat histories from localStorage
   useEffect(() => {
@@ -95,6 +135,17 @@ export default function ChatInterface() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    // 🔒 Check authentication before submitting (only if Supabase is configured)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co') {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        setShowLoginAlert(true);
+        return;
+      }
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -171,6 +222,15 @@ export default function ChatInterface() {
 
       // Check if response is OK
       if (!response.ok) {
+        // Handle 401 Unauthorized - show login alert
+        if (response.status === 401) {
+          setShowLoginAlert(true);
+          // Remove the user message and placeholder
+          setMessages(messages);
+          setIsLoading(false);
+          return;
+        }
+        
         const errorData = await response.json().catch(() => ({ 
           error: 'Unknown error', 
           message: `Server error: ${response.status} ${response.statusText}` 
@@ -738,10 +798,23 @@ export default function ChatInterface() {
     }
   };
 
+  const handleLoginClick = () => {
+    setShowLoginAlert(false);
+    // Scroll to Sign In/Sign Up buttons in navbar
+    // You can customize this to navigate to a login page or open a login modal
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="flex h-[calc(100vh-120px)] min-h-[750px] relative">
-      {/* Sidebar */}
-      <Sidebar
+    <>
+      <LoginAlert 
+        isOpen={showLoginAlert}
+        onClose={() => setShowLoginAlert(false)}
+        onLogin={handleLoginClick}
+      />
+      <div className="flex h-[calc(100vh-120px)] min-h-[750px] relative">
+        {/* Sidebar */}
+        <Sidebar
         onNewChat={createNewChat}
         chatHistories={chatHistories}
         currentChatId={currentChatId}
@@ -750,7 +823,7 @@ export default function ChatInterface() {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 ml-64 flex flex-col bg-black min-h-full">
+      <div className="flex-1 flex flex-col bg-black min-h-full transition-all duration-300" style={{ marginLeft: '256px' }}>
         {/* Messages Area */}
         <div className={`flex-1 overflow-y-auto ${messages.length === 0 ? 'flex items-center justify-center' : ''}`} style={{ padding: '24px' }}>
           {messages.length === 0 ? (
@@ -962,5 +1035,6 @@ export default function ChatInterface() {
         </div>
       </div>
     </div>
+    </>
   );
 }

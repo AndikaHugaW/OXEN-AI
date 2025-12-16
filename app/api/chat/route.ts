@@ -3,13 +3,58 @@ import { routeAIRequest, AIRequestContext, getGlobalPromptRules, RequestMode } f
 import { getLLMProvider } from '@/lib/llm/providers';
 import { needsVisualization, generateVisualization, needsImage, generateImageUrl, isMarketDataRequest, extractMultipleSymbols } from '@/lib/llm/chart-generator';
 import { StructuredResponse } from '@/lib/llm/structured-output';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 // ✅ OPTIMIZED: Separate concerns - chat endpoint only handles LLM + streaming
 export const maxDuration = 60;
 export const runtime = 'nodejs';
 
+// Helper function to save query to database (non-blocking)
+async function saveQueryToDatabase(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  userId: string,
+  message: string,
+  response: string,
+  mode: string = 'chat',
+  metadata: Record<string, any> = {}
+) {
+  try {
+    await supabase.from('ai_queries').insert({
+      user_id: userId,
+      prompt: message,
+      response: response.substring(0, 10000), // Limit response length
+      mode: mode,
+      metadata: {
+        ...metadata,
+        saved_at: new Date().toISOString(),
+      }
+    });
+  } catch (error) {
+    // Log error tapi jangan gagalkan response
+    console.warn('Failed to save query to database:', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 VERIFIKASI SESI PENGGUNA (LANGKAH KRITIS)
+    const cookieStore = cookies();
+    const supabase = createServerSupabaseClient(cookieStore);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      // Pengguna belum login
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Unauthorized',
+          message: 'Please login to access the AI model.'
+        },
+        { status: 401 }
+      );
+    }
+
     // Parse request body with error handling
     let body;
     try {
@@ -285,6 +330,22 @@ FORMAT WAJIB OUTPUT:
     if (routerResponse.mode === RequestMode.LETTER_GENERATOR) {
       if (routerResponse.letter) response.letter = routerResponse.letter;
     }
+
+    // 💾 Opsional: Simpan query ke database (non-blocking)
+    saveQueryToDatabase(
+      supabase,
+      user.id,
+      message,
+      finalResponse,
+      routerResponse.mode || 'chat',
+      {
+        has_chart: !!finalChart,
+        has_table: !!finalTable,
+        has_image: !!routerResponse.imageUrl,
+        conversation_length: conversationHistory.length,
+        structured_output: structuredOutput ? true : false,
+      }
+    );
 
     return NextResponse.json(response);
   } catch (error: any) {

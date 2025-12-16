@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { routeAIRequest, AIRequestContext, RequestMode } from '@/lib/llm/ai-request-router';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
+    // 🔒 VERIFIKASI SESI PENGGUNA (LANGKAH KRITIS)
+    const cookieStore = cookies();
+    const supabase = createServerSupabaseClient(cookieStore);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      // Pengguna belum login
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Unauthorized',
+          message: 'Please login to access the letter generator.'
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { 
       letterType, 

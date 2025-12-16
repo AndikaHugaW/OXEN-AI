@@ -9,13 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.5.1",
+    "@supabase/supabase-js": "^2.87.3",
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jspdf": "^3.0.4",
     "lightweight-charts": "^5.0.9",
     "lucide-react": "^0.561.0",
-    "next": "^14.0.4",
+    "next": "^16.0.10",
     "openai": "^4.20.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
