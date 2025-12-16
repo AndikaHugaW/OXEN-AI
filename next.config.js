@@ -2,16 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   // Use webpack instead of Turbopack to avoid ESM module issues
-  experimental: {
-    turbo: undefined, // Disable Turbopack
-  },
+
   webpack: (config, { isServer }) => {
     // Fix for ESM module resolution
     config.resolve.extensionAlias = {
       '.js': ['.js', '.ts', '.tsx'],
       '.jsx': ['.jsx', '.tsx'],
     };
-    
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -20,7 +18,7 @@ const nextConfig = {
         tls: false,
       };
     }
-    
+
     // Handle ESM modules
     config.module = {
       ...config.module,
@@ -33,7 +31,7 @@ const nextConfig = {
         },
       ],
     };
-    
+
     return config;
   },
 }

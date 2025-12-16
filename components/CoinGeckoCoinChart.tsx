@@ -146,20 +146,51 @@ export default function CoinGeckoCoinChart({
     requestAnimationFrame(step);
   }, []);
 
+  const fetchWithRetry = useCallback(async (url: string, body: any, maxRetries = 2, initialDelay = 1000): Promise<any> => {
+    let retries = maxRetries;
+    let delay = initialDelay;
+    
+    while (true) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify(body),
+        });
+        
+        if (res.status === 429 && retries > 0) {
+          // Wait and retry
+          // Exponential backoff
+          await new Promise(r => setTimeout(r, delay));
+          retries--;
+          delay *= 2;
+          continue;
+        }
+        
+        if (!res.ok) throw new Error(await res.text());
+        return await res.json();
+      } catch (e: any) {
+        if (retries > 0) {
+          // Retry on network errors too
+          await new Promise(r => setTimeout(r, delay));
+          retries--;
+          delay *= 2;
+          continue;
+        }
+        throw e;
+      }
+    }
+  }, []);
+
   const fetchSeries = useCallback(
     async (tf: Timeframe) => {
       setLoading(true);
       setError(null);
       try {
         const days: number | 'max' = tf === 'MAX' ? 'max' : timeframeToDaysCoinGecko(tf);
-        const res = await fetch('/api/coingecko/market-chart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-          body: JSON.stringify({ symbol, days }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const json = await res.json();
+        const json = await fetchWithRetry('/api/coingecko/market-chart', { symbol, days });
+        
         if (!json?.success) throw new Error(json?.message || 'Failed to fetch data');
         setPoints(json.data.series || []);
         const newPrice = json.data.currentPrice;
@@ -172,6 +203,7 @@ export default function CoinGeckoCoinChart({
         }
         setPeriodChangePct(json.data.periodChangePct);
       } catch (e: any) {
+        console.error('Error fetching series:', e);
         setError(e?.message || 'Failed to load chart');
         // Backoff series polling on rate limit
         if (String(e?.message || '').includes('429')) {
@@ -181,7 +213,7 @@ export default function CoinGeckoCoinChart({
         setLoading(false);
       }
     },
-    [symbol]
+    [symbol, fetchWithRetry, animateNumber]
   );
 
   useEffect(() => {
@@ -192,14 +224,9 @@ export default function CoinGeckoCoinChart({
     async (sym: string) => {
       const tf = timeframe;
       const days: number | 'max' = tf === 'MAX' ? 'max' : timeframeToDaysCoinGecko(tf);
-      const res = await fetch('/api/coingecko/market-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ symbol: sym, days }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
+      
+      const json = await fetchWithRetry('/api/coingecko/market-chart', { symbol: sym, days });
+      
       if (!json?.success) throw new Error(json?.message || 'Failed to fetch compare data');
       const series = (json.data.series || []).map((p: any) => ({ t: p.t, time: p.time, price: p.price }));
       const currentPrice = json.data.currentPrice || (series.length > 0 ? series[series.length - 1].price : undefined);
@@ -211,7 +238,7 @@ export default function CoinGeckoCoinChart({
       
       return { sym, series, currentPrice };
     },
-    [timeframe]
+    [timeframe, fetchWithRetry]
   );
 
   useEffect(() => {
@@ -221,16 +248,36 @@ export default function CoinGeckoCoinChart({
       setComparePrices({});
       return;
     }
+    
     let cancelled = false;
     console.log('📊 Fetching compare series for:', compareSymbols);
-    Promise.all(compareSymbols.map((s) => fetchCompareSeries(s).catch((err) => {
-      console.error(`❌ Failed to fetch compare series for ${s}:`, err);
-      return null;
-    }))).then((res) => {
+    
+    // Sequential fetch to avoid rate limits
+    (async () => {
+      const results = [];
+      for (const s of compareSymbols) {
+        if (cancelled) break;
+        
+        // Add delay if not the first one to stagger requests
+        if (results.length > 0) {
+          await new Promise(r => setTimeout(r, 600)); 
+        }
+        
+        try {
+          const res = await fetchCompareSeries(s);
+          results.push(res);
+        } catch (err) {
+          console.error(`❌ Failed to fetch compare series for ${s}:`, err);
+          // Continue to next symbol even if one fails
+        }
+      }
+      
       if (cancelled) return;
+      
       const next: Record<string, Array<{ t: number; time: string; price: number }>> = {};
       const prices: Record<string, number> = {};
-      for (const item of res) {
+      
+      for (const item of results) {
         if (item) {
           next[item.sym] = item.series;
           if (item.currentPrice !== undefined) {
@@ -238,10 +285,12 @@ export default function CoinGeckoCoinChart({
           }
         }
       }
+      
       console.log('✅ Compare series fetched:', { series: Object.keys(next), prices });
       setCompareSeries(next);
       setComparePrices(prev => ({ ...prev, ...prices }));
-    });
+    })();
+
     return () => {
       cancelled = true;
     };

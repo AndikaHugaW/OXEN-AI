@@ -39,7 +39,7 @@ async function saveQueryToDatabase(
 export async function POST(request: NextRequest) {
   try {
     // 🔒 VERIFIKASI SESI PENGGUNA (LANGKAH KRITIS)
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createServerSupabaseClient(cookieStore);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 

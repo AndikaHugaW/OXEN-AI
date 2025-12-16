@@ -10,6 +10,8 @@ export interface StructuredResponse {
   timeframe?: string;
   chart_type?: 'candlestick' | 'line' | 'bar' | 'pie' | 'area';
   indicators?: string[];
+  chart?: any;
+  table?: any;
 }
 
 /**

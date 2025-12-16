@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, BarChart3, TrendingUp, FileText, Send, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity } from 'lucide-react';
+import { Plus, BarChart3, TrendingUp, FileText, Send, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChartRenderer, { ChartData } from './ChartRenderer';
 import DataTable, { TableData } from './DataTable';
 import LoginAlert from './LoginAlert';
 import { createClient } from '@/lib/supabase/client';
+import LetterGenerator from './LetterGenerator';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -34,6 +35,7 @@ export default function ChatInterface() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [activeView, setActiveView] = useState<'chat' | 'letter' | 'market' | 'reports' | 'visualization'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -800,9 +802,8 @@ export default function ChatInterface() {
 
   const handleLoginClick = () => {
     setShowLoginAlert(false);
-    // Scroll to Sign In/Sign Up buttons in navbar
-    // You can customize this to navigate to a login page or open a login modal
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Redirect to login page
+    window.location.href = '/auth/sign-in';
   };
 
   return (
@@ -812,229 +813,229 @@ export default function ChatInterface() {
         onClose={() => setShowLoginAlert(false)}
         onLogin={handleLoginClick}
       />
-      <div className="flex h-[calc(100vh-120px)] min-h-[750px] relative">
-        {/* Sidebar */}
+      <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#09090b]">
         <Sidebar
-        onNewChat={createNewChat}
-        chatHistories={chatHistories}
-        currentChatId={currentChatId}
-        onLoadChat={loadChat}
-        onDeleteChat={deleteChat}
-      />
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-black min-h-full transition-all duration-300" style={{ marginLeft: '256px' }}>
-        {/* Messages Area */}
-        <div className={`flex-1 overflow-y-auto ${messages.length === 0 ? 'flex items-center justify-center' : ''}`} style={{ padding: '24px' }}>
-          {messages.length === 0 ? (
-            <div className="max-w-4xl w-full mx-auto text-center px-6">
-              <div className="mb-10">
-                <h2 className="text-4xl font-bold text-white mb-4">
-                  Hi! AI-powered growth for your business.
-                </h2>
-                <p className="text-2xl text-cyan-400">
-                  How can I assist you today?
-                </p>
-              </div>
-              
-              {/* Suggested Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-16 mb-8">
-                <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                      <Activity className="w-6 h-6 text-cyan-400" />
-                    </div>
-                    <h3 className="text-white font-semibold">Market Trends</h3>
+          onNewChat={createNewChat}
+          chatHistories={chatHistories}
+          currentChatId={currentChatId}
+          onLoadChat={loadChat}
+          onDeleteChat={deleteChat}
+          activeView={activeView}
+          onViewChange={setActiveView}
+        />
+        
+        {activeView === 'letter' ? (
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#09090b] relative">
+            {/* Header for Letter Generator */}
+             <div className="border-b border-[#27272a] bg-[#09090b]/80 backdrop-blur-md p-4 flex items-center justify-between z-10 sticky top-0">
+               <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-cyan-400" />
+                  <h2 className="text-lg font-semibold text-white">Letter Generator</h2>
+               </div>
+             </div>
+             
+             <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                <div className="max-w-5xl mx-auto">
+                  <LetterGenerator />
+                </div>
+             </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-black relative">
+            {/* Messages Area */}
+            <div className={`flex-1 overflow-y-auto ${messages.length === 0 ? 'flex items-center justify-center' : ''}`} style={{ padding: '24px' }}>
+              {messages.length === 0 ? (
+                <div className="max-w-4xl w-full mx-auto text-center px-6">
+                  <div className="mb-10">
+                    <h2 className="text-4xl font-bold text-white mb-4">
+                      Hi! AI-powered growth for your business.
+                    </h2>
+                    <p className="text-2xl text-cyan-400">
+                      How can I assist you today?
+                    </p>
                   </div>
-                  <p className="text-cyan-200/60 text-sm">Research market trends</p>
-                </button>
+                  
+                  {/* Suggested Actions */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-16 mb-8">
+                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                          <Activity className="w-6 h-6 text-cyan-400" />
+                        </div>
+                        <h3 className="text-white font-semibold">Market Trends</h3>
+                      </div>
+                      <p className="text-cyan-200/60 text-sm">Research market trends</p>
+                    </button>
 
-                <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-cyan-400" />
-                    </div>
-                    <h3 className="text-white font-semibold">Generate Reports</h3>
-                  </div>
-                  <p className="text-cyan-200/60 text-sm">Create detailed reports</p>
-                </button>
+                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="w-6 h-6 text-cyan-400" />
+                        </div>
+                        <h3 className="text-white font-semibold">Generate Reports</h3>
+                      </div>
+                      <p className="text-cyan-200/60 text-sm">Create detailed reports</p>
+                    </button>
 
-                <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                      <PieChart className="w-6 h-6 text-cyan-400" />
-                    </div>
-                    <h3 className="text-white font-semibold">Data Visualization</h3>
+                    <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                          <PieChart className="w-6 h-6 text-cyan-400" />
+                        </div>
+                        <h3 className="text-white font-semibold">Data Visualization</h3>
+                      </div>
+                      <p className="text-cyan-200/60 text-sm">Create data visualizations</p>
+                    </button>
                   </div>
-                  <p className="text-cyan-200/60 text-sm">Create data visualizations</p>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-5xl mx-auto px-6 space-y-6 py-6">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  } animate-fade-in`}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  {/* AI Avatar - hanya untuk assistant */}
-                  {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Sparkles className="w-4 h-4 text-cyan-400" />
+                </div>
+              ) : (
+                <div className="max-w-5xl mx-auto px-6 space-y-6 py-6">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-3 ${
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
+                      } animate-fade-in`}
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                    >
+                      {/* AI Avatar */}
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Sparkles className="w-4 h-4 text-cyan-400" />
+                        </div>
+                      )}
+                      
+                      <div
+                        className={`max-w-[85%] lg:max-w-[75%] rounded-2xl backdrop-blur-xl shadow-lg ${
+                          message.role === 'user'
+                            ? 'bg-cyan-500 text-black border border-cyan-400/50 shadow-cyan-500/30 px-6 py-4'
+                            : 'bg-[#18181b] text-gray-300 border border-cyan-500/30 px-6 py-5'
+                        }`}
+                      >
+                        {/* Visualization Rendering */}
+                        {message.imageUrl && (
+                          <div className="mb-4 rounded-lg overflow-hidden">
+                            <img
+                              src={message.imageUrl}
+                              alt="Visualization"
+                              className="w-full h-auto rounded-lg"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        {message.chart ? (
+                          <div className="mb-4 -mx-6">
+                            <ChartRenderer chart={message.chart} />
+                          </div>
+                        ) : null}
+                        
+                        {/* Multiple charts */}
+                        {message.charts && message.charts.length > 0 && (
+                          <div className="mb-4 space-y-6 -mx-6">
+                            {message.charts.map((chart, idx) => (
+                              <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 0.1}s` }}>
+                                <ChartRenderer chart={chart} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {message.table && (
+                          <div className="mb-4 -mx-6">
+                            <DataTable table={message.table} />
+                          </div>
+                        )}
+                        
+                        {/* AI Insight Tag */}
+                        {message.role === 'assistant' && message.content && message.content.trim().length > 20 && (
+                          <div className="mb-3 flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium">
+                              <Sparkles className="w-3 h-3" />
+                              AI Insight
+                            </span>
+                          </div>
+                        )}
+                        
+                        <p className="whitespace-pre-wrap leading-relaxed">
+                          {message.content}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex items-start gap-3 justify-start animate-fade-in">
+                      <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <div className="bg-[#18181b] rounded-2xl px-6 py-4 border border-cyan-500/30 backdrop-blur-xl">
+                        <div className="typing-indicator flex gap-1">
+                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                        </div>
+                      </div>
                     </div>
                   )}
-                  
-                  <div
-                    className={`max-w-[85%] lg:max-w-[75%] rounded-2xl backdrop-blur-xl shadow-lg ${
-                      message.role === 'user'
-                        ? 'bg-cyan-500 text-black border border-cyan-400/50 shadow-cyan-500/30 px-6 py-4'
-                        : 'bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] border border-cyan-500/30 px-6 py-5'
-                    }`}
-                  >
-                    {message.imageUrl && (
-                      <div className="mb-4 rounded-lg overflow-hidden">
-                        <img
-                          src={message.imageUrl}
-                          alt="Visualization"
-                          className="w-full h-auto rounded-lg"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    {/* ✅ CONDITIONAL RENDER: Chart from API data (not from AI text) */}
-                    {message.chart ? (
-                      <div className="mb-4 -mx-6">
-                        <ChartRenderer chart={message.chart} />
-                      </div>
-                    ) : message.content ? (
-                      // If no chart, show text response
-                      null // Text will be shown below
-                    ) : null}
-                    
-                    {/* Multiple charts */}
-                    {message.charts && message.charts.length > 0 && (
-                      <div className="mb-4 space-y-6 -mx-6">
-                        {message.charts.map((chart, idx) => (
-                          <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 0.1}s` }}>
-                            <ChartRenderer chart={chart} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {message.table && (
-                      <div className="mb-4 -mx-6">
-                        <DataTable table={message.table} />
-                      </div>
-                    )}
-                    
-                    {/* AI Insight Tag untuk message dari AI yang berisi analisis */}
-                    {message.role === 'assistant' && message.content && message.content.trim().length > 20 && (
-                      <div className="mb-3 flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium">
-                          <Sparkles className="w-3 h-3" />
-                          AI Insight
-                        </span>
-                      </div>
-                    )}
-                    
-                    <p className={`whitespace-pre-wrap ${
-                      message.role === 'user' 
-                        ? 'text-black text-body' 
-                        : 'text-[hsl(var(--card-foreground))] text-body'
-                    }`}>
-                      {message.content}
-                    </p>
-                    
-                    <span className={`text-small mt-3 block ${
-                      message.role === 'user' 
-                        ? 'text-black/60' 
-                        : 'text-[hsl(var(--muted-foreground))]'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex items-start gap-3 justify-start animate-fade-in">
-                  <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <div className="bg-[hsl(var(--card))] rounded-2xl px-6 py-4 border border-cyan-500/30 backdrop-blur-xl">
-                    <div className="typing-indicator">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  </div>
+                  <div ref={messagesEndRef} />
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-          )}
-        </div>
 
-        {/* Input Area - Sticky */}
-        <div className="sticky bottom-0 border-t border-cyan-500/20 bg-[hsl(var(--background))]/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
-          <div className="max-w-5xl mx-auto">
-            {/* Input Field */}
-            <form onSubmit={handleSubmit} className="relative">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="What do you want to know..."
-                  className="w-full px-6 py-4 pr-24 bg-[hsl(var(--input))] border-2 border-cyan-500/30 rounded-2xl focus:outline-none focus:border-cyan-500 text-[hsl(var(--foreground))] placeholder-cyan-400/50 text-body transition-all"
-                  disabled={isLoading}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="p-2 text-cyan-400/60 hover:text-cyan-400 transition-colors"
-                  >
-                    <Mic className="w-5 h-5" />
+            {/* Input Area - Sticky */}
+            <div className="sticky bottom-0 border-t border-cyan-500/20 bg-black/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
+              <div className="max-w-5xl mx-auto">
+                <form onSubmit={handleSubmit} className="relative">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="What do you want to know..."
+                      className="w-full px-6 py-4 pr-24 bg-[#18181b] border-2 border-cyan-500/30 rounded-2xl focus:outline-none focus:border-cyan-500 text-white placeholder-cyan-400/50 transition-all"
+                      disabled={isLoading}
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="p-2 text-cyan-400/60 hover:text-cyan-400 transition-colors"
+                      >
+                        <Mic className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading || !input.trim()}
+                        className="p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Options Bar */}
+                <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Settings</span>
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading || !input.trim()}
-                    className="p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
+                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
+                  </button>
+                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Notifications</span>
                   </button>
                 </div>
               </div>
-            </form>
-
-            {/* Options Bar */}
-            <div className="flex items-center justify-center gap-6 mt-4 text-small">
-              <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
-              </button>
-              <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                <Paperclip className="w-3.5 h-3.5" />
-                <span>Attach Files</span>
-              </button>
-              <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                <Grid3x3 className="w-3.5 h-3.5" />
-                <span>Tools</span>
-              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </div>
     </>
   );
 }
