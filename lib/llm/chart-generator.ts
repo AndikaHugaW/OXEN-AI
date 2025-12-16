@@ -375,6 +375,7 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
   };
   
   const stockMap: Record<string, string> = {
+    // US Stocks
     'apple': 'aapl',
     'microsoft': 'msft',
     'google': 'googl',
@@ -383,6 +384,7 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
     'facebook': 'meta',
     'nvidia': 'nvda',
     'meta': 'meta',
+    // Indonesian Stocks - Banks
     'goto': 'goto',
     'gojek': 'goto',
     'tokopedia': 'goto',
@@ -393,20 +395,68 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
     'bank rakyat indonesia': 'bbri',
     'bni': 'bbni',
     'bank negara indonesia': 'bbni',
+    'mandiri': 'bmri',
+    'bank mandiri': 'bmri',
+    'bukopin': 'bbca',
+    // Indonesian Stocks - Telecommunications
+    'telkom': 'tlkm',
+    'telkomsel': 'tlkm',
+    'xl axiata': 'excl',
+    'indosat': 'isat',
+    // Indonesian Stocks - Consumer Goods
+    'astra': 'asii',
+    'astra international': 'asii',
+    'unilever': 'unvr',
+    'indofood': 'icbp',
+    'indofood sukses makmur': 'icbp',
+    'indofood cbp': 'icbp',
+    // Indonesian Stocks - Energy
+    'perusahaan gas negara': 'pgas',
+    'pgn': 'pgas',
+    'pertamina': 'ptba',
+    'adaro': 'adro',
+    // Indonesian Stocks - Others
+    'kalbe': 'klbf',
+    'kalbe farma': 'klbf',
+    'gudang garam': 'ggrm',
+    'semen indonesia': 'smgr',
+    'indocement': 'inbp',
   };
   
   // Common crypto symbols
-  const cryptoKeywords = ['btc', 'bitcoin', 'eth', 'ethereum', 'bnb', 'binance', 'sol', 'solana',
+  // NOTE: "sol" is removed to avoid matching "solusi" - use "solana" instead
+  const cryptoKeywords = ['btc', 'bitcoin', 'eth', 'ethereum', 'bnb', 'binance', 'solana',
     'ada', 'cardano', 'xrp', 'ripple', 'dot', 'polkadot', 'matic', 'polygon',
     'avax', 'avalanche', 'doge', 'dogecoin', 'ltc', 'litecoin', 'link', 'chainlink',
     'atom', 'cosmos', 'trx', 'tron'];
   
   // Common stock symbols
-  const stockKeywords = ['aapl', 'apple', 'msft', 'microsoft', 'googl', 'google', 'amzn', 'amazon',
-    'tsla', 'tesla', 'meta', 'facebook', 'nvda', 'nvidia', 'goto', 'gojek', 'tokopedia', 
+  const stockKeywords = [
+    // US Stocks
+    'aapl', 'apple', 'msft', 'microsoft', 'googl', 'google', 'amzn', 'amazon',
+    'tsla', 'tesla', 'meta', 'facebook', 'nvda', 'nvidia',
+    // Indonesian Stocks - Banks
+    'goto', 'gojek', 'tokopedia', 
     'bca', 'bbca', 'bank central asia',
     'bri', 'bbri', 'bank rakyat indonesia',
-    'bni', 'bbni', 'bank negara indonesia'];
+    'bni', 'bbni', 'bank negara indonesia',
+    'bmri', 'mandiri', 'bank mandiri',
+    // Indonesian Stocks - Telecommunications
+    'tlkm', 'telkom', 'telkomsel',
+    'excl', 'xl axiata',
+    'isat', 'indosat',
+    // Indonesian Stocks - Consumer Goods
+    'asii', 'astra', 'astra international',
+    'unvr', 'unilever',
+    'icbp', 'indofood', 'indofood sukses makmur',
+    // Indonesian Stocks - Energy
+    'pgas', 'perusahaan gas negara', 'pgn',
+    'adro', 'adaro',
+    // Indonesian Stocks - Others
+    'klbf', 'kalbe', 'kalbe farma',
+    'ggrm', 'gudang garam',
+    'smgr', 'semen indonesia'
+  ];
   
   // Extract timeframe/days (default 7)
   // Supports: "7 hari", "1 bulan", "2 minggu", "1 year", shorthand "1D/7D/1W/1M/3M/6M/1Y", "YTD", "MAX"
@@ -451,49 +501,207 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
   // Detect chart type
   const chartType = detectChartType(query);
   
-  // Check for crypto - check full names first
-  for (const [fullName, symbol] of Object.entries(cryptoMap)) {
-    if (queryLower.includes(fullName)) {
-      return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+  // EXCLUDE general business questions that don't need market data
+  // If query is about business problems, strategy, or general questions, it's NOT a market request
+  const businessQuestionPatterns = [
+    /^(aku|saya|kami|kita|perusahaan|bisnis|produk|produkku|produk saya).*(masalah|problem|issue|kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i,
+    /^(gimana|bagaimana|tolong|bisa|mau|ingin).*(cara|strategi|solusi|solution|analisis|analysis|masalah|problem)/i,
+    /^(jelaskan|explain|ceritakan|tell).*(apa|what|mengapa|why|bagaimana|how)/i,
+    /(produk|product|masalah|problem|solusi|solution|strategi|strategy|bisnis|business|perusahaan|company).*(kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i,
+    // Business data analysis patterns
+    /(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales|revenue|pendapatan|keuangan|financial|bisnis|business|perusahaan|company|produk|product|customer|pelanggan|marketing|operasional|operational).*(?:dari|from|dengan|with|metode|method|cara|how|bagaimana|gimana)/i,
+    /(?:cara|how|bagaimana|gimana|metode|method).*(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales|revenue|pendapatan|keuangan|financial|bisnis|business)/i,
+  ];
+  
+  // CRITICAL: Check for business words that might be confused with crypto symbols
+  const businessWords = [
+    'solusi', 'solution', 'ada masalah', 'ada problem', 'ada issue', 
+    'kasih solusi', 'beri solusi', 'memberikan solusi',
+    'data penjualan', 'sales data', 'penjualan', 'sales', 'revenue', 'pendapatan',
+    'identifikasi trend', 'identify trend', 'trend penjualan', 'sales trend',
+    'metode valid', 'valid method', 'cara identifikasi', 'how to identify',
+    'analisis bisnis', 'business analysis', 'analisis data', 'data analysis'
+  ];
+  const hasBusinessWord = businessWords.some(bw => queryLower.includes(bw));
+  
+  // Check for business data analysis keywords (NOT market data)
+  const businessDataKeywords = [
+    'data penjualan', 'sales data', 'data bisnis', 'business data',
+    'trend penjualan', 'sales trend', 'trend bisnis', 'business trend',
+    'identifikasi trend', 'identify trend', 'analisis penjualan', 'sales analysis',
+    'metode valid', 'valid method', 'cara identifikasi', 'how to identify'
+  ];
+  const hasBusinessDataKeyword = businessDataKeywords.some(kw => queryLower.includes(kw));
+  
+  // If it matches business question patterns OR contains business words, it's NOT a market request
+  if (businessQuestionPatterns.some(pattern => pattern.test(query)) || hasBusinessWord || hasBusinessDataKeyword) {
+    // UNLESS it explicitly mentions stock/crypto symbols WITH action words
+    const hasExplicitSymbolWithAction = /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show|perlihatkan|buat|create)\s+(?:bitcoin|btc|ethereum|eth|binance|bnb|solana|cardano|ada|xrp|ripple|polkadot|dot|polygon|matic|avalanche|avax|dogecoin|doge|litecoin|ltc|chainlink|link|cosmos|atom|tron|trx|apple|aapl|microsoft|msft|google|googl|amazon|amzn|tesla|tsla|facebook|meta|nvidia|nvda|goto|gojek|tokopedia)/i.test(query);
+    
+    if (!hasExplicitSymbolWithAction) {
+      // Definitely a business question, not a market request
+      return { isMarket: false };
     }
   }
   
-  // Check for crypto symbols
+  // Check for crypto - check full names first - MUST be explicit
+  for (const [fullName, symbol] of Object.entries(cryptoMap)) {
+    if (queryLower.includes(fullName)) {
+      // MUST have explicit action word OR be in explicit pattern
+      const hasExplicitAction = /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show|perlihatkan|buat|create)\s+/i.test(query);
+      const isInExplicitPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show)\s+(?:bitcoin|btc|ethereum|eth|binance|bnb|solana|sol|cardano|ada|xrp|ripple|polkadot|dot|polygon|matic|avalanche|avax|dogecoin|doge|litecoin|ltc|chainlink|link|cosmos|atom|tron|trx)/i.test(query);
+      
+      if (hasExplicitAction || isInExplicitPattern) {
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+      }
+    }
+  }
+  
+  // Check for crypto symbols - MUST be explicit with action words
   for (const keyword of cryptoKeywords) {
     if (queryLower.includes(keyword)) {
       // Skip if it's just general "crypto" mention without symbol
       if ((keyword === 'kripto' || keyword === 'crypto' || keyword === 'cryptocurrency') && 
-          !/(?:analisis|chart|grafik|harga|price|data)\s+[a-z]{2,10}/i.test(query)) {
+          !/(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show)\s+[a-z]{2,10}/i.test(query)) {
         continue;
       }
-      return { isMarket: true, symbol: keyword.toUpperCase(), type: 'crypto', days, chartType };
+      
+      // MUST have explicit action word (tampilkan, analisis, chart, harga, etc.) OR be in pattern
+      const hasExplicitAction = /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show|perlihatkan|buat|create)\s+/i.test(query);
+      const isInPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show)\s+[a-z]{2,10}/i.test(query);
+      
+      // CRITICAL: Skip common words that might match but aren't market requests
+      // "sol" might match "solusi", "ada" might match "ada masalah", "dot" might match other words
+      if (keyword.length <= 3) {
+        // For short keywords, check if it's part of a business word or business context
+        const businessWords = [
+          'solusi', 'solution', 'kasih solusi', 'beri solusi', 'memberikan solusi', 
+          'ada masalah', 'ada problem', 'ada issue', 'ada data', 'ada penjualan',
+          'data penjualan', 'sales data', 'identifikasi', 'identify', 'metode', 'method'
+        ];
+        const isPartOfBusinessWord = businessWords.some(bw => queryLower.includes(bw));
+        
+        // Special case for "ada" - check if it's in business context
+        if (keyword === 'ada') {
+          // If "ada" appears in business context (data, penjualan, masalah, etc.), skip it
+          if (/(?:ada\s+(?:data|penjualan|sales|masalah|problem|issue|trend|tren|metode|method|identifikasi|identify|cara|how))/i.test(query)) {
+            // It's business context, not Cardano
+            continue;
+          }
+          // If "ada" appears with action word but in business context, still skip
+          if (/(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales).*(?:dari|from|dengan|with|metode|method)/i.test(query)) {
+            // Business data analysis, not Cardano
+            continue;
+          }
+        }
+        
+        // If it's part of a business word, ALWAYS skip (even with action word, unless explicitly "solana" or "sol" with action)
+        if (isPartOfBusinessWord) {
+          // Special case: if keyword is "sol" and query explicitly says "solana" or "sol" with action word, allow it
+          if (keyword === 'sol' && (queryLower.includes('solana') || (hasExplicitAction && /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show)\s+sol\b/i.test(query)))) {
+            // Allow only if explicitly "solana" or "sol" with action word AND not part of "solusi"
+            if (!queryLower.includes('solusi') && !queryLower.includes('solution')) {
+              // Continue to check action word below
+            } else {
+              // It's "solusi", not Solana
+              continue;
+            }
+          } else {
+            // It's likely part of a business word, not a crypto symbol
+            continue;
+          }
+        }
+        
+        // Only accept short keywords if explicitly mentioned with action word
+        if (!hasExplicitAction && !isInPattern) {
+          continue;
+        }
+      }
+      
+      if (hasExplicitAction || isInPattern) {
+        return { isMarket: true, symbol: keyword.toUpperCase(), type: 'crypto', days, chartType };
+      }
     }
   }
   
-  // Check for stocks - check full names first
+  // Check for stocks - check full names first - MUST be explicit
   for (const [fullName, symbol] of Object.entries(stockMap)) {
     if (queryLower.includes(fullName)) {
-      return { isMarket: true, symbol: symbol.toUpperCase(), type: 'stock', days, chartType };
+      // MUST have explicit action word
+      const hasExplicitAction = /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show|perlihatkan|buat|create)\s+/i.test(query);
+      if (hasExplicitAction) {
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'stock', days, chartType };
+      }
     }
   }
   
-  // Check for stock symbols
+  // Check for stock symbols - MUST be explicit
   for (const keyword of stockKeywords) {
     if (queryLower.includes(keyword)) {
-      return { isMarket: true, symbol: keyword.toUpperCase(), type: 'stock', days, chartType };
+      // MUST have explicit action word
+      const hasExplicitAction = /(?:tampilkan|analisis|chart|grafik|harga|price|data|lihat|show|perlihatkan|buat|create)\s+/i.test(query);
+      if (hasExplicitAction) {
+        return { isMarket: true, symbol: keyword.toUpperCase(), type: 'stock', days, chartType };
+      }
     }
   }
   
   // Pattern matching for "analisis BTC", "chart Bitcoin", "harga ETH"
-  const cryptoPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show|perlihatkan)\s+(bitcoin|btc|ethereum|eth|binance|bnb|solana|sol|cardano|ada|xrp|ripple|polkadot|dot|polygon|matic|avalanche|avax|dogecoin|doge|litecoin|ltc|chainlink|link|cosmos|atom|tron|trx)/i;
+  // MUST have explicit action word followed by symbol
+  // CRITICAL: Exclude "sol" from pattern to avoid matching "solusi" - only use "solana"
+  const cryptoPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show|perlihatkan|buat|create)\s+(bitcoin|btc|ethereum|eth|binance|bnb|solana|cardano|ada|xrp|ripple|polkadot|polygon|matic|avalanche|avax|dogecoin|doge|litecoin|ltc|chainlink|link|cosmos|atom|tron|trx)/i;
   const cryptoMatch = queryLower.match(cryptoPattern);
   if (cryptoMatch) {
     const found = cryptoMatch[1].toLowerCase();
-    const symbol = cryptoMap[found] || found;
-    return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+    
+    // CRITICAL: "sol" should NEVER match if it's part of "solusi" or "solution"
+    // CRITICAL: "ada" should NEVER match if it's in business context
+    if (found === 'sol') {
+      // Check if "sol" is part of "solusi" or "solution"
+      const solusiPattern = /(?:solusi|solution|kasih solusi|beri solusi|memberikan solusi)/i;
+      if (solusiPattern.test(query)) {
+        // It's "solusi", not Solana - skip
+        // Don't return, continue to check other patterns
+      } else if (queryLower.includes('solana')) {
+        // Explicitly "solana", allow it
+        const symbol = cryptoMap['solana'] || 'SOL';
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+      } else if (/(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show)\s+sol\b/i.test(query)) {
+        // Explicitly "sol" with action word, allow it
+        const symbol = cryptoMap[found] || found;
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+      } else {
+        // "sol" without clear context, skip to avoid false positive
+        // Don't return, continue to check other patterns
+      }
+    } else if (found === 'ada') {
+      // Check if "ada" is in business context
+      const businessContextPattern = /(?:ada\s+(?:data|penjualan|sales|masalah|problem|issue|trend|tren|metode|method|identifikasi|identify|cara|how))/i;
+      const businessDataPattern = /(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales).*(?:dari|from|dengan|with|metode|method)/i;
+      
+      if (businessContextPattern.test(query) || businessDataPattern.test(query)) {
+        // It's business context, not Cardano - skip
+        // Don't return, continue to check other patterns
+      } else if (queryLower.includes('cardano')) {
+        // Explicitly "cardano", allow it
+        const symbol = cryptoMap['cardano'] || 'ADA';
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+      } else if (/(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show)\s+ada\b/i.test(query)) {
+        // Explicitly "ada" with action word, allow it
+        const symbol = cryptoMap[found] || found;
+        return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+      } else {
+        // "ada" without clear context, skip to avoid false positive
+        // Don't return, continue to check other patterns
+      }
+    } else {
+      // Not "sol" or "ada", proceed normally
+      const symbol = cryptoMap[found] || found;
+      return { isMarket: true, symbol: symbol.toUpperCase(), type: 'crypto', days, chartType };
+    }
   }
   
-  const stockPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show|perlihatkan)\s+(apple|aapl|microsoft|msft|google|googl|amazon|amzn|tesla|tsla|facebook|meta|nvidia|nvda|goto|gojek|tokopedia)/i;
+  const stockPattern = /(?:analisis|chart|grafik|harga|price|data|tampilkan|lihat|show|perlihatkan|buat|create)\s+(apple|aapl|microsoft|msft|google|googl|amazon|amzn|tesla|tsla|facebook|meta|nvidia|nvda|goto|gojek|tokopedia)/i;
   const stockMatch = queryLower.match(stockPattern);
   if (stockMatch) {
     const found = stockMatch[1].toLowerCase();

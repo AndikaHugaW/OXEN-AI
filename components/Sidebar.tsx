@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, MessageSquare, FileText, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
+import { Plus, MessageSquare, Clock, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
 
 interface SidebarProps {
   onNewChat: () => void;
@@ -88,7 +88,7 @@ export default function Sidebar({
               sidebarOpen ? 'justify-start' : 'justify-center'
             } text-cyan-200/70 hover:bg-cyan-500/10 hover:text-cyan-300`}
           >
-            <FileText className="w-5 h-5" />
+            <Clock className="w-5 h-5" />
             {sidebarOpen && <span className="text-sm font-medium">History</span>}
           </button>
         </div>

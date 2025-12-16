@@ -47,6 +47,8 @@ export interface ChartData {
   currentPrice?: number;
   change24h?: number;
   asset_type?: 'crypto' | 'stock';
+  logoUrl?: string; // Logo URL langsung dari API - bisa digunakan langsung di browser
+  companyName?: string; // Nama perusahaan dari API
   timeframe?: string; // For comparison widget timeframe
   // For comparison widget
   comparisonAssets?: Array<{
@@ -634,6 +636,8 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
         currentPrice={chart.currentPrice}
         change24h={chart.change24h}
         assetType={resolvedAssetType}
+        logoUrl={chart.logoUrl} // Logo URL langsung dari API - bisa digunakan langsung di browser
+        companyName={chart.companyName} // Nama perusahaan dari API
         high={high}
         low={low}
         open={open}

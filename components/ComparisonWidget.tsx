@@ -73,123 +73,157 @@ export default function ComparisonWidget({
       const logoMap: Record<string, string> = {};
       const nameMap: Record<string, string> = {};
       
+      console.log(`📊 [ComparisonWidget] Fetching logos for ${assets.length} assets (type: ${assetType})`);
+      
       for (const asset of assets) {
+        // Always fetch logo from API, even if asset.logo exists (to ensure it's up to date)
+        let logoFromAsset = false;
+        
         if (asset.logo) {
-          // Verify existing logo URL
+          // Verify existing logo URL first
           const img = new Image();
           const logoVerified = await new Promise<boolean>((resolve) => {
             img.onload = () => resolve(true);
             img.onerror = () => resolve(false);
             img.src = asset.logo!;
-            // Timeout after 5 seconds
-            setTimeout(() => resolve(false), 5000);
+            // Timeout after 3 seconds
+            setTimeout(() => resolve(false), 3000);
           });
           
           if (logoVerified) {
             logoMap[asset.symbol] = asset.logo;
+            logoFromAsset = true;
+            console.log(`✅ [ComparisonWidget] Using existing logo for ${asset.symbol}:`, asset.logo);
+          } else {
+            console.warn(`⚠️ [ComparisonWidget] Existing logo invalid for ${asset.symbol}, fetching new one...`);
           }
           
           if (asset.name) nameMap[asset.symbol] = asset.name;
-          if (!logoVerified) {
-            // Logo invalid, fetch new one below
-          } else {
-            continue;
+        }
+        
+        // If logo not set from asset, fetch from API
+        if (!logoFromAsset) {
+          try {
+            // For crypto, get logo directly from CoinGecko meta (more reliable)
+            if (assetType === 'crypto') {
+              try {
+                const metaRes = await fetch('/api/coingecko/meta', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ symbol: asset.symbol }),
+                });
+                if (metaRes.ok) {
+                  const metaJson = await metaRes.json();
+                  if (metaJson?.success && metaJson?.data) {
+                    nameMap[asset.symbol] = metaJson.data.name || asset.symbol;
+                    // Get logo URL from meta - use direct URL (CoinGecko allows CORS for images)
+                    // Prefer small for better performance, fallback to thumb or large
+                    const logoUrl = metaJson.data.image?.small || metaJson.data.image?.thumb || metaJson.data.image?.large;
+                    if (logoUrl) {
+                      // Verify logo URL is valid before setting
+                      const img = new Image();
+                      const logoValid = await new Promise<boolean>((resolve) => {
+                        img.onload = () => resolve(true);
+                        img.onerror = () => resolve(false);
+                        img.src = logoUrl;
+                        // Timeout after 3 seconds
+                        setTimeout(() => resolve(false), 3000);
+                      });
+                      
+                      if (logoValid) {
+                        // Use direct URL - CoinGecko images are CORS-friendly
+                        logoMap[asset.symbol] = logoUrl;
+                        console.log(`✅ Logo URL verified and set for ${asset.symbol}:`, logoUrl);
+                      } else {
+                        console.warn(`⚠️ Logo URL failed verification for ${asset.symbol}:`, logoUrl);
+                        // Try alternative size
+                        const altUrl = metaJson.data.image?.large || metaJson.data.image?.thumb;
+                        if (altUrl && altUrl !== logoUrl) {
+                          logoMap[asset.symbol] = altUrl;
+                          console.log(`✅ Using alternative logo URL for ${asset.symbol}:`, altUrl);
+                        }
+                      }
+                    } else {
+                      console.warn(`⚠️ No logo URL found in meta for ${asset.symbol}`);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.warn(`Failed to fetch crypto meta for ${asset.symbol}:`, error);
+              }
+            } else {
+              // For stocks, try direct browser URLs first (Clearbit, IEX)
+              const ticker = asset.symbol.toUpperCase().replace('.JK', '');
+              const domainMap: Record<string, string> = {
+                BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+                BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+                GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+                INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+                MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+                AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
+              };
+              const domain = domainMap[ticker];
+              
+              // Try Clearbit direct URL first (from browser, no proxy needed)
+              if (domain) {
+                const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+                console.log(`🚀 [ComparisonWidget] Setting Clearbit direct URL for ${asset.symbol}:`, clearbitUrl);
+                logoMap[asset.symbol] = clearbitUrl;
+              } else {
+                // Try IEX direct URL
+                const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+                console.log(`🚀 [ComparisonWidget] Setting IEX direct URL for ${asset.symbol}:`, iexUrl);
+                logoMap[asset.symbol] = iexUrl;
+              }
+              
+              // Also try logo API for potentially better quality logo (Yahoo Finance)
+              try {
+                console.log(`📡 [ComparisonWidget] Also fetching from logo API for ${asset.symbol}...`);
+                const res = await fetch('/api/logo', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    symbol: asset.symbol,
+                    type: 'stock'
+                  }),
+                });
+                
+                if (res.ok) {
+                  const json = await res.json();
+                  if (json?.success && json?.logoUrl) {
+                    // Use direct logoUrl from browser (Yahoo Finance, etc.)
+                    console.log(`✅ [ComparisonWidget] Better logo URL from API for ${asset.symbol}:`, json.logoUrl);
+                    logoMap[asset.symbol] = json.logoUrl; // Override with better quality logo
+                  }
+                }
+              } catch (error) {
+                console.warn(`⚠️ [ComparisonWidget] Logo API fetch failed for ${asset.symbol}, using direct URL:`, error);
+                // Keep the direct URL we set above
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch logo for ${asset.symbol}:`, error);
           }
         }
         
-        try {
-          // For crypto, get logo directly from CoinGecko meta (more reliable)
-          if (assetType === 'crypto') {
-            try {
-              const metaRes = await fetch('/api/coingecko/meta', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol: asset.symbol }),
-              });
-              if (metaRes.ok) {
-                const metaJson = await metaRes.json();
-                if (metaJson?.success && metaJson?.data) {
-                  nameMap[asset.symbol] = metaJson.data.name || asset.symbol;
-                  // Get logo URL from meta - use direct URL (CoinGecko allows CORS for images)
-                  // Prefer small for better performance, fallback to thumb or large
-                  const logoUrl = metaJson.data.image?.small || metaJson.data.image?.thumb || metaJson.data.image?.large;
-                  if (logoUrl) {
-                    // Verify logo URL is valid before setting
-                    const img = new Image();
-                    const logoValid = await new Promise<boolean>((resolve) => {
-                      img.onload = () => resolve(true);
-                      img.onerror = () => resolve(false);
-                      img.src = logoUrl;
-                      // Timeout after 3 seconds
-                      setTimeout(() => resolve(false), 3000);
-                    });
-                    
-                    if (logoValid) {
-                      // Use direct URL - CoinGecko images are CORS-friendly
-                      logoMap[asset.symbol] = logoUrl;
-                      console.log(`✅ Logo URL verified and set for ${asset.symbol}:`, logoUrl);
-                    } else {
-                      console.warn(`⚠️ Logo URL failed verification for ${asset.symbol}:`, logoUrl);
-                      // Try alternative size
-                      const altUrl = metaJson.data.image?.large || metaJson.data.image?.thumb;
-                      if (altUrl && altUrl !== logoUrl) {
-                        logoMap[asset.symbol] = altUrl;
-                        console.log(`✅ Using alternative logo URL for ${asset.symbol}:`, altUrl);
-                      }
-                    }
-                  } else {
-                    console.warn(`⚠️ No logo URL found in meta for ${asset.symbol}`);
-                  }
-                }
-              }
-            } catch (error) {
-              console.warn(`Failed to fetch crypto meta for ${asset.symbol}:`, error);
-            }
-          } else {
-            // For stocks, use logo API endpoint
-            try {
-              const res = await fetch('/api/logo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  symbol: asset.symbol,
-                  type: assetType 
-                }),
-              });
-              
-              if (res.ok) {
-                const json = await res.json();
-                if (json?.success) {
-                  // Prefer proxy URL to avoid CORS issues, fallback to direct URL
-                  if (json.proxyUrl) {
-                    logoMap[asset.symbol] = json.proxyUrl;
-                    console.log(`✅ Logo proxy URL set for ${asset.symbol}:`, json.proxyUrl);
-                  } else if (json.logoUrl) {
-                    logoMap[asset.symbol] = json.logoUrl;
-                    console.log(`✅ Logo direct URL set for ${asset.symbol}:`, json.logoUrl);
-                  }
-                }
-              }
-            } catch (error) {
-              console.warn(`Failed to fetch logo via API for ${asset.symbol}:`, error);
-            }
-          }
-          
-          if (!nameMap[asset.symbol]) {
-            nameMap[asset.symbol] = asset.name || asset.symbol;
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch logo for ${asset.symbol}:`, error);
+        if (!nameMap[asset.symbol]) {
           nameMap[asset.symbol] = asset.name || asset.symbol;
         }
       }
       
-      console.log('📊 Logo fetch complete:', { logoMap, nameMap });
+      console.log('📊 [ComparisonWidget] Logo fetch complete:', { 
+        logoMap, 
+        nameMap,
+        symbols: assets.map(a => a.symbol),
+        logosFound: Object.keys(logoMap).length
+      });
       setAssetLogos(logoMap);
       setAssetNames(nameMap);
     };
     
-    fetchLogos();
+    if (assets && assets.length > 0) {
+      fetchLogos();
+    }
   }, [assets, assetType]);
 
   const handleTimeframeChange = async (tf: string) => {
@@ -312,15 +346,17 @@ export default function ComparisonWidget({
             >
               {/* Logo */}
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-cyan-500/20 shadow-md"
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden border-2 border-cyan-500/30 shadow-lg"
                 style={{ backgroundColor: assetLogos[asset.symbol] ? 'transparent' : getAssetColor(index) }}
               >
                 {assetLogos[asset.symbol] ? (
                   <img 
+                    key={`${asset.symbol}-${assetLogos[asset.symbol]}`}
                     src={assetLogos[asset.symbol]} 
-                    alt={asset.symbol} 
+                    alt={`${asset.symbol} logo`}
                     className="w-full h-full object-cover"
                     loading="eager"
+                    crossOrigin="anonymous"
                     onLoad={(e) => {
                       // Logo loaded successfully, ensure parent has transparent background
                       const parent = e.currentTarget.parentElement;
@@ -386,11 +422,42 @@ export default function ComparisonWidget({
                           }
                         });
                       } else {
-                        // For stocks, try proxy URL if direct failed
+                        // For stocks, try alternative sources if current failed
                         const target = e.currentTarget;
                         const currentSrc = target.src;
-                        if (!currentSrc.includes('/api/logo')) {
-                          // Try proxy URL
+                        
+                        // If proxy URL failed, try direct URL from API
+                        if (currentSrc.includes('/api/logo')) {
+                          fetch('/api/logo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ symbol: asset.symbol, type: 'stock' }),
+                          })
+                          .then(res => res.json())
+                          .then(json => {
+                            if (json?.success && json?.logoUrl && json.logoUrl !== currentSrc) {
+                              target.src = json.logoUrl;
+                            } else {
+                              // All sources failed, use fallback
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = asset.symbol.substring(0, 2);
+                                parent.style.backgroundColor = getAssetColor(index);
+                              }
+                            }
+                          })
+                          .catch(() => {
+                            // API call failed, use fallback
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.innerHTML = asset.symbol.substring(0, 2);
+                              parent.style.backgroundColor = getAssetColor(index);
+                            }
+                          });
+                        } else {
+                          // Direct URL failed, try proxy URL
                           target.src = `/api/logo?symbol=${encodeURIComponent(asset.symbol)}&type=stock`;
                           target.onerror = () => {
                             // Proxy also failed, use fallback
@@ -401,14 +468,6 @@ export default function ComparisonWidget({
                               parent.style.backgroundColor = getAssetColor(index);
                             }
                           };
-                        } else {
-                          // Already tried proxy, use fallback
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = asset.symbol.substring(0, 2);
-                            parent.style.backgroundColor = getAssetColor(index);
-                          }
                         }
                       }
                     }}
@@ -419,39 +478,41 @@ export default function ComparisonWidget({
               </div>
 
               {/* Asset Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-white font-semibold text-sm truncate">
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <h3 className="text-white font-semibold text-base truncate">
                     {assetNames[asset.symbol] || asset.name || asset.symbol}
                   </h3>
                   {asset.exchange && (
-                    <span className="text-gray-400 text-xs">({asset.exchange})</span>
+                    <span className="text-gray-400 text-xs font-medium">({asset.exchange})</span>
                   )}
                 </div>
-                <div className="text-cyan-400 font-mono text-xs">
+                <div className="text-cyan-400 font-mono text-sm font-semibold">
                   {asset.symbol}
                 </div>
               </div>
 
               {/* Price Info */}
-              <div className="text-right">
-                <div className="text-white font-semibold text-lg">
+              <div className="text-right flex flex-col justify-center">
+                <div className="text-white font-bold text-2xl mb-1">
                   {formatPrice(asset.currentPrice)}
                 </div>
                 <div className={cn(
-                  "text-sm font-medium flex items-center gap-1 justify-end",
-                  asset.change >= 0 ? "text-green-400" : "text-red-400"
+                  "text-base font-semibold flex items-center gap-1.5 justify-end",
+                  asset.change >= 0 
+                    ? "text-green-400" 
+                    : "text-red-400"
                 )}>
                   {asset.change >= 0 ? (
-                    <TrendingUp className="w-3 h-3" />
+                    <TrendingUp className="w-4 h-4" />
                   ) : (
-                    <TrendingDown className="w-3 h-3" />
+                    <TrendingDown className="w-4 h-4" />
                   )}
-                  <span>{formatChange(asset.change)}</span>
-                  <span>({formatPercent(asset.changePercent)})</span>
+                  <span className="font-mono">{formatChange(asset.change)}</span>
+                  <span className="font-mono">({formatPercent(asset.changePercent)})</span>
                 </div>
                 {asset.timestamp && (
-                  <div className="text-gray-500 text-xs mt-1">
+                  <div className="text-gray-400 text-xs mt-1.5">
                     {asset.timestamp}
                   </div>
                 )}
@@ -462,24 +523,29 @@ export default function ComparisonWidget({
       </CardHeader>
 
       {/* Navigation Bar */}
-      <div className="relative px-6 py-3 border-b border-cyan-500/20">
+      <div className="relative px-6 py-4 border-b border-cyan-500/20">
         <div className="flex items-center justify-between">
           {/* Timeframe Selector */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf}
                 onClick={() => handleTimeframeChange(tf)}
                 disabled={isLoadingTimeframe}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
+                  "px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "relative group",
                   selectedTimeframe === tf
-                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.3)]"
-                    : "text-gray-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+                    : "text-gray-400 hover:text-cyan-300 hover:bg-cyan-500/10 hover:border hover:border-cyan-500/20"
                 )}
+                title={`View ${tf} timeframe`}
               >
                 {tf}
+                {selectedTimeframe === tf && (
+                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
+                )}
               </button>
             ))}
           </div>
@@ -529,7 +595,7 @@ export default function ComparisonWidget({
       </div>
 
       {/* Chart */}
-      <CardContent className="relative px-6 pb-6 pt-4" ref={chartContainerRef}>
+      <CardContent className="relative px-6 pb-8 pt-6" ref={chartContainerRef}>
         {/* Zoom Controls */}
         <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-lg p-1 border border-cyan-500/20">
             <button
@@ -560,7 +626,7 @@ export default function ComparisonWidget({
             </button>
         </div>
         
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={450}>
           <LineChart 
             data={percentageChartData} 
             margin={{ top: 10, right: 20, left: 10, bottom: 60 }}
@@ -584,17 +650,17 @@ export default function ComparisonWidget({
             />
             <XAxis
               dataKey={xKey}
-              stroke="rgba(148, 163, 184, 0.5)"
-              tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11, fontWeight: 500 }}
-              tickMargin={10}
-              axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
+              stroke="rgba(148, 163, 184, 0.7)"
+              tick={{ fill: 'rgba(203, 213, 225, 0.9)', fontSize: 13, fontWeight: 600 }}
+              tickMargin={12}
+              axisLine={{ stroke: 'rgba(148, 163, 184, 0.3)' }}
             />
             <YAxis
-              stroke="rgba(148, 163, 184, 0.5)"
-              tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11, fontWeight: 500 }}
-              tickMargin={10}
-              axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
-              label={{ value: '% Change', angle: -90, position: 'insideLeft', fill: 'rgba(148, 163, 184, 0.8)' }}
+              stroke="rgba(148, 163, 184, 0.7)"
+              tick={{ fill: 'rgba(203, 213, 225, 0.9)', fontSize: 13, fontWeight: 600 }}
+              tickMargin={12}
+              axisLine={{ stroke: 'rgba(148, 163, 184, 0.3)' }}
+              label={{ value: '% Change', angle: -90, position: 'insideLeft', fill: 'rgba(203, 213, 225, 0.9)', fontSize: 13, fontWeight: 600 }}
               tickFormatter={(value) => `${value}%`}
             />
             <ReferenceLine y={0} stroke="rgba(148, 163, 184, 0.3)" strokeDasharray="5 5" />
@@ -611,13 +677,15 @@ export default function ComparisonWidget({
               }}
               labelStyle={{ 
                 color: '#06b6d4', 
-                fontSize: '12px',
-                fontWeight: 600,
-                marginBottom: '8px'
+                fontSize: '13px',
+                fontWeight: 700,
+                marginBottom: '10px'
               }}
               itemStyle={{ 
                 color: '#ffffff',
-                padding: '4px 0'
+                padding: '5px 0',
+                fontSize: '13px',
+                fontWeight: 500
               }}
               formatter={(value: any) => `${Number(value).toFixed(2)}%`}
             />
@@ -646,31 +714,78 @@ export default function ComparisonWidget({
             {yKeys.map((key, index) => {
               const color = getAssetColor(index);
               const asset = assets.find(a => a.symbol === key);
+              // Ensure color consistency: use the same color from asset or fallback to ASSET_COLORS
+              const lineColor = asset?.color || color;
               return (
                 <Line
                   key={key}
                   type="monotone"
                   dataKey={key}
-                  stroke={color}
-                  strokeWidth={2.5}
+                  stroke={lineColor}
+                  strokeWidth={3}
                   dot={false}
                   activeDot={{ 
-                    r: 6, 
-                    fill: color,
+                    r: 7, 
+                    fill: lineColor,
                     stroke: '#000',
-                    strokeWidth: 2,
-                    style: { filter: `drop-shadow(0 0 6px ${color})` }
+                    strokeWidth: 2.5,
+                    style: { filter: `drop-shadow(0 0 8px ${lineColor})` }
                   }}
                   isAnimationActive={true}
                   animationDuration={800}
                   animationEasing="ease-out"
-                  style={{ filter: `drop-shadow(0 0 3px ${color}80)` }}
+                  style={{ filter: `drop-shadow(0 0 4px ${lineColor}90)` }}
                   name={asset?.name || key}
                 />
               );
             })}
           </LineChart>
         </ResponsiveContainer>
+        
+        {/* Summary Insight */}
+        {assets.length >= 2 && (
+          <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10 border border-cyan-500/20">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  {(() => {
+                    const sorted = [...assets].sort((a, b) => b.changePercent - a.changePercent);
+                    const winner = sorted[0];
+                    const loser = sorted[sorted.length - 1];
+                    const diff = winner.changePercent - loser.changePercent;
+                    const timeframeLabel = selectedTimeframe === '1D' ? 'hari ini' : 
+                                         selectedTimeframe === '1M' ? '1 bulan terakhir' :
+                                         selectedTimeframe === '6M' ? '6 bulan terakhir' :
+                                         selectedTimeframe === 'YTD' ? 'tahun ini' :
+                                         selectedTimeframe === '1Y' ? '1 tahun terakhir' :
+                                         selectedTimeframe === '5Y' ? '5 tahun terakhir' : 'periode ini';
+                    
+                    if (diff > 0) {
+                      return (
+                        <span>
+                          Dalam <strong className="text-cyan-400">{timeframeLabel}</strong>,{' '}
+                          <strong className="text-white">{winner.symbol}</strong> outperform{' '}
+                          <strong className="text-white">{loser.symbol}</strong> sebesar{' '}
+                          <strong className={diff > 5 ? "text-green-400" : "text-cyan-400"}>
+                            {diff.toFixed(2)}%
+                          </strong>
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span>
+                          Semua aset menunjukkan performa yang relatif seimbang dalam{' '}
+                          <strong className="text-cyan-400">{timeframeLabel}</strong>.
+                        </span>
+                      );
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       {/* Comparison Table */}

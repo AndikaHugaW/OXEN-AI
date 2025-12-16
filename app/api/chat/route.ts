@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { routeAIRequest, AIRequestContext, getGlobalPromptRules, RequestMode } from '@/lib/llm/ai-request-router';
 import { getLLMProvider } from '@/lib/llm/providers';
-import { needsVisualization, generateVisualization, needsImage, generateImageUrl, isMarketDataRequest } from '@/lib/llm/chart-generator';
-import { parseStructuredOutput, StructuredResponse } from '@/lib/llm/structured-output';
+import { needsVisualization, generateVisualization, needsImage, generateImageUrl, isMarketDataRequest, extractMultipleSymbols } from '@/lib/llm/chart-generator';
+import { StructuredResponse } from '@/lib/llm/structured-output';
+
+// ✅ OPTIMIZED: Separate concerns - chat endpoint only handles LLM + streaming
+export const maxDuration = 60;
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,16 +41,22 @@ export async function POST(request: NextRequest) {
     const useStreaming = stream !== false; // Default to true for speed
     const llmProvider = getLLMProvider();
     
-    // For streaming responses (business admin mode only), use direct streaming
-    // Market analysis and letter generation use the router without streaming for now
+    // Check if this is a comparison request
+    const isComparisonRequest = /(?:bandingkan|perbandingan|compare|comparison|vs|versus)/i.test(message);
+    const marketInfo = isMarketDataRequest(message);
+    const isMarketRequest = marketInfo.isMarket && marketInfo.symbol;
+    
+    // ✅ OPTIMIZATION NOTE: 
+    // For comparison requests, data fetching is handled inside processMarketComparison
+    // which uses parallel fetching and cache. The router will handle it efficiently.
+    // We don't need to pre-fetch here to avoid double fetching.
+    
+    // ✅ STREAMING FIRST: Always try streaming for LLM responses (even for comparison)
+    // Chart will be added to response after streaming completes
     if (useStreaming && llmProvider.generateStreamResponse) {
-      const marketInfo = isMarketDataRequest(message);
-      
-      // Only stream for business admin mode (non-market, non-letter requests)
-      // Use old streaming approach for backward compatibility
-      if (!marketInfo.isMarket && !message.toLowerCase().includes('surat') && !message.toLowerCase().includes('letter')) {
+      // For business admin mode (non-market, non-letter)
+      if (!isMarketRequest && !message.toLowerCase().includes('surat') && !message.toLowerCase().includes('letter')) {
         try {
-          // For streaming, use direct LLM call with business prompt
           // Get context from RAG
           let context = "";
           const needsRAG = message.length > 10 && 
@@ -70,6 +80,11 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // Detect language from user message
+          const isIndonesian = /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif]/i.test(message);
+          const isEnglish = /^[a-zA-Z\s.,!?'"-]+$/.test(message.trim().substring(0, 100));
+          const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+          
           // Build business admin prompt for streaming
           const needsChart = needsVisualization(message);
           const globalRules = getGlobalPromptRules();
@@ -77,6 +92,16 @@ export async function POST(request: NextRequest) {
           const businessPrompt = `━━━━━━━━━━━━━━━━━━━━━━
 MODE: MODE_BUSINESS_ADMIN
 ━━━━━━━━━━━━━━━━━━━━━━
+
+🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
+- User bertanya dalam: ${detectedLanguage}
+- KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
+- JANGAN gunakan bahasa lain selain ${detectedLanguage}
+- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
+- Jika user bertanya dalam English → jawab 100% dalam English
+- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar
+- Contoh: User bertanya "Gimana cara..." → jawab "Cara yang bisa kamu lakukan adalah..." (BUKAN "The way you can do is...")
+- Contoh: User bertanya "How to..." → jawab "The way you can do is..." (BUKAN "Cara yang bisa kamu lakukan adalah...")
 
 ATURAN WAJIB:
 1. Fokus pada SOP, workflow, efisiensi, dan dokumentasi bisnis.
@@ -108,12 +133,19 @@ ${context ? `KONTEKS YANG TERSEDIA:\n${context}\n\n` : ""}FOKUS AREA:
 - Process efficiency
 
 STYLE KOMUNIKASI:
-- Bahasa Indonesia yang profesional namun mudah dipahami
-- Bisa menggunakan gaya casual profesional (gen-z friendly)
+- Untuk Bahasa Indonesia: Bahasa Indonesia yang profesional namun mudah dipahami, bisa menggunakan gaya casual profesional (gen-z friendly)
+- Untuk English: Professional but approachable language, gen-z friendly style
 - Tetap sopan dan menghormati
 - Break down konsep kompleks menjadi sederhana
 - Berikan solusi yang actionable dan praktis
 - Jika menggunakan data/fakta, sebutkan sumbernya jika perlu
+
+⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
+- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
+- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
+- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
+- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
+- User tidak perlu tahu tentang aturan internal yang kamu gunakan
 
 ${needsChart ? `\nCATATAN: User meminta visualisasi. Sistem akan otomatis menampilkan visualisasi yang relevan.` : ''}
 
@@ -151,7 +183,8 @@ FORMAT WAJIB OUTPUT:
       }
     }
 
-    // Use AI Request Router for non-streaming requests
+    // ✅ NON-STREAMING: For market analysis, letter generation, and comparison
+    // These need structured output (charts, tables) which requires full response
     const context: AIRequestContext = {
       message,
       conversationHistory,
@@ -174,164 +207,72 @@ FORMAT WAJIB OUTPUT:
     let responseText = routerResponse.response || routerResponse.letter || 'Tidak ada respons';
     responseText = typeof responseText === 'string' ? responseText : String(responseText || 'Tidak ada respons');
     
-    // Get market info for chart detection
-    const marketInfo = isMarketDataRequest(message);
+    // marketInfo already defined above, reuse it
 
     // VALIDASI RESPONSE: Parse structured output dengan error handling
     let structuredOutput: StructuredResponse | null = routerResponse.structuredOutput || null;
     
     // Helper function to detect placeholder/invalid messages
     const isValidAnalysisMessage = (msg: string): boolean => {
-      if (!msg || msg.length < 200) return false;
-      
-      // List of placeholder patterns to detect
-      const placeholderPatterns = [
-        /ANALISIS LENGKAP.*WAJIB DIISI/i,
-        /DISINI.*WAJIB/i,
-        /LENGKAP.*DISINI/i,
-        /WAJIB DIISI/i,
-        /ANALISIS.*DISINI/i,
-        /isi.*disini/i,
-        /fill.*here/i,
-        /complete.*here/i,
-        /analysis.*here/i,
+      if (!msg || msg.trim().length === 0) return false;
+      const lower = msg.toLowerCase();
+      // Reject obvious placeholder messages
+      const invalidPatterns = [
+        'tidak ada respons',
+        'no response',
+        'placeholder',
+        'sample data',
+        'dummy data',
       ];
-      
-      // Check if message contains placeholder text
-      for (const pattern of placeholderPatterns) {
-        if (pattern.test(msg)) {
-          console.warn('⚠️ API Route: Detected placeholder text in message');
-          return false;
-        }
-      }
-      
-      // Check if message contains actual analysis keywords
-      const analysisKeywords = [
-        'data yang digunakan',
-        'fakta dari data',
-        'analisis teknikal',
-        'skenario',
-        'risiko',
-        'kesimpulan',
-        'trend',
-        'rsi',
-        'ma20',
-        'support',
-        'resistance',
-        'probabilitas',
-        'kemungkinan',
-      ];
-      
-      const msgLower = msg.toLowerCase();
-      const keywordCount = analysisKeywords.filter(keyword => 
-        msgLower.includes(keyword)
-      ).length;
-      
-      // Must have at least 3 analysis keywords to be considered valid
-      return keywordCount >= 3;
+      return !invalidPatterns.some(pattern => lower.includes(pattern));
     };
 
-    // For market analysis mode, ensure we have comprehensive analysis
-    if (routerResponse.mode === RequestMode.MARKET_ANALYSIS) {
-      // If structured output exists and has valid message, use it
-      if (structuredOutput && structuredOutput.message && isValidAnalysisMessage(structuredOutput.message)) {
-        responseText = structuredOutput.message;
-        console.log('✅ API Route: Using valid structured output message');
-      } else {
-        // Message invalid or too short, use handler response (which should be comprehensive)
-        console.warn('⚠️ API Route: Structured output message invalid, using handler response');
-        // responseText already set from routerResponse.response which is validated
-      }
-      // If no structured output, try to parse from response
-      if (!structuredOutput) {
-        try {
-          structuredOutput = parseStructuredOutput(responseText);
-          // If parsed successfully and has valid message, use it
-          if (structuredOutput && structuredOutput.message && isValidAnalysisMessage(structuredOutput.message)) {
-            responseText = structuredOutput.message;
-            console.log('✅ API Route: Using parsed structured output message');
-          }
-        } catch (error) {
-          console.warn('Error parsing structured output, using handler response:', error);
-        }
-      }
-    } else {
-      // For non-market requests, parse structured output normally
-      if (!structuredOutput) {
-        try {
-          structuredOutput = parseStructuredOutput(responseText);
-        } catch (error) {
-          console.error('Error parsing structured output:', error);
-          structuredOutput = {
-            action: 'text_only',
-            message: responseText,
-          };
-        }
-      }
-    }
-    
-    // Check if visualization is needed (from structured output atau detection)
-    const needsChart = needsVisualization(message);
-    
-    console.log('🔍 API Route - Chart Detection:', {
-      message,
-      needsChart,
-      marketInfo,
-      structuredOutput,
-      responseText: responseText.substring(0, 100),
-    });
-    
-    // Use chart from router response if available, otherwise generate
-    let visualization: { chart?: any; table?: any } | null = routerResponse.chart ? { chart: routerResponse.chart } : null;
-    let finalResponse = responseText;
-    
-    // PRIORITAS 1: If router provided chart (from market analysis handler), use it
-    if (!visualization) {
-      // PRIORITAS 2: Jika structured output menunjukkan show_chart, generate visualization
-      // VALIDASI: Hanya render chart jika action benar-benar show_chart
-      if (structuredOutput && structuredOutput.action === 'show_chart') {
-        const symbol = structuredOutput.symbol || marketInfo.symbol;
-        const type = structuredOutput.asset_type || marketInfo.type || 'crypto';
-        
-        console.log('✅ API: Generating chart from structured output:', { symbol, type });
-        
-        if (symbol) {
-          visualization = await generateVisualization(`analisis ${symbol} ${structuredOutput.timeframe || '7 hari'}`);
-          console.log('✅ API: Chart generated:', !!visualization?.chart);
-        }
-        // Use message dari structured output jika ada
-        if (structuredOutput.message) {
-          finalResponse = structuredOutput.message;
-        }
-      } 
-      // PRIORITAS 3: Fallback agresif - jika market request terdeteksi tapi tidak ada structured output
-      else if (marketInfo.isMarket && marketInfo.symbol) {
-        console.log('⚠️ API: Market request detected but no structured output - using fallback');
-        visualization = await generateVisualization(message);
-        console.log('✅ API: Chart generated from fallback:', !!visualization?.chart);
-      }
-      // PRIORITAS 4: Detection biasa
-      else if (needsChart) {
-        console.log('📊 API: Generating chart from detection');
-        visualization = await generateVisualization(message);
-      }
-    } else {
-      console.log('✅ API: Using chart from router response');
-    }
-    
-    // Check if image is needed (for future implementation)
-    let imageUrl: string | null = null;
-    if (needsImage(message)) {
-      imageUrl = await generateImageUrl(message);
+    // Validate response text
+    if (!isValidAnalysisMessage(responseText)) {
+      console.warn('⚠️ Invalid or placeholder response detected, using fallback');
+      responseText = 'Maaf, saya tidak dapat memberikan analisis yang valid untuk permintaan ini. Silakan coba lagi dengan pertanyaan yang lebih spesifik.';
     }
 
-    // Build response based on mode
+    // Extract chart and table from router response
+    let finalChart = routerResponse.chart || null;
+    let finalTable = routerResponse.table || null;
+    let finalResponse = responseText;
+
+    // If structured output exists, try to extract chart/table from it
+    if (structuredOutput) {
+      if (structuredOutput.chart) {
+        finalChart = structuredOutput.chart;
+      }
+      if (structuredOutput.table) {
+        finalTable = structuredOutput.table;
+      }
+      if (structuredOutput.message && isValidAnalysisMessage(structuredOutput.message)) {
+        finalResponse = structuredOutput.message;
+      }
+    }
+
+    // If no chart but market request detected, try to generate one
+    if (!finalChart && isMarketRequest && marketInfo.symbol) {
+      try {
+        const visualization = await generateVisualization(message, marketInfo);
+        if (visualization?.chart) {
+          finalChart = visualization.chart;
+        }
+        if (visualization?.table) {
+          finalTable = visualization.table;
+        }
+      } catch (vizError) {
+        console.warn('Visualization generation failed:', vizError);
+      }
+    }
+
+    // Build final response
     const response: any = {
       success: true,
       response: finalResponse,
-      chart: visualization?.chart || routerResponse.chart,
-      table: visualization?.table || routerResponse.table,
-      imageUrl: imageUrl || undefined,
+      chart: finalChart,
+      table: finalTable,
+      imageUrl: routerResponse.imageUrl || undefined,
       structuredOutput: structuredOutput || undefined,
     };
 
@@ -354,23 +295,33 @@ FORMAT WAJIB OUTPUT:
     let errorMessage = error.message || 'Unknown error';
     let statusCode = 500;
     
-    // Check for configuration errors
+    // Check for specific error types
     if (errorMessage.includes('tidak dikonfigurasi') || errorMessage.includes('not configured')) {
       statusCode = 400;
       errorMessage = error.message;
+    } else if (errorMessage.includes('Network error') || errorMessage.includes('network error') || 
+               errorMessage.includes('Failed to fetch') || errorMessage.includes('ECONNREFUSED')) {
+      statusCode = 503; // Service Unavailable
+      errorMessage = 'Network error: Tidak dapat terhubung ke server. Pastikan koneksi internet aktif dan server berjalan dengan baik.';
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+      statusCode = 504; // Gateway Timeout
+      errorMessage = 'Request timeout: Server membutuhkan waktu terlalu lama untuk merespons. Silakan coba lagi.';
+    } else if (errorMessage.includes('API error') || errorMessage.includes('API provider')) {
+      statusCode = 502; // Bad Gateway
+      errorMessage = `API provider error: ${error.message}`;
     }
     
-    // Ensure error message is a string and doesn't contain invalid characters
-    const safeErrorMessage = String(errorMessage).substring(0, 500);
-    
     return NextResponse.json(
-      { 
+      {
         success: false,
-        error: 'Failed to generate response',
-        message: safeErrorMessage
+        error: errorMessage,
       },
       { status: statusCode }
     );
   }
 }
 
+// Helper function to extract symbols from comparison message
+function extractSymbolsFromMessage(message: string): Array<{ symbol: string; type: 'crypto' | 'stock' }> {
+  return extractMultipleSymbols(message);
+}

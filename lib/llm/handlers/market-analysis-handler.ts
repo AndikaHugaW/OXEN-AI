@@ -3,6 +3,7 @@
 // 1. Data Validator (OHLC)
 // 2. Indicator Engine
 // 3. LLaMA (Tech Prompt)
+// 4. Function Calling support for dynamic chart rendering
 
 import { getLLMProvider } from '../providers';
 import { fetchCryptoData, fetchStockData, calculateIndicators, OHLCData } from '@/lib/market/data-fetcher';
@@ -12,6 +13,7 @@ import { extractCandidateTokens, resolveCrypto, resolveStock } from '@/lib/marke
 import { getStructuredPrompt } from '../structured-output';
 import { generateMarketVisualization } from '../chart-generator';
 import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules } from '../ai-request-router';
+import { parseFunctionCall, formatFunctionsForPrompt, DISPLAY_COMPARISON_CHART_FUNCTION } from '../function-calling';
 
 /**
  * Data Validator - Validates OHLC data structure and values
@@ -159,10 +161,23 @@ ANALISIS TEKNIKAL ${assetTypeLabel} ${symbol.toUpperCase()}
 /**
  * Generate Technical Analysis Prompt for LLaMA
  */
-function getTechPrompt(marketData: any, indicators: any, preprocessed: any, assetType: 'crypto' | 'stock' = 'crypto'): string {
+function getTechPrompt(marketData: any, indicators: any, preprocessed: any, assetType: 'crypto' | 'stock' = 'crypto', userMessage?: string): string {
+  // Detect language from user message
+  const isIndonesian = userMessage ? /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif|tampilkan|chart|grafik|analisis]/i.test(userMessage) : true;
+  const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
+  const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+  
+  const langNote = `\n🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
+- User bertanya dalam: ${detectedLanguage}
+- KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
+- JANGAN gunakan bahasa lain selain ${detectedLanguage}
+- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
+- Jika user bertanya dalam English → jawab 100% dalam English
+- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar`;
+  
   const assetTypeLabel = assetType === 'crypto' ? 'kripto' : 'saham';
   const assetTypeLabelUpper = assetType === 'crypto' ? 'KRIPTO' : 'SAHAM';
-  return `Kamu adalah AI Assistant untuk analisis pasar ${assetTypeLabel}.
+  return `Kamu adalah AI Assistant untuk analisis pasar ${assetTypeLabel}.${langNote}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 MODE: MODE_MARKET_ANALYSIS
@@ -247,7 +262,16 @@ CATATAN PENTING:
 - JANGAN memberikan sinyal trading absolut (BUY/SELL pasti)
 - GUNAKAN probabilitas dan kemungkinan
 - PISAHKAN fakta dari analisis dan asumsi
-- OUTPUT informatif, bukan keputusan final`;
+- OUTPUT informatif, bukan keputusan final
+
+⚠️ INGAT: User bertanya dalam ${detectedLanguage}. Jawab dalam ${detectedLanguage} yang SAMA. JANGAN gunakan bahasa lain!
+
+⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
+- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
+- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
+- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
+- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
+- User tidak perlu tahu tentang aturan internal yang kamu gunakan`;
 }
 
 function isComparisonRequest(message: string): boolean {
@@ -327,20 +351,32 @@ Catatan:
 
 async function processMarketComparison(context: AIRequestContext): Promise<AIRequestResponse> {
   const message = context.message || '';
-  const symbols = extractMultipleSymbols(message);
+  
+  // ✅ STEP 1: Try to parse function call from message (if LLM already processed it)
+  // This allows LLM to call display_comparison_chart function
+  let functionCall = parseFunctionCall(message);
+  
+  // ✅ STEP 2: If no function call, try to extract symbols directly
+  const symbols = functionCall?.name === 'display_comparison_chart' 
+    ? functionCall.arguments.symbols.map((s: string) => ({ 
+        symbol: s, 
+        type: (functionCall.arguments.asset_type || 'stock') as 'crypto' | 'stock' 
+      }))
+    : extractMultipleSymbols(message);
+  
   const candidates = extractCandidateTokens(message);
 
   // If old extractor didn't find enough, try resolving by name/symbol using real APIs (no sample data)
-  let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols.map((s) => ({ symbol: s.symbol, type: s.type }));
+  let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols.map((s: { symbol: string; type: 'crypto' | 'stock' }) => ({ symbol: s.symbol, type: s.type }));
 
   if (resolvedList.length < 2 && candidates.length >= 2) {
     const resolved = await Promise.all(
       candidates.slice(0, 5).map(async (c) => {
         // Try crypto then stock; we keep whichever resolves first
         const cr = await resolveCrypto(c).catch(() => null);
-        if (cr) return { symbol: cr.symbol, type: 'crypto' as const, coinId: cr.coinId };
+        if (cr && cr.type === 'crypto') return { symbol: cr.symbol, type: 'crypto' as const, coinId: cr.coinId };
         const st = await resolveStock(c).catch(() => null);
-        if (st) return { symbol: st.symbol, type: 'stock' as const };
+        if (st && st.type === 'stock') return { symbol: st.symbol, type: 'stock' as const };
         return null;
       })
     );
@@ -356,9 +392,25 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
     };
   }
 
-  // Determine days using existing parser (uses first detected symbol, but days extraction is still useful)
+  // Determine days using existing parser or function call
   const marketInfo = isMarketDataRequest(message);
-  const days = marketInfo.days || 7;
+  let days = marketInfo.days || 7;
+  
+  // ✅ Convert timeframe from function call to days if available
+  if (functionCall?.arguments?.timeframe) {
+    const timeframeStr = functionCall.arguments.timeframe;
+    const timeframeMapping: Record<string, number> = {
+      '1D': 1,
+      '5D': 5,
+      '1M': 30,
+      '3M': 90,
+      '6M': 180,
+      '1Y': 365,
+      '5Y': 1825,
+      'MAX': 3650,
+    };
+    days = timeframeMapping[timeframeStr] || days;
+  }
 
   // For now, only compare same asset type group (all crypto OR all stock)
   const types = new Set(resolvedList.map((s) => s.type));
@@ -372,34 +424,69 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
 
   const type = resolvedList[0].type;
 
-  // Fetch data with rate limit handling (sequential with delay for crypto to avoid 429)
-  const fetched = [];
-  for (let i = 0; i < resolvedList.length; i++) {
-    const { symbol } = resolvedList[i];
-    try {
-      // Add delay between requests for crypto to avoid rate limit (429)
-      if (type === 'crypto' && i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+  // ✅ OPTIMIZED: Parallel fetching for stocks, sequential for crypto (rate limit)
+  const fetched: Array<{ symbol: string; marketData: any; indicators: any; preprocessed: any }> = [];
+  
+  if (type === 'stock') {
+    // 🚀 PARALLEL FETCHING for stocks (Yahoo Finance is more tolerant, with cache)
+    console.log(`📡 [Comparison] Fetching ${resolvedList.length} stocks in parallel (with cache)...`);
+    const fetchPromises = resolvedList.map(async ({ symbol }, index) => {
+      try {
+        console.log(`📡 [Comparison] Fetching data for ${symbol} (${index + 1}/${resolvedList.length})...`);
+        // fetchStockData already uses cache internally
+        const marketData = await fetchStockData(symbol, days);
+        const indicators = calculateIndicators(marketData.data);
+        const preprocessed = preprocessCandlestick(marketData, indicators);
+        console.log(`✅ [Comparison] Successfully fetched data for ${symbol}`);
+        return { symbol: marketData.symbol, marketData, indicators, preprocessed };
+      } catch (error: any) {
+        console.error(`❌ Error fetching data for ${symbol}:`, error);
+        if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
+          throw new Error(`Timeout saat mengambil data untuk ${symbol}. Koneksi internet mungkin lambat atau server sedang sibuk. Silakan coba lagi.`);
+        }
+        throw new Error(`Gagal mengambil data untuk ${symbol}: ${error.message || 'Unknown error'}`);
       }
-      
-      const marketData = type === 'crypto' ? await fetchCryptoData(symbol, days) : await fetchStockData(symbol, days);
-      const indicators = calculateIndicators(marketData.data);
-      const preprocessed = preprocessCandlestick(marketData, indicators);
-      fetched.push({ symbol: marketData.symbol, marketData, indicators, preprocessed });
-    } catch (error: any) {
-      console.error(`❌ Error fetching data for ${symbol}:`, error);
-      // If rate limit error, throw with helpful message
-      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-        throw new Error(`Rate limit CoinGecko (429). Terlalu banyak request. Coba lagi dalam beberapa saat.`);
+    });
+    
+    // Wait for all stock fetches to complete in parallel
+    const results = await Promise.all(fetchPromises);
+    fetched.push(...results);
+  } else {
+    // ⚠️ SEQUENTIAL FETCHING for crypto (to avoid CoinGecko rate limit 429)
+    console.log(`📡 [Comparison] Fetching ${resolvedList.length} cryptos sequentially (rate limit protection)...`);
+    for (let i = 0; i < resolvedList.length; i++) {
+      const { symbol } = resolvedList[i];
+      try {
+        // Add delay between requests for crypto to avoid rate limit (429)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay for crypto
+        }
+        
+        console.log(`📡 [Comparison] Fetching data for ${symbol} (${i + 1}/${resolvedList.length})...`);
+        const marketData = await fetchCryptoData(symbol, days);
+        const indicators = calculateIndicators(marketData.data);
+        const preprocessed = preprocessCandlestick(marketData, indicators);
+        fetched.push({ symbol: marketData.symbol, marketData, indicators, preprocessed });
+        console.log(`✅ [Comparison] Successfully fetched data for ${symbol}`);
+      } catch (error: any) {
+        console.error(`❌ Error fetching data for ${symbol}:`, error);
+        // If rate limit error, throw with helpful message
+        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+          throw new Error(`Rate limit CoinGecko (429). Terlalu banyak request. Coba lagi dalam beberapa saat.`);
+        }
+        // If timeout error, provide helpful message
+        if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
+          throw new Error(`Timeout saat mengambil data untuk ${symbol}. Koneksi internet mungkin lambat atau server sedang sibuk. Silakan coba lagi.`);
+        }
+        // For other errors, throw with original message
+        throw new Error(`Gagal mengambil data untuk ${symbol}: ${error.message || 'Unknown error'}`);
       }
-      // For other errors, continue with available data or throw
-      throw error;
     }
   }
 
   // Build table rows
   const tableRows = fetched.map(({ symbol, marketData, indicators, preprocessed }) => {
-    const closes = marketData.data.map((d) => d.close);
+    const closes = marketData.data.map((d: any) => d.close);
     const first = closes[0] || 1;
     const last = closes[closes.length - 1] || first;
     const periodReturn = ((last - first) / first) * 100;
@@ -425,22 +512,22 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
   // Build comparison chart (normalized performance index = 100)
   const seriesPoints = fetched.map(({ symbol, marketData }) => ({
     symbol,
-    points: marketData.data.map((d) => ({ time: d.time, close: d.close })),
+    points: marketData.data.map((d: any) => ({ time: d.time, close: d.close })),
   }));
 
   // Use intersection of timestamps so the chart aligns cleanly
-  let commonTimes = new Set(seriesPoints[0].points.map((p) => p.time));
+  let commonTimes = new Set<string>(seriesPoints[0].points.map((p: any) => p.time));
   for (const s of seriesPoints.slice(1)) {
-    const set = new Set(s.points.map((p) => p.time));
-    commonTimes = new Set([...commonTimes].filter((t) => set.has(t)));
+    const set = new Set<string>(s.points.map((p: any) => p.time));
+    commonTimes = new Set<string>(Array.from(commonTimes).filter((t) => set.has(t)));
   }
 
-  const sortedTimes = [...commonTimes].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  const sortedTimes = Array.from<string>(commonTimes).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   const valueBySymbolAndTime: Record<string, Record<string, number>> = {};
   for (const s of seriesPoints) {
-    const normalized = normalizeSeriesTo100(s.points.filter((p) => commonTimes.has(p.time)));
-    valueBySymbolAndTime[s.symbol] = Object.fromEntries(normalized.map((p) => [p.time, p.value]));
+    const normalized = normalizeSeriesTo100(s.points.filter((p: any) => commonTimes.has(p.time)));
+    valueBySymbolAndTime[s.symbol] = Object.fromEntries(normalized.map((p: any) => [p.time, p.value]));
   }
 
   const chartData = sortedTimes.map((t) => {
@@ -452,6 +539,7 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
   });
 
   // Build comparison assets info for widget
+  // Logo menggunakan API endpoint /api/logo untuk konsistensi
   const comparisonAssets = fetched.map(({ symbol, marketData }, index) => {
     const priceRange = fetched[index]?.preprocessed?.summary?.priceRange;
     const firstPrice = marketData.data[0]?.close || marketData.currentPrice || 0;
@@ -461,8 +549,8 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
 
     return {
       symbol: symbol,
-      name: undefined, // Will be resolved from API if available
-      logo: undefined, // Will be resolved from API if available
+      name: (marketData as any).companyName || undefined, // Nama perusahaan langsung dari API
+      logo: `/api/logo?symbol=${encodeURIComponent(symbol)}&type=${type}`, // Logo menggunakan API endpoint /api/logo
       exchange: type === 'stock' ? 'NASDAQ' : undefined, // Default exchange
       currentPrice: marketData.currentPrice ?? lastPrice,
       change: change,
@@ -471,8 +559,12 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
     };
   });
 
-  // Determine timeframe label from days
-  const getTimeframeLabel = (days: number): string => {
+  // Determine timeframe label from days or use provided timeframe
+  const getTimeframeLabel = (daysOrTimeframe: number | string): string => {
+    if (typeof daysOrTimeframe === 'string') {
+      return daysOrTimeframe; // Already a timeframe string
+    }
+    const days = daysOrTimeframe;
     if (days <= 1) return '1D';
     if (days <= 5) return '5D';
     if (days <= 30) return '1M';
@@ -481,16 +573,34 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
     if (days <= 1825) return '5Y';
     return 'MAX';
   };
+  
+  // Convert timeframe string to days for API calls
+  const timeframeToDays = (timeframe: string): number => {
+    const mapping: Record<string, number> = {
+      '1D': 1,
+      '5D': 5,
+      '1M': 30,
+      '3M': 90,
+      '6M': 180,
+      '1Y': 365,
+      '5Y': 1825,
+      'MAX': 3650,
+    };
+    return mapping[timeframe] || 365; // Default to 1Y
+  };
 
+  // Get timeframe string for chart
+  const timeframeStr = functionCall?.arguments?.timeframe || getTimeframeLabel(days);
+  
   const chart = {
     type: 'comparison' as const,
-    title: `Perbandingan Performa - ${days} hari`,
+    title: `Perbandingan Performa - ${timeframeStr}`,
     data: chartData,
     xKey: 'time',
     yKey: fetched.map((f) => f.symbol),
     comparisonAssets: comparisonAssets,
     asset_type: type, // Add asset type for logo fetching
-    timeframe: getTimeframeLabel(days), // Add timeframe for widget
+    timeframe: timeframeStr, // Add timeframe for widget
   };
 
   const table = {
@@ -503,45 +613,177 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
   try {
     const llmProvider = getLLMProvider();
     const globalRules = getGlobalPromptRules();
+    // Detect language from user message
+    const userMessage = message; // Use message from context
+    const isIndonesian = userMessage ? /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif|tampilkan|chart|grafik|analisis|bandingkan|perbandingan]/i.test(userMessage) : true;
+    const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
+    const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+    
     const assetTypeLabel = type === 'crypto' ? 'kripto' : 'saham';
     const assetTypeLabelUpper = type === 'crypto' ? 'KRIPTO' : 'SAHAM';
-    const prompt = `Kamu adalah analis teknikal untuk pasar ${assetTypeLabel}.
+    
+    // ✅ CRITICAL: Prepare actual data from API for grounding
+    const actualDataSummary = fetched.map(({ symbol, marketData, indicators }) => ({
+      symbol,
+      currentPrice: marketData.currentPrice,
+      change24h: marketData.change24h,
+      rsi: indicators.rsi,
+      ma20: indicators.ma20,
+      trend: indicators.trend,
+      dataPoints: marketData.data.length,
+      firstPrice: marketData.data[0]?.close,
+      lastPrice: marketData.data[marketData.data.length - 1]?.close,
+    }));
+    
+    // ✅ CRITICAL: Extract chart data points for AI (for reference only, chart already built from API)
+    const chartDataPoints = chartData.slice(-20).map((row: any) => {
+      const point: any = { time: row.time };
+      fetched.forEach(({ symbol }) => {
+        point[symbol] = row[symbol] || null;
+      });
+      return point;
+    });
+    
+    // ✅ FUNCTION CALLING PROMPT: Include function definitions
+    const functionDefinitions = formatFunctionsForPrompt();
+    
+    // Get timeframe string for prompt
+    const timeframeStr = functionCall?.arguments?.timeframe || getTimeframeLabel(days);
+    
+    const prompt = `🚨🚨🚨 ATURAN KERAS - WAJIB DIPATUHI: 🚨🚨🚨
 
-Tugas: buat perbandingan teknikal antar ${assetTypeLabel} berdasarkan tabel ringkasan di bawah (FAKTA), lalu interpretasikan (ANALISIS) dan beri 2-3 skenario (KEMUNGKINAN) dengan probabilitas.
+Kamu adalah API, BUKAN penulis artikel.
 
-PENTING - JENIS ASET:
-- Aset yang dianalisis adalah ${assetTypeLabel.toUpperCase()} (${assetTypeLabelUpper}), BUKAN ${type === 'crypto' ? 'saham' : 'kripto'}.
-- Gunakan terminologi yang tepat: ${type === 'crypto' ? '"kripto", "cryptocurrency", "koin"' : '"saham", "stock", "equity"'}.
-- JANGAN menyebut ini sebagai ${type === 'crypto' ? 'saham' : 'kripto'}.
-- Header harus: "PERBANDINGAN ${assetTypeLabelUpper}" bukan "PERBANDINGAN ${type === 'crypto' ? 'SAHAM' : 'KRIPTO'}".
+BALAS HANYA DALAM FORMAT JSON VALID.
+DILARANG menulis paragraf, heading, atau markdown.
+DILARANG menulis teks di luar JSON.
 
-ATURAN:
-- Jangan mengarang angka di luar tabel.
-- Jangan memberi sinyal BUY/SELL absolut.
-- Pisahkan FAKTA vs ANALISIS vs ASUMSI.
-- SELALU sebutkan bahwa ini adalah analisis ${assetTypeLabel}, bukan ${type === 'crypto' ? 'saham' : 'kripto'}.
+Struktur WAJIB (TIDAK BOLEH BERUBAH):
+{
+  "summary": "string - ringkasan singkat 2-3 kalimat",
+  "analysis": {
+    "winner": "string - simbol dengan performa terbaik",
+    "rsi_comparison": "string - perbandingan RSI",
+    "trend_analysis": "string - analisis trend",
+    "scenarios": [
+      {
+        "name": "string - nama skenario",
+        "probability": "string - probabilitas",
+        "description": "string - deskripsi"
+      }
+    ],
+    "recommendations": [
+      "string - saran 1",
+      "string - saran 2",
+      "string - saran 3"
+    ],
+    "risks": "string - risiko dan batasan"
+  }
+}
+
+⚠️ PENTING:
+- Jika data tidak tersedia, gunakan null (BUKAN string "N/A" atau "tidak ada")
+- JANGAN menambahkan field di luar struktur di atas
+- JANGAN menulis teks sebelum atau sesudah JSON
+- Output HARUS valid JSON yang bisa di-parse
+
+DATA REAL DARI API (JANGAN NEBAK):
+${JSON.stringify(actualDataSummary, null, 2)}
 
 TABEL RINGKASAN:
 ${JSON.stringify(tableRows, null, 2)}
 
-Format output:
-1) Ringkasan cepat pemenang performa (return periode) + kondisi RSI/trend
-2) Perbandingan indikator (RSI, MA20, trend, support/resistance)
-3) Skenario kemungkinan (bullish/bearish/sideways) + probabilitas
-4) Risiko & batasan
+CHART DATA POINTS (untuk referensi, chart sudah dibuat dari API):
+${JSON.stringify(chartDataPoints, null, 2)}
 
-INGAT: Ini adalah perbandingan ${assetTypeLabel}, gunakan terminologi yang tepat!`;
+FUNGSI YANG TERSEDIA (untuk referensi):
+${functionDefinitions}
 
+CATATAN PENTING:
+- Chart sudah dibuat dari data API di atas, kamu TIDAK perlu membuat chart
+- Kamu hanya perlu menganalisis data yang diberikan sesuai dengan permintaan user
+- Respon HARUS sesuai dengan yang user minta - jika user minta analisis singkat, berikan analisis singkat
+- Jika user minta analisis detail, berikan analisis detail
+- Output HARUS dalam format JSON sesuai struktur di atas
+- JANGAN membuat chart atau visualisasi tambahan - cukup analisis data
+
+Permintaan User: "${message}"
+
+Bahasa respons: ${detectedLanguage}
+Jenis aset: ${assetTypeLabel.toUpperCase()} (${assetTypeLabelUpper})
+Timeframe: ${timeframeStr}
+Jumlah simbol: ${fetched.length} (1 comparison chart akan dibuat)
+
+INGAT: 
+- Kamu adalah API. Output JSON saja. Tidak ada teks lain.
+- HANYA 1 comparison chart yang akan dibuat untuk ${fetched.length} simbol ini
+- Logo untuk chart akan diambil dari API endpoint /api/logo
+- Respon sesuai dengan permintaan user
+- Jangan membuat chart tambahan atau visualisasi`;
+
+    // ✅ CRITICAL: Force JSON output format
     const llm = await llmProvider.generateResponse(
       [
         { role: 'system', content: `${globalRules}\n\n${prompt}` },
         { role: 'user', content: message },
       ],
-      { temperature: 0.5 }
+      { 
+        temperature: 0.3, // Lower temperature for more structured output
+        format: 'json' // Force JSON format if supported
+      }
     );
 
-    if (llm && llm.trim().length > 200) {
-      responseText = llm;
+    // ✅ CRITICAL: Parse and validate JSON response
+    let parsedAnalysis: any = null;
+    if (llm && llm.trim().length > 50) {
+      try {
+        // Try to extract JSON from response (in case LLM adds extra text)
+        const jsonMatch = llm.match(/\{[\s\S]*\}/);
+        const jsonString = jsonMatch ? jsonMatch[0] : llm.trim();
+        
+        parsedAnalysis = JSON.parse(jsonString);
+        
+        // Validate structure
+        if (!parsedAnalysis.summary || !parsedAnalysis.analysis) {
+          throw new Error('Invalid JSON structure');
+        }
+        
+        // Build response text from parsed JSON
+        const parts: string[] = [];
+        if (parsedAnalysis.summary) parts.push(parsedAnalysis.summary);
+        if (parsedAnalysis.analysis?.winner) {
+          parts.push(`\n\n**Pemenang Performa:** ${parsedAnalysis.analysis.winner}`);
+        }
+        if (parsedAnalysis.analysis?.rsi_comparison) {
+          parts.push(`\n\n**Perbandingan RSI:** ${parsedAnalysis.analysis.rsi_comparison}`);
+        }
+        if (parsedAnalysis.analysis?.trend_analysis) {
+          parts.push(`\n\n**Analisis Trend:** ${parsedAnalysis.analysis.trend_analysis}`);
+        }
+        if (parsedAnalysis.analysis?.scenarios?.length > 0) {
+          parts.push(`\n\n**Skenario:**`);
+          parsedAnalysis.analysis.scenarios.forEach((s: any) => {
+            parts.push(`- ${s.name} (${s.probability}): ${s.description}`);
+          });
+        }
+        if (parsedAnalysis.analysis?.recommendations?.length > 0) {
+          parts.push(`\n\n**SARAN:**`);
+          parsedAnalysis.analysis.recommendations.forEach((r: string) => {
+            parts.push(`- ${r}`);
+          });
+        }
+        if (parsedAnalysis.analysis?.risks) {
+          parts.push(`\n\n**Risiko & Batasan:** ${parsedAnalysis.analysis.risks}`);
+        }
+        
+        responseText = parts.join('');
+        console.log('✅ [Market Handler] Successfully parsed JSON response from LLM');
+      } catch (parseError: any) {
+        console.warn('⚠️ [Market Handler] Failed to parse LLM JSON response:', parseError.message);
+        console.warn('⚠️ Raw LLM response (first 500 chars):', llm.substring(0, 500));
+        // Fallback to original response if JSON parsing fails
+        responseText = llm;
+      }
     }
   } catch (e: any) {
     console.warn('⚠️ [Market Handler] LLM comparison narrative failed, using fallback:', e?.message);
@@ -660,12 +902,22 @@ export async function processMarketAnalysis(
     
     // Use structured prompt for chart generation if needed
     const structuredPrompt = getStructuredPrompt(true, symbol, type, marketInfo.chartType);
-    const techPrompt = getTechPrompt(marketData, indicators, preprocessed, type);
+    const techPrompt = getTechPrompt(marketData, indicators, preprocessed, type, context.message);
     const globalRules = getGlobalPromptRules();
 
     // Simplify prompt - prioritize tech analysis over structured output
     // Use tech prompt as primary, structured prompt only for JSON format guidance
-    const systemPrompt = `${globalRules}\n\n${techPrompt}\n\n---\n\n${structuredPrompt}`;
+    // Pastikan AI hanya membuat 1 chart sesuai permintaan user dan respon sesuai permintaan
+    const userRequest = context.message || `Analisis ${symbol}`;
+    const systemPrompt = `${globalRules}\n\n${techPrompt}\n\n---\n\n${structuredPrompt}\n\n⚠️ PENTING - ATURAN CHART & RESPON:
+- User meminta: "${userRequest}"
+- Buat HANYA 1 chart untuk simbol: ${symbol} (TIDAK lebih dari 1 chart)
+- Respon HARUS sesuai dengan permintaan user di atas
+  * Jika user minta analisis singkat → berikan analisis singkat (1-2 paragraf)
+  * Jika user minta analisis detail → berikan analisis detail (lengkap)
+  * Jika user hanya minta chart → berikan penjelasan singkat + chart
+- JANGAN membuat chart tambahan atau multiple chart
+- Logo untuk chart akan diambil dari API endpoint /api/logo`;
 
     const messages = [
       {
@@ -674,7 +926,7 @@ export async function processMarketAnalysis(
       },
       {
         role: 'user',
-        content: context.message || `Analisis ${symbol} dengan indikator teknis`,
+        content: userRequest,
       },
     ];
 
@@ -766,24 +1018,23 @@ export async function processMarketAnalysis(
       llmResponse = buildTechnicalAnalysis(marketData, indicators, preprocessed, symbol, type);
     }
 
-    // Step 6: Generate visualization
+    // Step 6: Chart sudah di-handle oleh structuredOutput
+    // Frontend akan membuat chart berdasarkan structuredOutput.action === 'show_chart'
+    // Tidak perlu generate chart lagi di sini untuk menghindari duplicate chart
     let chart = null;
-    try {
-      const visualization = await generateMarketVisualization(context.message || '');
-      if (visualization) {
-        chart = visualization;
-      }
-    } catch (vizError) {
-      console.warn('⚠️ [Market Handler] Chart generation failed:', vizError);
-    }
 
     // Ensure structuredOutput.message is always valid
+    // structuredOutput akan membuat 1 chart sesuai dengan symbol yang diminta user
     if (structuredOutput) {
       structuredOutput.message = llmResponse; // Always use validated llmResponse
+      // Pastikan structuredOutput hanya membuat 1 chart untuk symbol yang diminta
+      structuredOutput.symbol = symbol;
+      structuredOutput.asset_type = type;
     } else {
+      // Jika tidak ada structuredOutput, buat untuk single chart
       structuredOutput = {
         action: 'show_chart',
-        symbol: symbol,
+        symbol: symbol, // 1 chart untuk 1 symbol
         asset_type: type,
         message: llmResponse,
       };

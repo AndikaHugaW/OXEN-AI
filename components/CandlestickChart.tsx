@@ -23,6 +23,9 @@ interface CandlestickChartProps {
   currentPrice?: number;
   change24h?: number;
   assetType?: 'crypto' | 'stock';
+  // Logo dan nama perusahaan langsung dari API response
+  logoUrl?: string; // Logo URL langsung dari API - bisa digunakan langsung di browser
+  companyName?: string; // Nama perusahaan dari API
   // Additional market metrics
   prevClose?: number;
   open?: number;
@@ -42,6 +45,8 @@ export default function CandlestickChart({
   currentPrice,
   change24h,
   assetType = 'crypto',
+  logoUrl: logoUrlFromProps, // Logo URL langsung dari API response
+  companyName: companyNameFromProps, // Nama perusahaan dari API response
   prevClose,
   open,
   high,
@@ -82,10 +87,59 @@ export default function CandlestickChart({
   // Fetch / resolve asset logo (crypto from CoinGecko meta; stocks from public logo sources)
   useEffect(() => {
     let cancelled = false;
-    setAssetLogoUrl(null);
+    // Don't reset logo immediately - keep previous logo while fetching new one to avoid flicker
+    // setAssetLogoUrl(null);
     setAssetDisplayName(null);
 
     if (!symbol) return;
+
+    // SKENARIO 1: Gunakan logoUrl langsung dari API response jika tersedia (paling ideal)
+    if (logoUrlFromProps) {
+      console.log(`✅ [CandlestickChart] Using logo URL directly from API response for ${symbol}:`, logoUrlFromProps);
+      setAssetLogoUrl(logoUrlFromProps);
+      if (companyNameFromProps) {
+        setAssetDisplayName(companyNameFromProps);
+      }
+      // Verify logo in background (non-blocking)
+      const img = new Image();
+      img.onload = () => {
+        if (!cancelled) {
+          console.log(`✅ [CandlestickChart] Logo from API verified for ${symbol}`);
+        }
+      };
+      img.onerror = () => {
+        console.warn(`⚠️ [CandlestickChart] Logo from API failed verification for ${symbol}, will try fallback`);
+        // Will try fallback in onError handler
+      };
+      img.src = logoUrlFromProps;
+      return; // Skip API call if we already have logo from props
+    }
+    
+    // SKENARIO 2: API tidak menyediakan logoUrl, fetch dari sumber eksternal
+    // For stocks, immediately try to get logo URL from direct sources
+    if (assetType === 'stock') {
+      const ticker = symbol.toUpperCase().replace('.JK', '');
+      // Try Clearbit first (direct URL from browser)
+      const domainMap: Record<string, string> = {
+        BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+        BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+        GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+        INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+        MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+        AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
+      };
+      const domain = domainMap[ticker];
+      if (domain) {
+        const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+        setAssetLogoUrl(clearbitUrl);
+        console.log(`🚀 [CandlestickChart] Setting immediate Clearbit logo URL for ${symbol}:`, clearbitUrl);
+      } else {
+        // Try IEX as immediate fallback
+        const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+        setAssetLogoUrl(iexUrl);
+        console.log(`🚀 [CandlestickChart] Setting immediate IEX logo URL for ${symbol}:`, iexUrl);
+      }
+    }
 
     (async () => {
       try {
@@ -99,10 +153,65 @@ export default function CandlestickChart({
         let logoSet = false;
         if (logoRes.ok) {
           const logoJson = await logoRes.json();
+          console.log(`📊 [CandlestickChart] Logo API response for ${symbol}:`, logoJson);
           if (logoJson?.success && !cancelled) {
-            // Use proxy URL to avoid CORS issues
-            setAssetLogoUrl(logoJson.proxyUrl || logoJson.logoUrl || null);
-            logoSet = true;
+            // Prefer direct logoUrl from browser, use proxyUrl only as fallback
+            const logoToUse = logoJson.logoUrl || logoJson.proxyUrl;
+            if (logoToUse) {
+              // Set logo immediately, don't wait for verification
+              // Browser will handle loading and onError will try fallbacks
+              setAssetLogoUrl(logoToUse);
+              logoSet = true;
+              console.log(`✅ [CandlestickChart] Logo URL set for ${symbol} (direct from browser):`, logoToUse);
+              
+              // Verify in background (non-blocking)
+              const img = new Image();
+              img.onload = () => {
+                if (!cancelled) {
+                  console.log(`✅ [CandlestickChart] Logo verified for ${symbol}`);
+                }
+              };
+              img.onerror = () => {
+                console.warn(`⚠️ [CandlestickChart] Logo verification failed for ${symbol}, will try fallback on render`);
+              };
+              img.src = logoToUse;
+            } else {
+              console.warn(`⚠️ [CandlestickChart] No logo URL in response for ${symbol}:`, logoJson);
+            }
+          } else {
+            console.warn(`⚠️ [CandlestickChart] Logo API returned success=false for ${symbol}:`, logoJson);
+          }
+        } else {
+          console.warn(`⚠️ [CandlestickChart] Logo API request failed for ${symbol}:`, logoRes.status, logoRes.statusText);
+        }
+        
+        // If API failed or logo not set, try fallback sources for stocks
+        if (!logoSet && assetType === 'stock' && !cancelled) {
+          const ticker = normalizedStockTicker;
+          if (ticker) {
+            console.log(`🔄 [CandlestickChart] Logo not set from API, trying fallback sources for ${symbol}...`);
+            // Try Clearbit directly as fallback
+            const domainMap: Record<string, string> = {
+              BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+              BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+              GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+              INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+              MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+              AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
+            };
+            const domain = domainMap[ticker];
+            if (domain) {
+              const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+              console.log(`🔄 [CandlestickChart] Setting Clearbit fallback for ${symbol}:`, clearbitUrl);
+              setAssetLogoUrl(clearbitUrl);
+              logoSet = true;
+            } else {
+              // Try IEX as last resort
+              const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+              console.log(`🔄 [CandlestickChart] Setting IEX fallback for ${symbol}:`, iexUrl);
+              setAssetLogoUrl(iexUrl);
+              logoSet = true;
+            }
           }
         }
         
@@ -120,57 +229,60 @@ export default function CandlestickChart({
           if (cancelled) return;
           setAssetDisplayName(json?.data?.name || symbol.toUpperCase());
           // Only set logo if not already set from logo API
-          if (!logoSet) {
-            setAssetLogoUrl(json?.data?.image?.small || json?.data?.image?.thumb || null);
+          if (!logoSet && !cancelled) {
+            const coinLogoUrl = json?.data?.image?.small || json?.data?.image?.thumb || json?.data?.image?.large;
+            if (coinLogoUrl) {
+              setAssetLogoUrl(coinLogoUrl);
+            }
           }
           return;
         }
 
-        // STOCK: Use logo API, fallback to old method if needed
+        // STOCK: Set display name and ensure logo is set
         const ticker = normalizedStockTicker;
-        if (!ticker) return;
+        if (!ticker) {
+          console.warn(`⚠️ [CandlestickChart] No ticker for ${symbol}`);
+          return;
+        }
 
         if (!cancelled) {
           setAssetDisplayName(ticker);
-          // Logo should already be set from logo API, but fallback if needed
+          // If logo not set from API, use direct URLs from browser
           if (!logoSet) {
+            console.log(`📡 [CandlestickChart] Logo not set from API for ${symbol}, using direct browser URLs...`);
+            // Try Clearbit (direct URL from browser)
             const domainMap: Record<string, string> = {
-              // Indonesia (common)
-              BBCA: 'bca.co.id',
-              BBRI: 'bri.co.id',
-              BMRI: 'bankmandiri.co.id',
-              TLKM: 'telkom.co.id',
-              ASII: 'astra.co.id',
-              GOTO: 'goto.com',
-              UNVR: 'unilever.co.id',
-              ICBP: 'icbpfood.com',
-              INDF: 'indofood.com',
-              PGAS: 'pertamina.com',
-              // US examples (optional)
-              AAPL: 'apple.com',
-              MSFT: 'microsoft.com',
-              TSLA: 'tesla.com',
-              GOOGL: 'google.com',
-              AMZN: 'amazon.com',
-              META: 'meta.com',
-              NVDA: 'nvidia.com',
+              BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+              BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+              GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+              INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+              MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+              AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
             };
-
             const domain = domainMap[ticker];
-            const clearbit = domain ? `https://logo.clearbit.com/${domain}` : null;
-            const iex = `https://storage.googleapis.com/iex/api/logos/${encodeURIComponent(ticker)}.png`;
-            setAssetLogoUrl(clearbit || iex);
+            if (domain) {
+              const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+              setAssetLogoUrl(clearbitUrl);
+              console.log(`✅ [CandlestickChart] Clearbit logo URL set for ${symbol}:`, clearbitUrl);
+            } else {
+              // Try IEX as fallback
+              const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+              setAssetLogoUrl(iexUrl);
+              console.log(`✅ [CandlestickChart] IEX logo URL set for ${symbol}:`, iexUrl);
+            }
+          } else {
+            console.log(`✅ [CandlestickChart] Logo already set for ${symbol} from API`);
           }
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        console.warn(`Failed to fetch logo for ${symbol}:`, error);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [symbol, assetType, normalizedStockTicker]);
+  }, [symbol, assetType, normalizedStockTicker, logoUrlFromProps, companyNameFromProps]);
 
   // Initialize display price
   useEffect(() => {
@@ -869,13 +981,123 @@ export default function CandlestickChart({
             <div className="w-10 h-10 rounded bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {assetLogoUrl ? (
                 <img
+                  key={`${symbol}-logo-${assetLogoUrl}`}
                   src={assetLogoUrl}
                   alt={`${assetDisplayName || symbol || title} logo`}
-                  className="w-10 h-10 object-cover"
-                  onError={() => setAssetLogoUrl(null)}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  crossOrigin="anonymous"
+                  onLoad={(e) => {
+                    console.log(`✅ [CandlestickChart] Logo loaded successfully for ${symbol}:`, e.currentTarget.src);
+                    // Ensure parent background is transparent when logo loads
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.style.backgroundColor = 'transparent';
+                    }
+                  }}
+                  onError={(e) => {
+                    console.warn(`⚠️ [CandlestickChart] Logo failed to load for ${symbol}, trying fallback...`, e.currentTarget.src);
+                    const target = e.currentTarget;
+                    const currentSrc = target.src;
+                    
+                    // Helper function to get domain for Clearbit
+                    const getClearbitUrl = (ticker: string): string | null => {
+                      const domainMap: Record<string, string> = {
+                        BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+                        BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+                        GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+                        INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+                        MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+                        AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
+                      };
+                      const domain = domainMap[ticker];
+                      return domain ? `https://logo.clearbit.com/${domain}` : null;
+                    };
+                    
+                    // Helper function to try Clearbit
+                    const tryClearbit = () => {
+                      const ticker = symbol.toUpperCase().replace('.JK', '');
+                      const clearbitUrl = getClearbitUrl(ticker);
+                      if (clearbitUrl) {
+                        console.log(`🔄 [CandlestickChart] Trying Clearbit for ${symbol}:`, clearbitUrl);
+                        target.src = clearbitUrl;
+                        target.onerror = () => {
+                          console.warn(`❌ [CandlestickChart] Clearbit also failed for ${symbol}`);
+                          // Try IEX as last resort
+                          const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+                          console.log(`🔄 [CandlestickChart] Trying IEX for ${symbol}:`, iexUrl);
+                          target.src = iexUrl;
+                          target.onerror = () => {
+                            console.warn(`❌ [CandlestickChart] All logo sources failed for ${symbol}`);
+                            setAssetLogoUrl(null);
+                          };
+                        };
+                      } else {
+                        // Try IEX as last resort
+                        const ticker = symbol.toUpperCase().replace('.JK', '');
+                        const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+                        console.log(`🔄 [CandlestickChart] Trying IEX for ${symbol}:`, iexUrl);
+                        target.src = iexUrl;
+                        target.onerror = () => {
+                          console.warn(`❌ [CandlestickChart] All logo sources failed for ${symbol}`);
+                          setAssetLogoUrl(null);
+                        };
+                      }
+                    };
+                    
+                    // If current URL failed, try direct browser URLs
+                    if (currentSrc.includes('/api/logo') || currentSrc.includes('logo.clearbit.com') || currentSrc.includes('iexcloud')) {
+                      console.log(`🔄 [CandlestickChart] Current URL failed, trying alternative direct browser URLs for ${symbol}...`);
+                      // Try Clearbit first (direct browser URL)
+                      const ticker = symbol.toUpperCase().replace('.JK', '');
+                      const clearbitUrl = getClearbitUrl(ticker);
+                      if (clearbitUrl && clearbitUrl !== currentSrc) {
+                        console.log(`🔄 [CandlestickChart] Trying Clearbit direct URL for ${symbol}:`, clearbitUrl);
+                        target.src = clearbitUrl;
+                        target.onerror = () => {
+                          // Clearbit failed, try IEX
+                          const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+                          if (iexUrl !== currentSrc && iexUrl !== clearbitUrl) {
+                            console.log(`🔄 [CandlestickChart] Trying IEX direct URL for ${symbol}:`, iexUrl);
+                            target.src = iexUrl;
+                            target.onerror = () => {
+                              console.warn(`❌ [CandlestickChart] All direct URLs failed for ${symbol}`);
+                              // Last resort: try proxy
+                              const proxyUrl = `/api/logo?symbol=${encodeURIComponent(symbol)}&type=stock`;
+                              target.src = proxyUrl;
+                              target.onerror = () => setAssetLogoUrl(null);
+                            };
+                          } else {
+                            setAssetLogoUrl(null);
+                          }
+                        };
+                      } else {
+                        // Try IEX
+                        const iexUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`;
+                        if (iexUrl !== currentSrc) {
+                          console.log(`🔄 [CandlestickChart] Trying IEX direct URL for ${symbol}:`, iexUrl);
+                          target.src = iexUrl;
+                          target.onerror = () => {
+                            // Try proxy as last resort
+                            const proxyUrl = `/api/logo?symbol=${encodeURIComponent(symbol)}&type=stock`;
+                            target.src = proxyUrl;
+                            target.onerror = () => setAssetLogoUrl(null);
+                          };
+                        } else {
+                          setAssetLogoUrl(null);
+                        }
+                      }
+                    } else {
+                      // Unknown URL failed, try Clearbit
+                      tryClearbit();
+                    }
+                  }}
                 />
               ) : (
-                <BarChart3 className="w-6 h-6 text-cyan-400" />
+                // Show first 2 letters of symbol as temporary placeholder while logo loads
+                <span className="text-xs font-bold text-cyan-400">
+                  {symbol ? symbol.toUpperCase().substring(0, 2) : '??'}
+                </span>
               )}
             </div>
             <div>

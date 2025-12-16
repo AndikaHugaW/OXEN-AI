@@ -115,13 +115,17 @@ export default function ChatInterface() {
     }
 
     // Create placeholder for streaming response
+    // ✅ UX TRICK: Send partial response immediately
     const assistantMessage: Message = {
       role: 'assistant',
-      content: '',
+      content: '📊 Sedang menganalisis data pasar...',
       timestamp: new Date(),
     };
     const streamingMessages = [...newMessages, assistantMessage];
     setMessages(streamingMessages);
+    
+    // Show loading indicator
+    setIsLoading(true);
 
     try {
       const conversationHistory = messages.map((msg) => ({
@@ -144,7 +148,34 @@ export default function ChatInterface() {
         });
       } catch (fetchError: any) {
         console.error('❌ Fetch failed:', fetchError);
-        throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server'}`);
+        
+        // Detect specific network error types
+        const errorMsg = fetchError.message || '';
+        let userFriendlyError = 'Network error: Tidak dapat terhubung ke server.';
+        
+        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError') || errorMsg.includes('ERR_INTERNET_DISCONNECTED')) {
+          userFriendlyError = 'Network error: Tidak dapat terhubung ke server. Pastikan:\n' +
+            '1. Koneksi internet Anda aktif\n' +
+            '2. Server berjalan dengan baik\n' +
+            '3. Tidak ada firewall yang memblokir koneksi';
+        } else if (errorMsg.includes('timeout') || errorMsg.includes('TIMEOUT')) {
+          userFriendlyError = 'Network error: Request timeout. Server mungkin sedang sibuk atau koneksi lambat. Silakan coba lagi.';
+        } else if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('connection refused')) {
+          userFriendlyError = 'Network error: Server menolak koneksi. Pastikan server berjalan di localhost:3000.';
+        } else if (errorMsg.includes('CORS') || errorMsg.includes('cors')) {
+          userFriendlyError = 'Network error: Masalah CORS. Pastikan server dikonfigurasi dengan benar.';
+        }
+        
+        throw new Error(userFriendlyError);
+      }
+
+      // Check if response is OK
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          error: 'Unknown error', 
+          message: `Server error: ${response.status} ${response.statusText}` 
+        }));
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`);
       }
 
       // Check if response is streaming (text/event-stream) or JSON
@@ -267,6 +298,8 @@ export default function ChatInterface() {
               currentPrice: data.data.currentPrice,
               change24h: data.data.change24h,
               asset_type: type, // Use the type parameter instead of undefined assetType
+              logoUrl: data.data.logoUrl, // Logo URL langsung dari API - bisa digunakan langsung di browser
+              companyName: data.data.companyName, // Nama perusahaan dari API
             };
           } catch (error: any) {
             console.error('❌ Error in fetchMarketChart:', {
@@ -401,33 +434,46 @@ export default function ChatInterface() {
           }
         }
         // PRIORITAS 3: Jika market request terdeteksi TAPI tidak ada structured output, generate chart langsung (fallback agresif)
+        // BUT: Only if it's a clear market request (not a business question)
         else if (marketInfo.isMarket && marketInfo.symbol) {
-          console.log('⚠️ Market request detected but no structured output - Using fallback generation:', marketInfo);
-          try {
-            const chart = await fetchMarketChart(
-              marketInfo.symbol, 
-              marketInfo.type || 'stock', 
-              marketInfo.days || 7
-            );
-            console.log('✅ Chart fetched from fallback (market detection):', chart);
-            
-            finalAssistantMessage.chart = chart;
-            console.log('✅✅ Chart successfully added via fallback');
-            
-            // Update response text untuk inform user
-            if (!finalAssistantMessage.content || finalAssistantMessage.content.trim().length < 50) {
-              finalAssistantMessage.content = `Berikut adalah chart untuk ${marketInfo.symbol}.`;
-            }
-          } catch (error: any) {
-            console.error('❌ Error fetching chart from fallback:', error);
-            const errorMsg = error.message || 'Unknown error';
-            const errorContent = `Maaf, gagal memuat chart untuk ${marketInfo.symbol}.\n\nError: ${errorMsg}\n\nPastikan simbol saham benar dan koneksi internet stabil.`;
-            
-            // Update atau set content dengan error message
-            if (!finalAssistantMessage.content || finalAssistantMessage.content.trim().length < 50) {
-              finalAssistantMessage.content = errorContent;
-            } else {
-              finalAssistantMessage.content = `${finalAssistantMessage.content}\n\n${errorContent}`;
+          // Additional check: Make sure it's not a business question that was misclassified
+          const isBusinessQuestion = /^(aku|saya|kami|kita|perusahaan|bisnis|produk|produkku|produk saya).*(masalah|problem|issue|kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i.test(input) ||
+                                    /^(gimana|bagaimana|tolong|bisa|mau|ingin).*(cara|strategi|solusi|solution|analisis|analysis|masalah|problem)/i.test(input) ||
+                                    /(produk|product|masalah|problem|solusi|solution|strategi|strategy|bisnis|business|perusahaan|company).*(kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i.test(input);
+          
+          const hasBusinessWord = /(solusi|solution|kasih solusi|beri solusi|memberikan solusi)/i.test(input);
+          
+          if (isBusinessQuestion || hasBusinessWord) {
+            console.log('⚠️ Business question detected, skipping market chart generation');
+            // Don't generate chart for business questions
+          } else {
+            console.log('⚠️ Market request detected but no structured output - Using fallback generation:', marketInfo);
+            try {
+              const chart = await fetchMarketChart(
+                marketInfo.symbol, 
+                marketInfo.type || 'stock', 
+                marketInfo.days || 7
+              );
+              console.log('✅ Chart fetched from fallback (market detection):', chart);
+              
+              finalAssistantMessage.chart = chart;
+              console.log('✅✅ Chart successfully added via fallback');
+              
+              // Update response text untuk inform user
+              if (!finalAssistantMessage.content || finalAssistantMessage.content.trim().length < 50) {
+                finalAssistantMessage.content = `Berikut adalah chart untuk ${marketInfo.symbol}.`;
+              }
+            } catch (error: any) {
+              console.error('❌ Error fetching chart from fallback:', error);
+              const errorMsg = error.message || 'Unknown error';
+              const errorContent = `Maaf, gagal memuat chart untuk ${marketInfo.symbol}.\n\nError: ${errorMsg}\n\nPastikan simbol saham benar dan koneksi internet stabil.`;
+              
+              // Update atau set content dengan error message
+              if (!finalAssistantMessage.content || finalAssistantMessage.content.trim().length < 50) {
+                finalAssistantMessage.content = errorContent;
+              } else {
+                finalAssistantMessage.content = `${finalAssistantMessage.content}\n\n${errorContent}`;
+              }
             }
           }
         }
@@ -507,6 +553,7 @@ export default function ChatInterface() {
             responseText = structuredOutput.message;
           }
           
+          // For comparison requests, ensure chart is displayed first, then text below
           const finalAssistantMessage: Message = {
             role: 'assistant',
             content: responseText,
@@ -515,6 +562,13 @@ export default function ChatInterface() {
             table: data.table || undefined,
             imageUrl: data.imageUrl || undefined,
           };
+          
+          // Log for debugging comparison requests
+          if (data.chart?.type === 'comparison') {
+            console.log('📊 ChatInterface: Comparison chart detected in non-streaming response');
+            console.log('📊 Chart type:', data.chart.type);
+            console.log('📊 Response text length:', responseText.length);
+          }
           
           // Helper function to fetch market data via API (same as streaming path)
           const fetchMarketChart = async (symbol: string, type: 'crypto' | 'stock', days: number = 7) => {
@@ -645,21 +699,39 @@ export default function ChatInterface() {
     } catch (error: any) {
       let errorMessage = error.message || 'Terjadi kesalahan saat memproses permintaan';
       
+      // Handle specific error types with user-friendly messages
       if (errorMessage.includes('tidak dikonfigurasi') || errorMessage.includes('not configured')) {
         errorMessage = `⚠️ API Key tidak dikonfigurasi!\n\n` +
           `Silakan setup API key di file .env.local:\n` +
           `- Untuk Groq (gratis): LLM_PROVIDER=groq dan GROQ_API_KEY=your_key\n` +
           `- Lihat panduan di ALTERNATIF_API_GRATIS.md`;
-      } else if (errorMessage.includes('API error')) {
+      } else if (errorMessage.includes('API error') || errorMessage.includes('API provider')) {
         errorMessage = `⚠️ Error dari API provider:\n${errorMessage}\n\nPeriksa API key Anda atau coba provider lain.`;
+      } else if (errorMessage.includes('Network error') || errorMessage.includes('network error')) {
+        // Network error already has user-friendly message, keep it as is
+        errorMessage = errorMessage;
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+        errorMessage = `⏱️ Request timeout: Server membutuhkan waktu terlalu lama untuk merespons.\n\n` +
+          `Silakan coba lagi atau periksa koneksi internet Anda.`;
+      } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('fetch failed')) {
+        errorMessage = `🌐 Network error: Tidak dapat terhubung ke server.\n\n` +
+          `Pastikan:\n` +
+          `1. Koneksi internet aktif\n` +
+          `2. Server berjalan dengan baik\n` +
+          `3. Coba refresh halaman`;
       }
+      
+      // Remove the placeholder assistant message if it exists
+      const messagesWithoutPlaceholder = newMessages.filter((msg, idx) => 
+        !(idx === newMessages.length && msg.role === 'assistant' && msg.content === '')
+      );
       
       const errorMsg: Message = {
         role: 'assistant',
-        content: `❌ Error: ${errorMessage}`,
+        content: `❌ ${errorMessage}`,
         timestamp: new Date(),
       };
-      const finalMessages = [...newMessages, errorMsg];
+      const finalMessages = [...messagesWithoutPlaceholder, errorMsg];
       setMessages(finalMessages);
     } finally {
       setIsLoading(false);
@@ -679,24 +751,13 @@ export default function ChatInterface() {
 
       {/* Main Chat Area */}
       <div className="flex-1 ml-64 flex flex-col bg-black min-h-full">
-        {/* Header with New Chat Button */}
-        <div className="flex justify-end p-4 border-b border-cyan-500/20">
-          <button
-            onClick={createNewChat}
-            className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-cyan-500/50 flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>New Chat</span>
-          </button>
-        </div>
-
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto" style={{ padding: '24px' }}>
+        <div className={`flex-1 overflow-y-auto ${messages.length === 0 ? 'flex items-center justify-center' : ''}`} style={{ padding: '24px' }}>
           {messages.length === 0 ? (
-            <div className="max-w-4xl mx-auto text-center">
-              <div className="mb-8">
-                <h2 className="text-4xl font-bold text-white mb-3">
-                  Hi, good to see you!
+            <div className="max-w-4xl w-full mx-auto text-center px-6">
+              <div className="mb-10">
+                <h2 className="text-4xl font-bold text-white mb-4">
+                  Hi! AI-powered growth for your business.
                 </h2>
                 <p className="text-2xl text-cyan-400">
                   How can I assist you today?
@@ -704,7 +765,7 @@ export default function ChatInterface() {
               </div>
               
               {/* Suggested Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-16 mb-8">
                 <button className="p-6 bg-gray-900 border border-cyan-500/30 rounded-2xl hover:border-cyan-500/50 transition-all text-left group">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
@@ -772,12 +833,15 @@ export default function ChatInterface() {
                         />
                       </div>
                     )}
-                    {/* Single chart */}
-                    {message.chart && (
+                    {/* ✅ CONDITIONAL RENDER: Chart from API data (not from AI text) */}
+                    {message.chart ? (
                       <div className="mb-4 -mx-6">
                         <ChartRenderer chart={message.chart} />
                       </div>
-                    )}
+                    ) : message.content ? (
+                      // If no chart, show text response
+                      null // Text will be shown below
+                    ) : null}
                     
                     {/* Multiple charts */}
                     {message.charts && message.charts.length > 0 && (

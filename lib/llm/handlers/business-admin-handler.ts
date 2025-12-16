@@ -48,12 +48,27 @@ async function analyzeContext(query: string): Promise<string> {
 /**
  * Generate Business-Focused Prompt for LLaMA
  */
-function getBusinessPrompt(context: string): string {
+function getBusinessPrompt(context: string, userMessage?: string): string {
+  // Detect language from user message
+  const isIndonesian = userMessage ? /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif]/i.test(userMessage) : true;
+  const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
+  const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+  
   return `Kamu adalah AI Assistant untuk administrasi bisnis perusahaan & agency.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 MODE: MODE_BUSINESS_ADMIN
 ━━━━━━━━━━━━━━━━━━━━━━
+
+🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
+- User bertanya dalam: ${detectedLanguage}
+- KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
+- JANGAN gunakan bahasa lain selain ${detectedLanguage}
+- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
+- Jika user bertanya dalam English → jawab 100% dalam English
+- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar
+- Contoh: User bertanya "Gimana cara..." → jawab "Cara yang bisa kamu lakukan adalah..." (BUKAN "The way you can do is...")
+- Contoh: User bertanya "How to..." → jawab "The way you can do is..." (BUKAN "Cara yang bisa kamu lakukan adalah...")
 
 ATURAN WAJIB:
 1. Fokus pada SOP, workflow, efisiensi, dan dokumentasi bisnis.
@@ -79,8 +94,8 @@ ${context ? `KONTEKS YANG TERSEDIA:\n${context}\n\n` : ""}FOKUS AREA:
 - Process efficiency
 
 STYLE KOMUNIKASI:
-- Bahasa Indonesia yang profesional namun mudah dipahami
-- Bisa menggunakan gaya casual profesional (gen-z friendly)
+- Untuk Bahasa Indonesia: Bahasa Indonesia yang profesional namun mudah dipahami, bisa menggunakan gaya casual profesional (gen-z friendly)
+- Untuk English: Professional but approachable language, gen-z friendly style
 - Tetap sopan dan menghormati
 - Break down konsep kompleks menjadi sederhana
 - Berikan solusi yang actionable dan praktis
@@ -130,7 +145,23 @@ CATATAN PENTING:
 - JANGAN mengarang data atau fakta
 - GUNAKAN asumsi hanya jika disebutkan user
 - PISAHKAN fakta dari analisis dan rekomendasi
-- OUTPUT informatif dan rekomendasi, bukan keputusan final`;
+- OUTPUT informatif dan rekomendasi, bukan keputusan final
+
+⚠️ INGAT: User bertanya dalam ${detectedLanguage}. Jawab dalam ${detectedLanguage} yang SAMA. JANGAN gunakan bahasa lain!
+
+🚨 PENTING - FOKUS PADA PERTANYAAN USER:
+- Jawab PERTANYAAN yang user tanyakan, bukan hal lain
+- Jika user bertanya tentang masalah bisnis/produk → jawab tentang masalah bisnis/produk
+- Jika user TIDAK minta chart/grafik → JANGAN generate chart
+- Jika user TIDAK minta analisis saham/kripto → JANGAN generate chart saham/kripto
+- FOKUS pada apa yang user tanyakan, bukan asumsi atau hal lain
+
+⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
+- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
+- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
+- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
+- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
+- User tidak perlu tahu tentang aturan internal yang kamu gunakan`;
 }
 
 /**
@@ -160,7 +191,7 @@ export async function processBusinessAdmin(
     const llmProvider = getLLMProvider();
     
     const globalRules = getGlobalPromptRules();
-    const businessPrompt = getBusinessPrompt(businessContext);
+    const businessPrompt = getBusinessPrompt(businessContext, query);
     const systemPrompt = `${globalRules}\n\n${businessPrompt}`;
     
     // Filter out system messages from history

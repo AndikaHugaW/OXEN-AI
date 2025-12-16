@@ -395,6 +395,9 @@ export default function CoinGeckoCoinChart({
   useEffect(() => {
     // Fetch coin name + logo using new logo API endpoint
     let cancelled = false;
+    setCoinLogoUrl(null);
+    setCoinMetaName(null);
+    
     (async () => {
       try {
         // First get logo URL from new API
@@ -408,9 +411,31 @@ export default function CoinGeckoCoinChart({
         if (logoRes.ok) {
           const logoJson = await logoRes.json();
           if (logoJson?.success && !cancelled) {
-            // Use proxy URL to avoid CORS issues
-            setCoinLogoUrl(logoJson.proxyUrl || logoJson.logoUrl || null);
-            logoSet = true;
+            // Always use proxy URL first to avoid CORS issues
+            const logoToUse = logoJson.proxyUrl || logoJson.logoUrl;
+            if (logoToUse) {
+              // Verify logo loads before setting
+              const img = new Image();
+              const logoValid = await new Promise<boolean>((resolve) => {
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = logoToUse;
+                setTimeout(() => resolve(false), 5000); // 5 second timeout
+              });
+              
+              if (logoValid && !cancelled) {
+                setCoinLogoUrl(logoToUse);
+                logoSet = true;
+                console.log(`✅ Logo loaded successfully for ${symbol}:`, logoToUse);
+              } else {
+                console.warn(`⚠️ Logo failed to load for ${symbol}:`, logoToUse);
+                // Try direct URL if proxy failed
+                if (logoJson.logoUrl && logoJson.logoUrl !== logoToUse && !cancelled) {
+                  setCoinLogoUrl(logoJson.logoUrl);
+                  logoSet = true;
+                }
+              }
+            }
           }
         }
         
@@ -426,12 +451,17 @@ export default function CoinGeckoCoinChart({
         if (!json?.success) return;
         if (cancelled) return;
         setCoinMetaName(json?.data?.name || null);
+        
         // Only set logo if not already set from logo API
-        if (!logoSet) {
-          setCoinLogoUrl(json?.data?.image?.small || json?.data?.image?.thumb || null);
+        if (!logoSet && !cancelled) {
+          const coinLogoUrl = json?.data?.image?.small || json?.data?.image?.thumb || json?.data?.image?.large;
+          if (coinLogoUrl) {
+            setCoinLogoUrl(coinLogoUrl);
+            console.log(`✅ Using CoinGecko meta logo for ${symbol}:`, coinLogoUrl);
+          }
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        console.warn(`Failed to fetch logo for ${symbol}:`, error);
       }
     })();
     return () => {
@@ -625,8 +655,41 @@ export default function CoinGeckoCoinChart({
               <img
                 src={coinLogoUrl}
                 alt={`${coinName} logo`}
-                className="h-9 w-9 object-cover"
-                onError={() => setCoinLogoUrl(null)}
+                className="h-full w-full object-cover"
+                loading="eager"
+                onError={(e) => {
+                  console.warn(`Logo failed to load for ${symbol}, trying fallback...`);
+                  const target = e.currentTarget;
+                  const currentSrc = target.src;
+                  
+                  // If proxy URL failed, try direct URL from CoinGecko
+                  if (currentSrc.includes('/api/logo')) {
+                    fetch('/api/coingecko/meta', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ symbol }),
+                    })
+                    .then(res => res.json())
+                    .then(json => {
+                      if (json?.success && json?.data?.image) {
+                        // Try large, then thumb, then small
+                        const altUrl = json.data.image.large || json.data.image.thumb || json.data.image.small;
+                        if (altUrl && altUrl !== currentSrc) {
+                          target.src = altUrl;
+                        } else {
+                          setCoinLogoUrl(null);
+                        }
+                      } else {
+                        setCoinLogoUrl(null);
+                      }
+                    })
+                    .catch(() => setCoinLogoUrl(null));
+                  } else {
+                    // Direct URL failed, try proxy
+                    target.src = `/api/logo?symbol=${encodeURIComponent(symbol)}&type=crypto`;
+                    target.onerror = () => setCoinLogoUrl(null);
+                  }
+                }}
               />
             ) : (
               <span className="text-sm font-bold" style={{ color: theme.accent }} aria-hidden="true">

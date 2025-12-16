@@ -7,9 +7,14 @@
 // 
 // STOCK: Menggunakan Yahoo Finance API
 //        - Endpoint: https://query1.finance.yahoo.com/v8/finance/chart/{symbol}
+//        - Support saham US dan Indonesia (IDX)
+//        - Saham Indonesia menggunakan format: {SYMBOL}.JK (contoh: BBCA.JK, BBRI.JK)
+//        - Sistem otomatis menambahkan .JK untuk saham Indonesia yang dikenal
+//        - Alternatif: Polygon.io API (jika POLYGON_API_KEY tersedia, untuk saham US saja)
 
 import axios from 'axios';
 import { cachedFetch } from '@/lib/market/coingecko-cache';
+import { cachedStockFetch } from '@/lib/market/stock-cache';
 
 export interface OHLCData {
   time: string;
@@ -25,6 +30,8 @@ export interface MarketDataResponse {
   data: OHLCData[];
   currentPrice?: number;
   change24h?: number;
+  logoUrl?: string; // Logo URL langsung dari API atau sumber eksternal
+  companyName?: string; // Nama perusahaan
 }
 
 // Fetch kripto data - HANYA menggunakan CoinGecko API
@@ -156,11 +163,46 @@ export async function fetchCryptoData(
 
     const priceData = priceJson[coinId];
     
+    // Get logo and name from CoinGecko coin metadata (direct URL from browser)
+    let logoUrl: string | undefined;
+    let companyName: string | undefined;
+    try {
+      const coinUrl = `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`;
+      const { value: coinJson } = await cachedFetch(
+        `cg:coin:${coinId}`,
+        {
+          ttlMs: 300_000, // 5 minutes
+          staleMs: 3_600_000, // 1 hour
+          isRateLimitError: (err) => err?.response?.status === 429,
+        },
+        async () => {
+          const coinResponse = await axios.get(coinUrl, {
+            timeout: 10000,
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+          return coinResponse.data;
+        }
+      );
+      
+      if (coinJson) {
+        // Prefer large image, fallback to small or thumb
+        logoUrl = coinJson.image?.large || coinJson.image?.small || coinJson.image?.thumb;
+        companyName = coinJson.name;
+        console.log(`✅ [Crypto Data] Logo URL from CoinGecko for ${symbol}:`, logoUrl);
+      }
+    } catch (error: any) {
+      console.log(`⚠️ [Crypto Data] Could not fetch logo from CoinGecko for ${symbol}, will use fallback`);
+    }
+    
     return {
       symbol: symbol.toUpperCase(),
       data,
       currentPrice: priceData?.usd,
       change24h: priceData?.usd_24h_change,
+      logoUrl, // Logo URL langsung dari CoinGecko - bisa digunakan langsung di browser
+      companyName, // Nama coin dari CoinGecko
     };
   } catch (error: any) {
     console.error(`Error fetching crypto data for ${symbol}:`, error.message);
@@ -221,9 +263,32 @@ function normalizeStockSymbol(symbol: string): string {
   }
   
   // Indonesian stocks need .JK suffix
-  const indonesianStocks = ['GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'TLKM', 'ASII', 'UNVR', 'ICBP', 'INDF', 'PGAS'];
+  // Extended list of Indonesian stocks (IDX)
+  const indonesianStocks = [
+    // Banks
+    'GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'BNGA', 'BJBR', 'BTPN', 'BNII',
+    // Telecommunications
+    'TLKM', 'EXCL', 'ISAT',
+    // Consumer Goods
+    'ASII', 'UNVR', 'ICBP', 'INDF', 'MYOR', 'ROTI', 'ULTJ',
+    // Energy
+    'PGAS', 'PTBA', 'ADRO', 'MEDC', 'BUMI',
+    // Infrastructure
+    'JSMR', 'WIKA', 'WEGE', 'ADHI',
+    // Property
+    'BSDE', 'CTRA', 'DMAS',
+    // Mining
+    'ANTM', 'INCO', 'PTBA',
+    // Others
+    'KLBF', 'GGRM', 'SMGR', 'INTP', 'TKIM', 'CPIN', 'SRIL', 'AKRA'
+  ];
   if (indonesianStocks.includes(symbolUpper) && !symbolUpper.includes('.')) {
     return `${symbolUpper}.JK`;
+  }
+  
+  // Also handle if user already typed .JK
+  if (symbolUpper.endsWith('.JK')) {
+    return symbolUpper;
   }
   
   // Jika sudah ada suffix, return as is
@@ -308,21 +373,39 @@ export async function fetchStockData(
     }
     
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${normalizedSymbol}?interval=${interval}&range=${period}`;
+    const cacheKey = `stock:${normalizedSymbol}:${days}:${interval}:${period}`;
     
     console.log(`📡 [Stock Data] Fetching from Yahoo Finance: ${normalizedSymbol} (original: ${symbol}), interval: ${interval}, period: ${period}`);
     
+    // ✅ CACHE INTEGRATION: Use cache to reduce API calls (60s fresh, 300s stale)
+    const { cachedStockFetch } = await import('@/lib/market/stock-cache');
     let response;
     try {
-      response = await axios.get(url, {
-        timeout: 15000, // Increase timeout untuk slow connections
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
+      const cachedResult = await cachedStockFetch(cacheKey, async () => {
+        const res = await axios.get(url, {
+          timeout: 30000, // 30s timeout
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        });
+        return res;
       });
+      
+      response = cachedResult.value;
+      
+      // Log cache status
+      if (cachedResult.state === 'hit') {
+        console.log(`💾 [Stock Data] Cache HIT for ${normalizedSymbol}`);
+      } else if (cachedResult.state === 'stale') {
+        console.log(`⚠️ [Stock Data] Cache STALE for ${normalizedSymbol} (serving anyway)`);
+      } else {
+        console.log(`🔄 [Stock Data] Cache MISS for ${normalizedSymbol} (fresh fetch)`);
+      }
+      
       console.log(`✅ [Stock Data] Yahoo Finance response received: ${response.status}`);
     } catch (axiosError: any) {
       console.error(`❌ [Stock Data] Yahoo Finance fetch failed for ${symbol}:`, {
@@ -387,11 +470,58 @@ export async function fetchStockData(
     const prevClose = data.length > 1 ? data[data.length - 2].close : currentPrice;
     const change24h = prevClose > 0 ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
 
+    // Get logo and company name from Yahoo Finance quoteSummary (direct URL from browser)
+    let logoUrl: string | undefined;
+    let companyName: string | undefined;
+    try {
+      const quoteSummaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${normalizedSymbol}?modules=assetProfile`;
+      const quoteRes = await axios.get(quoteSummaryUrl, {
+        timeout: 5000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      });
+      
+      const assetProfile = quoteRes.data?.quoteSummary?.result?.[0]?.assetProfile;
+      if (assetProfile) {
+        logoUrl = assetProfile.logoUrl; // Direct URL from Yahoo Finance - can be used in browser
+        companyName = assetProfile.name || assetProfile.longName;
+        console.log(`✅ [Stock Data] Logo URL from Yahoo Finance for ${symbol}:`, logoUrl);
+      }
+    } catch (error: any) {
+      console.log(`⚠️ [Stock Data] Could not fetch logo from Yahoo Finance for ${symbol}, will use fallback`);
+    }
+
+    // If no logo from Yahoo Finance, use fallback mapping
+    if (!logoUrl) {
+      const ticker = symbol.toUpperCase().replace('.JK', '');
+      const domainMap: Record<string, string> = {
+        BBCA: 'bca.co.id', BBRI: 'bri.co.id', BMRI: 'bankmandiri.co.id',
+        BBNI: 'bni.co.id', TLKM: 'telkom.co.id', ASII: 'astra.co.id',
+        GOTO: 'goto.com', UNVR: 'unilever.co.id', ICBP: 'icbpfood.com',
+        INDF: 'indofood.com', PGAS: 'pertamina.com', AAPL: 'apple.com',
+        MSFT: 'microsoft.com', TSLA: 'tesla.com', GOOGL: 'google.com',
+        AMZN: 'amazon.com', META: 'meta.com', NVDA: 'nvidia.com',
+      };
+      const domain = domainMap[ticker];
+      if (domain) {
+        logoUrl = `https://logo.clearbit.com/${domain}`; // Direct URL from browser
+        console.log(`✅ [Stock Data] Using Clearbit logo for ${symbol}:`, logoUrl);
+      } else {
+        // Try IEX as last resort
+        logoUrl = `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${ticker}.png`; // Direct URL from browser
+        console.log(`✅ [Stock Data] Using IEX logo for ${symbol}:`, logoUrl);
+      }
+    }
+
     return {
       symbol: symbol.toUpperCase().replace('.JK', ''), // Return original symbol without exchange suffix
       data,
       currentPrice,
       change24h,
+      logoUrl, // Logo URL langsung dari API - bisa digunakan langsung di browser
+      companyName, // Nama perusahaan dari API
     };
   } catch (error: any) {
     console.error(`Error fetching stock data for ${symbol}:`, error.message);
