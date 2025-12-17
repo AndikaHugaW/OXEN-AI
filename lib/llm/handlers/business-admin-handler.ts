@@ -6,13 +6,64 @@
 import { getLLMProvider } from '../providers';
 import { initializeVectorStore } from '../rag-service';
 import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules } from '../ai-request-router';
+import { needsVisualization } from '../chart-generator';
+import { getBusinessDataPrompt, parseStructuredOutput } from '../structured-output';
+
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 /**
- * Context Analyzer - Analyzes query and retrieves relevant business context via RAG
+ * Fetch Context-Aware Business Data from Supabase
+ */
+async function getBusinessData(query: string): Promise<string> {
+  // Only fetch if query is about data/reporting
+  const isDataRequest = /data|report|laporan|penjualan|sales|revenue|profit|keuangan|financial|trend|kinerja|performance|grafik|chart|tabel/i.test(query);
+  
+  if (!isDataRequest) return '';
+
+  try {
+    console.log('📊 [Business Handler] Fetching business data...');
+    const cookieStore = await cookies();
+    const supabase = createServerSupabaseClient(cookieStore);
+    
+    // Try to fetch from the monthly_sales_summary view (Efisiensi Token)
+    const { data, error } = await supabase
+      .from('monthly_sales_summary')
+      .select('*')
+      .order('month', { ascending: false })
+      .limit(12); // Ambil 12 bulan terakhir saja
+
+    if (error) {
+      console.warn('⚠️ [Business Handler] Failed to fetch monthly_sales_summary:', error.message);
+      return '';
+    }
+
+    if (data && data.length > 0) {
+      console.log(`✅ [Business Handler] Retrieved ${data.length} monthly summary records`);
+      return `REAL BUSINESS DATA (Summary):\n${JSON.stringify(data, null, 2)}\n\nINSTRUKSI KHUSUS DATAVIZ: Data ini AKAN divisualisasikan oleh sistem secara otomatis. Tugas Anda HANYA menjelaskan insight menarik, tren, atau anomali dari data tersebut dalam bentuk NARASI/CERITA. JANGAN buat ulang tabel atau grafik teks.`;
+    }
+  } catch (e) {
+    console.error('❌ [Business Handler] Data fetch error:', e);
+  }
+  
+  return '';
+}
+
+/**
+ * Context Analyzer - Analyzes query and retrieves relevant business context via RAG and Database
  */
 async function analyzeContext(query: string): Promise<string> {
   console.log('🔍 [Business Handler] Analyzing context...');
 
+  let contextParts: string[] = [];
+
+  // 1. Fetch Business Data (Database)
+  const dbContext = await getBusinessData(query);
+  if (dbContext) {
+    contextParts.push(dbContext);
+  }
+
+  // 2. Fetch RAG Context (Documents)
   // Check if query needs RAG context
   const needsRAG = query.length > 10 && 
     ['surat', 'letter', 'format', 'prosedur', 'procedure', 'dokumen', 'document', 
@@ -22,27 +73,22 @@ async function analyzeContext(query: string): Promise<string> {
      'planning', 'perencanaan', 'budget', 'anggaran', 'branding', 'brand']
       .some(keyword => query.toLowerCase().includes(keyword));
 
-  if (!needsRAG) {
-    console.log('⏭️ [Business Handler] Skipping RAG (simple query)');
-    return '';
+  if (needsRAG) {
+    try {
+      const store = await initializeVectorStore();
+      const relevantDocs = await store.similaritySearch(query, 2);
+      
+      if (relevantDocs.length > 0) {
+        const ragContext = relevantDocs.map((doc: any) => doc.pageContent).join("\n\n");
+        console.log(`✅ [Business Handler] RAG Context retrieved: ${relevantDocs.length} documents`);
+        contextParts.push(`DOCUMENT CONTEXT:\n${ragContext}`);
+      }
+    } catch (ragError) {
+      console.warn('⚠️ [Business Handler] RAG retrieval failed:', ragError);
+    }
   }
 
-  try {
-    const store = await initializeVectorStore();
-    const relevantDocs = await store.similaritySearch(query, 2);
-    
-    if (relevantDocs.length > 0) {
-      const context = relevantDocs.map((doc: any) => doc.pageContent).join("\n\n");
-      console.log(`✅ [Business Handler] Context retrieved: ${relevantDocs.length} documents`);
-      return context;
-    }
-    
-    console.log('⏭️ [Business Handler] No relevant context found');
-    return '';
-  } catch (ragError) {
-    console.warn('⚠️ [Business Handler] RAG retrieval failed, continuing without context:', ragError);
-    return '';
-  }
+  return contextParts.join("\n\n");
 }
 
 /**
@@ -54,114 +100,42 @@ function getBusinessPrompt(context: string, userMessage?: string): string {
   const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
   const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
   
-  return `Kamu adalah AI Assistant untuk administrasi bisnis perusahaan & agency.
+  return `PERAN: Asisten Bisnis Profesional & Cerdas (seperti ChatGPT).
+  
+TUJUAN: Membantu user dengan strategi bisnis, analisis data, pembuatan dokumen, dan administrasi umum.
 
-━━━━━━━━━━━━━━━━━━━━━━
-MODE: MODE_BUSINESS_ADMIN
-━━━━━━━━━━━━━━━━━━━━━━
+INSTRUKSI BAHASA:
+- Bahasa: ${detectedLanguage}
+- GAYA BAHASA: Profesional tapi luwes, mudah dipahami, bersahabat, dan tidak kaku. Gunakan bahasa Indonesia yang baik dan enak dibaca (bukan terjemahan kaku).
 
-🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
-- User bertanya dalam: ${detectedLanguage}
-- KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
-- JANGAN gunakan bahasa lain selain ${detectedLanguage}
-- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
-- Jika user bertanya dalam English → jawab 100% dalam English
-- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar
-- Contoh: User bertanya "Gimana cara..." → jawab "Cara yang bisa kamu lakukan adalah..." (BUKAN "The way you can do is...")
-- Contoh: User bertanya "How to..." → jawab "The way you can do is..." (BUKAN "Cara yang bisa kamu lakukan adalah...")
+PANDUAN PENTING (JANGAN DILANGGAR):
+1. BERIKAN INSIGHT, BUKAN TABEL MENTAH:
+   - JANGAN PERNAH membuat tabel menggunakan Markdown (seperti | Month | Revenue |).
+   - JANGAN PERNAH membuat grafik menggunakan karakter teks/ASCII.
+   - JANGAN gunakan placeholder seperti "[Grafik ditampilkan di sini]" atau "[Lihat chart di atas]".
+   - Jika ada data angka, jelaskan maknanya dalam kalimat naratif (contoh: "Pendapatan bulan ini naik 20% menjadi Rp50 juta...").
 
-ATURAN WAJIB:
-1. Fokus pada SOP, workflow, efisiensi, dan dokumentasi bisnis.
-2. TIDAK memberi nasihat hukum/pajak resmi (hanya informasi umum).
-3. Jangan mengarang data, fakta, atau regulasi.
-4. Gunakan asumsi HANYA jika disebutkan secara eksplisit.
-5. Jika data tidak cukup → minta data tambahan atau jelaskan keterbatasan.
-6. Pisahkan fakta, analisis, dan asumsi dengan jelas.
-7. Output bersifat informatif dan rekomendasi, bukan keputusan final.
+2. FORMAT TEKS BERSIH (CLEAN TEXT):
+   - JANGAN gunakan formatting tebal (**) atau miring (*).
+   - JANGAN gunakan heading markdown (###).
+   - Gunakan paragraf baru atau poin-poin (bullet points -) untuk memisahkan ide.
+   - Gunakan format 'Nama: Nilai' untuk highlight poin penting.
 
-${context ? `KONTEKS YANG TERSEDIA:\n${context}\n\n` : ""}FOKUS AREA:
-- Business strategy & planning
-- Marketing & branding
-- HR & recruitment
-- Finance & accounting (informasi umum, bukan nasihat resmi)
-- Operations & logistics
-- Customer service
-- Sales & business development
-- Corporate communication
-- Document management
-- Data analysis & reporting
-- SOP & workflow optimization
-- Process efficiency
+3. INTERAKTIF & SOLUTIF:
+   - Jawab langsung ke inti pertanyaan.
+   - Jika memberikan saran, buatlah langkah konkret yang bisa langsung dieksekusi.
+   - Akhiri dengan pertanyaan terbuka atau tawaran bantuan lebih lanjut yang relevan.
 
-STYLE KOMUNIKASI:
-- Untuk Bahasa Indonesia: Bahasa Indonesia yang profesional namun mudah dipahami, bisa menggunakan gaya casual profesional (gen-z friendly)
-- Untuk English: Professional but approachable language, gen-z friendly style
-- Tetap sopan dan menghormati
-- Break down konsep kompleks menjadi sederhana
-- Berikan solusi yang actionable dan praktis
-- Jika menggunakan data/fakta, sebutkan sumbernya jika perlu
+4. KEAMANAN & BATASAN:
+   - Jangan berikan saran hukum/pajak yang mengikat.
+   - Jangan mengarang data. Gunakan hanya data yang disediakan di CONTEXT.
 
-VISUALISASI DATA:
-- HANYA tampilkan visualisasi jika user secara EKSPLISIT meminta
-- JANGAN suggest atau otomatis generate chart untuk pertanyaan umum
-- Jika user tidak minta visualisasi, jawab dengan text saja
-- Sistem akan otomatis generate chart jika user benar-benar meminta
+${context ? `KONTEKS DATA & DOKUMEN:\n${context}\n\n` : ""}
 
-━━━━━━━━━━━━━━━━━━━━━━
-FORMAT WAJIB OUTPUT:
-━━━━━━━━━━━━━━━━━━━━━━
-
-1. RINGKASAN
-   - Poin utama dari pertanyaan/permintaan user
-   - Konteks yang relevan
-
-2. ANALISIS MASALAH
-   - Identifikasi masalah atau kebutuhan
-   - Faktor-faktor yang mempengaruhi
-   - Dampak yang mungkin terjadi
-
-3. OPSI SOLUSI
-   - Opsi 1: [deskripsi, kelebihan, kekurangan]
-   - Opsi 2: [deskripsi, kelebihan, kekurangan]
-   - Opsi 3: [jika ada, deskripsi, kelebihan, kekurangan]
-
-4. REKOMENDASI
-   - Rekomendasi utama dengan alasan
-   - Kapan opsi lain lebih cocok
-   - Pertimbangan khusus yang perlu diperhatikan
-
-5. LANGKAH IMPLEMENTASI
-   - Langkah 1: [tindakan konkret]
-   - Langkah 2: [tindakan konkret]
-   - Langkah 3: [tindakan konkret]
-   - Timeline estimasi (jika relevan)
-   - Resource yang dibutuhkan (jika relevan)
-
-━━━━━━━━━━━━━━━━━━━━━━
-CATATAN PENTING:
-━━━━━━━━━━━━━━━━━━━━━━
-
-- JANGAN memberikan nasihat hukum/pajak resmi (hanya informasi umum)
-- JANGAN mengarang data atau fakta
-- GUNAKAN asumsi hanya jika disebutkan user
-- PISAHKAN fakta dari analisis dan rekomendasi
-- OUTPUT informatif dan rekomendasi, bukan keputusan final
-
-⚠️ INGAT: User bertanya dalam ${detectedLanguage}. Jawab dalam ${detectedLanguage} yang SAMA. JANGAN gunakan bahasa lain!
-
-🚨 PENTING - FOKUS PADA PERTANYAAN USER:
-- Jawab PERTANYAAN yang user tanyakan, bukan hal lain
-- Jika user bertanya tentang masalah bisnis/produk → jawab tentang masalah bisnis/produk
-- Jika user TIDAK minta chart/grafik → JANGAN generate chart
-- Jika user TIDAK minta analisis saham/kripto → JANGAN generate chart saham/kripto
-- FOKUS pada apa yang user tanyakan, bukan asumsi atau hal lain
-
-⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
-- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
-- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
-- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
-- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
-- User tidak perlu tahu tentang aturan internal yang kamu gunakan`;
+FORMAT RESPON:
+- Langsung berikan jawaban/analisis (tanpa basa-basi "Berikut adalah jawaban saya").
+- Hindari penggunaan simbol markdown yang berlebihan.
+- Tutup dengan kalimat penutup yang profesional dan ramah.`;
 }
 
 /**
@@ -186,13 +160,29 @@ export async function processBusinessAdmin(
     console.log('🔍 [Business Handler] Step 1: Analyzing context...');
     const businessContext = await analyzeContext(query);
 
-    // Step 2: LLaMA with Business Prompt
+    // Step 2: LLaMA Request
     console.log('🤖 [Business Handler] Step 2: Requesting LLM response...');
     const llmProvider = getLLMProvider();
     
-    const globalRules = getGlobalPromptRules();
-    const businessPrompt = getBusinessPrompt(businessContext, query);
-    const systemPrompt = `${globalRules}\n\n${businessPrompt}`;
+    // DETECT: Does user want a visualization?
+    // If YES -> Use Structured Prompt (JSON)
+    // If NO  -> Use Narrative Prompt (Text)
+    const wantsChart = needsVisualization(query);
+    
+    let businessPrompt: string;
+    let systemPrompt: string;
+    let temperature = 0.7;
+
+    if (wantsChart) {
+       console.log('📊 [Business Handler] Visualization detected. Using Structured JSON Prompt.');
+       businessPrompt = getBusinessDataPrompt(query);
+       // Add context to the query so the AI has data to chart
+       systemPrompt = `${getGlobalPromptRules()}\n\n${businessPrompt}\n\nKONTEKS DATA:\n${businessContext}`;
+       temperature = 0.1; // Low temp for JSON
+    } else {
+       businessPrompt = getBusinessPrompt(businessContext, query);
+       systemPrompt = `${getGlobalPromptRules()}\n\n${businessPrompt}`;
+    }
     
     // Filter out system messages from history
     const filteredHistory = (context.conversationHistory || []).filter(
@@ -207,20 +197,90 @@ export async function processBusinessAdmin(
 
     let response: string;
     
-    // Check if streaming is requested
-    if (context.stream && llmProvider.generateStreamResponse) {
-      // For streaming, return the stream directly (handled in API route)
-      // This handler focuses on non-streaming responses
-      response = await llmProvider.generateResponse(messages, {
-        temperature: 0.7,
-      });
-    } else {
-      response = await llmProvider.generateResponse(messages, {
-        temperature: 0.7,
-      });
-    }
+    // Check if streaming is requested (but we are in chart mode, so likely waiting for full response)
+    response = await llmProvider.generateResponse(messages, {
+        temperature: temperature,
+    });
 
     console.log('✅ [Business Handler] Response generated');
+    
+    // If we wanted a chart, we need to handle the response carefully
+    if (wantsChart) {
+       // Attempt 1: Standard Parse
+       const parsedUI = parseStructuredOutput(response);
+       
+       if (parsedUI) {
+          console.log('✅ [Business Handler] Successfully parsed Structured Output');
+          return {
+             success: true,
+             mode: RequestMode.BUSINESS_ADMIN,
+             // Use the message from the JSON if available and substantial
+             response: (parsedUI.message && parsedUI.message.length > 20) 
+                 ? parsedUI.message 
+                 : "Berikut visualisasi data berdasarkan analisis tersebut.",
+             structuredOutput: parsedUI
+          };
+       } 
+       
+       // Attempt 2: Hybrid Parse (Text + JSON mix)
+       // AI might have outputted: "Here is the chart: ```json {...} ``` explanation..."
+       // We want to extract valid JSON for the chart, and keep the text for the response.
+       console.warn('⚠️ [Business Handler] Strict parse failed. Attempting hybrid extraction...');
+       
+       const jsonBlockMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/) || 
+                              response.match(/```\s*(\{[\s\S]*?\})\s*```/) ||
+                              response.match(/(\{[\s\S]*?"action"[\s\S]*?\})/);
+                              
+       if (jsonBlockMatch) {
+          const jsonText = jsonBlockMatch[1] || jsonBlockMatch[0];
+          try {
+             // Try to clean potential trailing commas or errors
+             const cleanJsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+             const parsedHybrid = JSON.parse(cleanJsonText);
+             
+             if (parsedHybrid && (parsedHybrid.action === 'show_chart' || parsedHybrid.data)) {
+                 console.log('✅ [Business Handler] Hybrid extraction successful');
+                 
+                 // Remove the JSON block from the original response to get the "Clean Text"
+                 let cleanText = response.replace(jsonBlockMatch[0], '').trim();
+                 // Clean up leftover markers
+                 cleanText = cleanText.replace(/```json/g, '').replace(/```/g, '').trim();
+                 
+                 // If clean text is empty, check if JSON has a message
+                 if (cleanText.length < 10 && parsedHybrid.message) {
+                    cleanText = parsedHybrid.message;
+                 }
+                 // If still empty, default text
+                 if (cleanText.length < 5) {
+                    cleanText = "Berikut visualisasi data yang Anda minta.";
+                 }
+
+                 return {
+                    success: true,
+                    mode: RequestMode.BUSINESS_ADMIN,
+                    response: cleanText,
+                    structuredOutput: parsedHybrid
+                 };
+             }
+          } catch (e) {
+             console.warn('❌ [Business Handler] Hybrid JSON parse failed:', e);
+          }
+       }
+       
+       // Fallback: Return raw text, but let route.ts try to fix it via the "Optimization" step.
+       // But we should try to hide the raw JSON from the user if possible.
+       let sanitizedResponse = response;
+       if (jsonBlockMatch) {
+           // If we found a block but failed to parse it, at least hide it from the chat bubble
+           sanitizedResponse = response.replace(jsonBlockMatch[0], '[Memuat Visualisasi Data...]').trim();
+       }
+       
+       return {
+          success: true,
+          mode: RequestMode.BUSINESS_ADMIN,
+          response: sanitizedResponse
+       };
+    }
 
     return {
       success: true,

@@ -12,7 +12,7 @@ import { buildRAGContext } from '@/lib/rag/rag-service';
 import { createUsageTracker, estimateTokens } from '@/lib/usage/usage-tracker';
 
 // ✅ OPTIMIZED: Separate concerns - chat endpoint only handles LLM + streaming
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const runtime = 'nodejs';
 
 // Helper function to save query to database (non-blocking)
@@ -181,77 +181,35 @@ export async function POST(request: NextRequest) {
           const isEnglish = /^[a-zA-Z\s.,!?'"-]+$/.test(message.trim().substring(0, 100));
           const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
           
-          // Build business admin prompt for streaming
+          // ✅ NEW: Import and use menu-aware system prompts
+          const { getMenuSystemPrompt } = await import('@/lib/llm/menu-prompts');
+          
+          // Detect menu context from mode (or default to 'chat')
+          let menuContext: 'market' | 'data-visualization' | 'reports' | 'letter' | 'chat' = 'chat';
+          if (mode === RequestMode.MARKET_ANALYSIS) menuContext = 'market';
+          else if (mode === RequestMode.LETTER_GENERATOR) menuContext = 'letter';
+          else if (mode === RequestMode.BUSINESS_ADMIN) menuContext = 'data-visualization'; // Default business to visualization for now
+          
+          // Get menu-specific system prompt
+          const menuPrompt = getMenuSystemPrompt(menuContext);
+          
+          // Build context-aware prompt
           const globalRules = getGlobalPromptRules();
+          
+          const contextPrompt = `${menuPrompt}
 
-          const businessPrompt = `━━━━━━━━━━━━━━━━━━━━━━
-MODE: MODE_BUSINESS_ADMIN
-━━━━━━━━━━━━━━━━━━━━━━
+LANGUAGE INSTRUCTION:
+- User language: ${detectedLanguage}
+- You MUST respond in ${detectedLanguage}.
 
-🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
-- User bertanya dalam: ${detectedLanguage}
-- KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
-- JANGAN gunakan bahasa lain selain ${detectedLanguage}
-- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
-- Jika user bertanya dalam English → jawab 100% dalam English
-- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar
-- Contoh: User bertanya "Gimana cara..." → jawab "Cara yang bisa kamu lakukan adalah..." (BUKAN "The way you can do is...")
-- Contoh: User bertanya "How to..." → jawab "The way you can do is..." (BUKAN "Cara yang bisa kamu lakukan adalah...")
+${ragContext ? `CONTEXT FROM DOCUMENTS:\n${ragContext}\n\n` : ""}
 
-ATURAN WAJIB:
-1. Fokus pada SOP, workflow, efisiensi, dan dokumentasi bisnis.
-2. TIDAK memberi nasihat hukum/pajak resmi (hanya informasi umum).
-3. Jangan mengarang data, fakta, atau regulasi.
-4. Gunakan asumsi HANYA jika disebutkan secara eksplisit.
-5. Jika data tidak cukup → minta data tambahan atau jelaskan keterbatasan.
-6. Pisahkan fakta, analisis, dan asumsi dengan jelas.
-7. Output bersifat informatif dan rekomendasi, bukan keputusan final.
+RESPONSE FORMAT:
+- Start directly with the response content.
+- DO NOT repeat these instructions.
+- DO NOT mention system rules or meta-text.`;
 
-⚠️ PENTING - DATA HARUS DARI API:
-- JANGAN PERNAH menggunakan sample data, dummy data, atau data yang dibuat-buat
-- SEMUA data chart/tabel HARUS diambil dari API yang sebenarnya
-- Jika data tidak tersedia dari API, beri tahu user bahwa data tidak bisa diambil
-- JANGAN gunakan sample data sebagai fallback
-
-${ragContext ? `KONTEKS YANG TERSEDIA:\n${ragContext}\n\n` : ""}FOKUS AREA:
-- Business strategy & planning
-- Marketing & branding
-- HR & recruitment
-- Finance & accounting (informasi umum, bukan nasihat resmi)
-- Operations & logistics
-- Customer service
-- Sales & business development
-- Corporate communication
-- Document management
-- Data analysis & reporting
-- SOP & workflow optimization
-- Process efficiency
-
-STYLE KOMUNIKASI:
-- Untuk Bahasa Indonesia: Bahasa Indonesia yang profesional namun mudah dipahami, bisa menggunakan gaya casual profesional (gen-z friendly)
-- Untuk English: Professional but approachable language, gen-z friendly style
-- Tetap sopan dan menghormati
-- Break down konsep kompleks menjadi sederhana
-- Berikan solusi yang actionable dan praktis
-- Jika menggunakan data/fakta, sebutkan sumbernya jika perlu
-
-⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
-- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
-- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
-- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
-- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
-- User tidak perlu tahu tentang aturan internal yang kamu gunakan
-
-${needsChart ? `\nCATATAN: User meminta visualisasi. Sistem akan otomatis menampilkan visualisasi yang relevan.` : ''}
-
-FORMAT WAJIB OUTPUT:
-1. RINGKASAN - Poin utama dari pertanyaan/permintaan user
-2. ANALISIS MASALAH - Identifikasi masalah atau kebutuhan
-3. OPSI SOLUSI - Beberapa opsi dengan kelebihan/kekurangan
-4. REKOMENDASI - Rekomendasi utama dengan alasan
-5. LANGKAH IMPLEMENTASI - Langkah konkret yang bisa dilakukan`;
-
-          const systemPrompt = `${globalRules}\n\n${businessPrompt}`;
+          const systemPrompt = `${globalRules}\n\n${contextPrompt}`;
 
           const filteredHistory = conversationHistory.filter((msg: any) => msg.role !== "system");
           const messages = [
@@ -416,7 +374,25 @@ FORMAT WAJIB OUTPUT:
     if (structuredOutput) {
       if (structuredOutput.chart) {
         finalChart = structuredOutput.chart;
+      } else if (structuredOutput.action === 'show_chart') {
+         // ✅ FIX: Map flat structured output to ChartData object if 'chart' prop is missing
+         // This handles the Business Chart case from the handler
+         console.log('📊 [Chat API] Constructing finalChart from StructuredOutput');
+         finalChart = {
+            type: structuredOutput.chart_type || 'bar',
+            title: structuredOutput.title || 'Data Visualization',
+            data: structuredOutput.data || [],
+            xKey: structuredOutput.xKey || 'name',
+            yKey: structuredOutput.yKey || 'value',
+            // series: if yKey is array, we might want to construct series, but ChartRenderer handles array yKey usually.
+         };
+         
+         // Use the message from structured output if response text is empty/placeholder
+         if (!isValidAnalysisMessage(finalResponse) && structuredOutput.message) {
+            finalResponse = structuredOutput.message;
+         }
       }
+
       if (structuredOutput.table) {
         finalTable = structuredOutput.table;
       }
@@ -439,6 +415,9 @@ FORMAT WAJIB OUTPUT:
         console.warn('Visualization generation failed:', vizError);
       }
     }
+    
+    // REDUNDANT BLOCK REMOVED: Business chart generation is now handled in the Handler (processBusinessAdmin)
+    // The previous block "if (!finalChart && needsChart ...)" is deleted to avoid double generation.
 
     // Build final response
     const response: any = {

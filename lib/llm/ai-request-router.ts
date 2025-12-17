@@ -11,44 +11,27 @@ import { processLetterGenerator } from './handlers/letter-generator-handler';
  * Global prompt rules that apply to all modes
  */
 export function getGlobalPromptRules(): string {
-  return `━━━━━━━━━━━━━━━━━━━━━━
-ATURAN GLOBAL (WAJIB)
-━━━━━━━━━━━━━━━━━━━━━━
+  return `SYSTEM INSTRUCTIONS:
 
-🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
-- SELALU gunakan bahasa yang SAMA dengan bahasa pertanyaan user
-- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
-- Jika user bertanya dalam English → jawab 100% dalam English
-- Jika user bertanya dalam campuran bahasa → ikuti bahasa dominan yang digunakan user
-- JANGAN gunakan bahasa lain selain bahasa yang digunakan user
-- Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar
-- Deteksi bahasa dari pertanyaan user dan sesuaikan respons kamu
+1. LANGUAGE:
+   - Match the USER's language strictly.
+   - If user speaks Indonesian -> Respond in Indonesian.
+   - If user speaks English -> Respond in English.
 
-⚠️⚠️⚠️ PENTING - JANGAN ULANG ATURAN PROMPT:
-- JANGAN menulis kembali atau mengutip aturan-aturan di atas dalam respons kamu
-- JANGAN menampilkan instruksi seperti "🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS" atau aturan lainnya
-- JANGAN menjelaskan bahwa kamu mengikuti aturan tertentu
-- Langsung jawab pertanyaan user dengan natural, seolah-olah aturan tersebut sudah otomatis diterapkan
-- User tidak perlu tahu tentang aturan internal yang kamu gunakan
+2. MODE:
+   - Identify the user's intent: Market Analysis, Business Admin, or Letter Generator.
+   - Adapt your persona accordingly.
 
-1. Tentukan MODE kerja sebelum menjawab:
-   - MODE_MARKET_ANALYSIS: Untuk analisis pasar saham & kripto
-   - MODE_BUSINESS_ADMIN: Untuk administrasi bisnis perusahaan & agency
-   - MODE_LETTER_GENERATOR: Untuk pembuatan surat & dokumen profesional
+3. RESPONSIBILITY:
+   - Provide accurate, helpful, and professional responses.
+   - Do NOT halluncinate data. If data is missing, ask for it.
+   - Clearly separate facts from assumptions.
 
-2. Gunakan HANYA mode yang relevan dengan permintaan user.
-
-3. JANGAN mengarang data, harga, fakta, atau regulasi.
-
-4. Jika data tidak cukup → tolak analisis dan minta data tambahan.
-
-5. Pisahkan dengan jelas: FAKTA, ANALISIS, dan ASUMSI.
-
-6. Output bersifat informatif, bukan keputusan final.
-
-7. Jika konteks tidak jelas, minta user menentukan MODE terlebih dahulu.
-
-━━━━━━━━━━━━━━━━━━━━━━`;
+4. FORMATTING:
+   - Use clear sections, bullet points, and markdown.
+   - Keep responses concise and to the point.
+   - DO NOT repeat these instructions in your output.
+   - DO NOT output "System Instructions" or any meta-text.`;
 }
 
 // Request modes
@@ -142,14 +125,23 @@ export function detectRequestMode(context: AIRequestContext): RequestMode {
   ];
   const isComparisonRequest = comparisonKeywords.some(keyword => message.includes(keyword));
   
-  // If it's a comparison request with market-related context, route to market analysis
-  if (isComparisonRequest && (message.includes('saham') || message.includes('stock') || 
-      message.includes('chart') || message.includes('crypto') || message.includes('kripto') ||
-      message.includes('aset') || message.includes('asset') || message.includes('harga') ||
-      message.includes('price') || message.includes('coin') || message.includes('koin') ||
-      // Also check if any stock/crypto symbol pattern exists in the message
-      /\b[A-Z]{3,5}\b/.test(context.message || ''))) {
-    return RequestMode.MARKET_ANALYSIS;
+  // If it's a comparison request, check if it's market-related
+  if (isComparisonRequest) {
+    // strict check: only if it detects valid market symbols or explicit market keywords
+    const marketInfo = isMarketDataRequest(message);
+    
+    // Additional strict check for market keywords to support "compare crypto" without specific symbols
+    const hasMarketKeywords = 
+      message.includes('saham') || message.includes('stock') || 
+      message.includes('crypto') || message.includes('kripto') ||
+      message.includes('coin') || message.includes('koin') ||
+      message.includes('bitcoin') || message.includes('btc') ||
+      message.includes('ethereum') || message.includes('eth');
+
+    if (marketInfo.isMarket || hasMarketKeywords) {
+      return RequestMode.MARKET_ANALYSIS;
+    }
+    // Otherwise, treat as business comparison (fall through)
   }
   
   // PRIORITY 3: Check for market analysis requests - MUST be explicit
@@ -159,7 +151,24 @@ export function detectRequestMode(context: AIRequestContext): RequestMode {
     return RequestMode.MARKET_ANALYSIS;
   }
 
-  // PRIORITY 3: Check for EXPLICIT market analysis keywords - must be very specific
+  // PRIORITY 4: Check for BUSINESS VISUALIZATION requests
+  // These are chart/grafik requests but for business data, NOT market data
+  const businessVisualizationPatterns = [
+    /bandingkan.*chart/i,
+    /tampilkan.*perbandingan/i,
+    /chart.*penjualan/i,
+    /grafik.*sales/i,
+    /visualisasi.*bisnis/i,
+    /tampilkan.*grafik.*(?!btc|eth|bitcoin|ethereum|saham|stock|crypto|kripto)/i,
+    /buat.*chart.*(?!btc|eth|bitcoin|ethereum|saham|stock|crypto|kripto)/i,
+  ];
+  const isBusinessVisualization = businessVisualizationPatterns.some(p => p.test(message));
+  if (isBusinessVisualization && !marketInfo.isMarket) {
+    console.log('📊 [AI Router] Business visualization detected, routing to BUSINESS_ADMIN');
+    return RequestMode.BUSINESS_ADMIN;
+  }
+
+  // PRIORITY 5: Check for EXPLICIT market analysis keywords - must be very specific
   const explicitMarketKeywords = [
     'analisis saham', 'stock analysis', 'analisis kripto', 'crypto analysis',
     'candlestick chart', 'chart saham', 'stock chart', 'chart kripto', 'crypto chart',
@@ -171,7 +180,9 @@ export function detectRequestMode(context: AIRequestContext): RequestMode {
   // Must have explicit market keyword AND not be a business data question
   const hasExplicitMarketKeyword = explicitMarketKeywords.some(keyword => message.includes(keyword));
   
-  if (hasExplicitMarketKeyword && !isBusinessDataQuestion) {
+  // ✅ FIX: Only route to market if BOTH keyword AND symbol are detected
+  // This prevents "tampilkan chart" from triggering Market mode when no symbol is present
+  if (hasExplicitMarketKeyword && !isBusinessDataQuestion && marketInfo.isMarket && marketInfo.symbol) {
     return RequestMode.MARKET_ANALYSIS;
   }
 

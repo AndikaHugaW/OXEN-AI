@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -26,9 +27,11 @@ import {
   Scatter,
   ZAxis,
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import CandlestickChart from './CandlestickChart';
 import CoinGeckoCoinChart from './CoinGeckoCoinChart';
 import ComparisonWidgetWrapper from './ComparisonWidgetWrapper';
@@ -36,6 +39,7 @@ import ComparisonWidgetWrapper from './ComparisonWidgetWrapper';
 export interface ChartData {
   type: 'line' | 'bar' | 'pie' | 'area' | 'composed' | 'radar' | 'scatter' | 'table' | 'candlestick' | 'comparison';
   title: string;
+  source?: 'internal' | 'external';
   data: Array<Record<string, any>>;
   xKey: string;
   yKey: string | string[]; // Support multiple series
@@ -61,6 +65,11 @@ export interface ChartData {
     changePercent: number;
     timestamp?: string;
   }>;
+  error?: {
+    title: string;
+    message: string;
+    suggestion?: string;
+  };
 }
 
 interface ChartRendererProps {
@@ -90,68 +99,229 @@ function colorForKey(key: string): string {
   return COLORS[hash % COLORS.length];
 }
 
+// Trend-aware colors
+const TREND_COLORS = {
+  up: '#22c55e',      // Green
+  down: '#ef4444',    // Red
+  neutral: '#06b6d4', // Cyan
+};
+
+// Helper: Get change from previous data point
+function getChangeFromPrevious(
+  data: Array<Record<string, any>>,
+  currentIndex: number,
+  valueKey: string
+): { change: number; direction: 'up' | 'down' | 'flat' } | null {
+  if (currentIndex <= 0) return null;
+  const current = data[currentIndex][valueKey];
+  const previous = data[currentIndex - 1][valueKey];
+  if (typeof current !== 'number' || typeof previous !== 'number' || previous === 0) return null;
+  const change = ((current - previous) / previous) * 100;
+  return { change, direction: change > 1 ? 'up' : change < -1 ? 'down' : 'flat' };
+}
+
 export default function ChartRenderer({ chart }: ChartRendererProps) {
+  // 🚫 Error State for Sufficiency Validation
+  if (chart.error) {
+    return (
+      <Card className="w-full bg-black/40 border-cyan-500/30 backdrop-blur-sm shadow-xl overflow-hidden">
+        <CardHeader className="border-b border-white/5 pb-4">
+          <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+            <span className="text-yellow-500">⚠️</span> {chart.error.title}
+          </CardTitle>
+          <CardDescription className="text-gray-400">
+            {chart.error.message}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6 flex flex-col items-center justify-center min-h-[250px] space-y-4">
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg max-w-md w-full">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 bg-yellow-500/20 p-1.5 rounded-full">
+                <TrendingUp size={16} className="text-yellow-400" />
+              </div>
+              <div>
+                <h4 className="font-medium text-yellow-100 text-sm mb-1">Saran Perbaikan</h4>
+                <p className="text-yellow-200/80 text-sm leading-relaxed">
+                  {chart.error.suggestion || 'Tambahkan lebih banyak data untuk membuat visualisasi yang bermakna.'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="text-center text-xs text-gray-500 mt-4">
+            AI menolak membuat chart yang tidak akurat (Enterprise Standard).
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  // 🎨 Chart type toggle (bar ↔ line)
+  const [chartTypeOverride, setChartTypeOverride] = useState<'bar' | 'line' | null>(null);
+  const effectiveChartType = chartTypeOverride || chart.type;
+  
+  // 📈 Trend detection for primary series
+  const detectTrend = (dataKey: string): 'up' | 'down' | 'neutral' => {
+    if (!chart.data || chart.data.length < 2) return 'neutral';
+    const values = chart.data
+      .map(item => typeof item[dataKey] === 'number' ? item[dataKey] : parseFloat(item[dataKey]))
+      .filter(v => !isNaN(v));
+    if (values.length < 2) return 'neutral';
+    const changePercent = ((values[values.length - 1] - values[0]) / values[0]) * 100;
+    if (changePercent > 2) return 'up';
+    if (changePercent < -2) return 'down';
+    return 'neutral';
+  };
+  
+  const primaryKey = Array.isArray(chart.yKey) ? chart.yKey[0] : chart.yKey;
+  const primaryTrend = detectTrend(primaryKey);
+  const primaryChangePercent = (() => {
+    if (!chart.data || chart.data.length < 2) return 0;
+    const values = chart.data.map(d => d[primaryKey]).filter(v => typeof v === 'number');
+    if (values.length < 2 || values[0] === 0) return 0;
+    return ((values[values.length - 1] - values[0]) / values[0]) * 100;
+  })();
+
   const renderChart = () => {
-    switch (chart.type) {
+    // Use effectiveChartType for toggle support
+    
+    // 🎯 Smart Tooltip with period-over-period change
+    const SmartTooltip = ({ active, payload, label }: any) => {
+      if (!active || !payload || payload.length === 0) return null;
+      
+      // Find current index in data
+      const currentIndex = chart.data.findIndex((d: any) => d[chart.xKey] === label);
+      const yKey = Array.isArray(chart.yKey) ? chart.yKey[0] : chart.yKey;
+      const changeInfo = getChangeFromPrevious(chart.data, currentIndex, yKey);
+      
+      return (
+        <div className="bg-black/90 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-3 shadow-xl min-w-[160px]">
+          <p className="text-cyan-400 font-medium text-sm mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-4">
+              <span className="text-gray-400 text-xs">{entry.name || entry.dataKey}:</span>
+              <span className="text-white font-mono text-sm">
+                {new Intl.NumberFormat('id-ID', { 
+                  style: 'currency', 
+                  currency: 'IDR',
+                  maximumFractionDigits: 0 
+                }).format(entry.value)}
+              </span>
+            </div>
+          ))}
+          {changeInfo && (
+            <div className={cn(
+              "mt-2 pt-2 border-t border-gray-700 text-xs font-medium",
+              changeInfo.direction === 'up' && "text-green-400",
+              changeInfo.direction === 'down' && "text-red-400",
+              changeInfo.direction === 'flat' && "text-gray-400"
+            )}>
+              {changeInfo.direction === 'up' && '↑'}
+              {changeInfo.direction === 'down' && '↓'}
+              {changeInfo.direction === 'flat' && '→'}
+              {' '}
+              {changeInfo.change >= 0 ? '+' : ''}{changeInfo.change.toFixed(1)}% dari sebelumnya
+            </div>
+          )}
+        </div>
+      );
+    };
+    
+    switch (effectiveChartType) {
       case 'line':
         const lineYKeys = Array.isArray(chart.yKey) ? chart.yKey : [chart.yKey];
+        const isMultiLine = lineYKeys.length > 1;
+        // Determine line color based on trend (for single-series)
+        const lineColor = !isMultiLine ? (
+          primaryTrend === 'up' ? TREND_COLORS.up : 
+          primaryTrend === 'down' ? TREND_COLORS.down : 
+          TREND_COLORS.neutral
+        ) : null;
+        
         return (
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chart.data} margin={{ top: 10, right: 15, left: 5, bottom: 10 }}>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={chart.data} margin={{ top: 20, right: 20, left: 10, bottom: 10 }}>
+              {/* Premium SVG Patterns */}
               <defs>
-                {lineYKeys.map((key, index) => {
-                  const color = colorForKey(key);
+                {/* Dotted background pattern */}
+                <pattern
+                  id="line-pattern-dots"
+                  x="0"
+                  y="0"
+                  width="10"
+                  height="10"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <circle
+                    cx="2"
+                    cy="2"
+                    r="1"
+                    fill="rgba(6,182,212,0.12)"
+                  />
+                </pattern>
+                
+                {/* Glow filters for each line */}
+                {lineYKeys.map((key) => {
+                  const color = isMultiLine ? colorForKey(key) : lineColor!;
+                  return (
+                    <filter key={`glow-${key}`} id={`glow-filter-${key}`} x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                      <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  );
+                })}
+                
+                {/* Gradient fills for area under line */}
+                {lineYKeys.map((key) => {
+                  const color = isMultiLine ? colorForKey(key) : lineColor!;
                   return (
                     <linearGradient key={`lineGradient-${key}`} id={`lineGradient-${key}`} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-                      <stop offset="50%" stopColor={color} stopOpacity={0.15} />
-                      <stop offset="100%" stopColor={color} stopOpacity={0.05} />
+                      <stop offset="50%" stopColor={color} stopOpacity={0.1} />
+                      <stop offset="100%" stopColor={color} stopOpacity={0.02} />
                     </linearGradient>
                   );
                 })}
               </defs>
+              
+              {/* Dotted background */}
+              <rect
+                x="0"
+                y="0"
+                width="100%"
+                height="90%"
+                fill="url(#line-pattern-dots)"
+              />
+              
               <CartesianGrid 
+                vertical={false}
                 strokeDasharray="3 3" 
-                stroke="rgba(6, 182, 212, 0.1)" 
-                strokeWidth={1}
+                stroke="rgba(255,255,255,0.08)" 
               />
               <XAxis 
                 dataKey={chart.xKey} 
                 stroke="rgba(148, 163, 184, 0.5)"
-                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11, fontWeight: 500 }}
-                tickMargin={10}
+                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 12, fontWeight: 500 }}
+                tickMargin={12}
                 axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
+                tickLine={false}
               />
               <YAxis 
                 stroke="rgba(148, 163, 184, 0.5)"
-                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11, fontWeight: 500 }}
-                tickMargin={10}
-                width={60}
+                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11 }}
+                tickMargin={8}
+                width={65}
                 axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
+                tickLine={false}
+                tickFormatter={(value) => {
+                  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}M`;
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(0)}jt`;
+                  if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                  return `${value}`;
+                }}
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
-                  borderRadius: '12px',
-                  color: '#ffffff',
-                  fontSize: '12px',
-                  padding: '12px',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 8px 32px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(6, 182, 212, 0.1)',
-                }}
-                labelStyle={{ 
-                  color: '#06b6d4', 
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  marginBottom: '8px'
-                }}
-                itemStyle={{ 
-                  color: '#ffffff',
-                  padding: '4px 0'
-                }}
-                cursor={{ stroke: 'rgba(6, 182, 212, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }}
-              />
+              <Tooltip content={SmartTooltip} cursor={{ stroke: 'rgba(6, 182, 212, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }} />
               <Legend 
                 wrapperStyle={{ 
                   color: 'rgba(148, 163, 184, 0.9)', 
@@ -163,26 +333,34 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                 iconType="line"
               />
               {lineYKeys.map((key, index) => {
-                const color = colorForKey(key);
+                const color = isMultiLine ? colorForKey(key) : lineColor!;
+                // For multi-line comparison: first line solid, others dashed
+                const isDashed = isMultiLine && index > 0;
                 return (
                   <Line
                     key={key}
                     type="monotone"
                     dataKey={key}
                     stroke={color}
-                    strokeWidth={2.5}
-                    dot={{ fill: color, r: 3, strokeWidth: 2, stroke: '#000' }}
+                    strokeWidth={isMultiLine ? 2.5 : 3}
+                    strokeDasharray={isDashed ? '8 4' : undefined}
+                    dot={{ 
+                      fill: color, 
+                      r: 4, 
+                      strokeWidth: 2, 
+                      stroke: 'rgba(0,0,0,0.8)' 
+                    }}
                     activeDot={{ 
-                      r: 6, 
+                      r: 7, 
                       fill: color,
-                      stroke: '#000',
+                      stroke: 'rgba(0,0,0,0.9)',
                       strokeWidth: 2,
-                      style: { filter: `drop-shadow(0 0 6px ${color})` }
+                      style: { filter: `drop-shadow(0 0 8px ${color})` }
                     }}
                     isAnimationActive={true}
                     animationDuration={800}
                     animationEasing="ease-out"
-                    style={{ filter: `drop-shadow(0 0 3px ${color}80)` }}
+                    style={{ filter: `drop-shadow(0 0 4px ${color}80)` }}
                   />
                 );
               })}
@@ -191,41 +369,124 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
         );
 
       case 'bar':
+        const barYKeys = Array.isArray(chart.yKey) ? chart.yKey : [chart.yKey];
+        // Determine bar color based on trend
+        const barColor = primaryTrend === 'up' ? TREND_COLORS.up : 
+                        primaryTrend === 'down' ? TREND_COLORS.down : 
+                        TREND_COLORS.neutral;
+        
         return (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={chart.data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={chart.data} margin={{ top: 20, right: 20, left: 10, bottom: 10 }}>
+              {/* Premium SVG Patterns */}
+              <defs>
+                {/* Dotted background pattern */}
+                <pattern
+                  id="bar-pattern-dots"
+                  x="0"
+                  y="0"
+                  width="10"
+                  height="10"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <circle
+                    cx="2"
+                    cy="2"
+                    r="1"
+                    fill="rgba(6,182,212,0.1)"
+                  />
+                </pattern>
+                
+                {/* Hatched pattern for bars */}
+                {barYKeys.map((key) => {
+                  const color = primaryTrend === 'up' ? '#22c55e' : 
+                               primaryTrend === 'down' ? '#ef4444' : '#06b6d4';
+                  return (
+                    <pattern
+                      key={`hatched-${key}`}
+                      id={`hatched-pattern-${key}`}
+                      patternUnits="userSpaceOnUse"
+                      width="8"
+                      height="8"
+                      patternTransform="rotate(45)"
+                    >
+                      <rect width="8" height="8" fill={color} fillOpacity="0.15" />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="8"
+                        stroke={color}
+                        strokeWidth="3"
+                        strokeOpacity="0.4"
+                      />
+                    </pattern>
+                  );
+                })}
+                
+                {/* Gradient for bar border glow */}
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={barColor} stopOpacity={0.9} />
+                  <stop offset="100%" stopColor={barColor} stopOpacity={0.6} />
+                </linearGradient>
+              </defs>
+              
+              {/* Dotted background */}
+              <rect
+                x="0"
+                y="0"
+                width="100%"
+                height="90%"
+                fill="url(#bar-pattern-dots)"
+              />
+              
+              <CartesianGrid 
+                vertical={false} 
+                strokeDasharray="3 3" 
+                stroke="rgba(255,255,255,0.08)" 
+              />
               <XAxis 
                 dataKey={chart.xKey} 
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                tickMargin={8}
+                stroke="rgba(148, 163, 184, 0.5)"
+                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 12, fontWeight: 500 }}
+                tickMargin={12}
+                axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
+                tickLine={false}
               />
               <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                stroke="rgba(148, 163, 184, 0.5)"
+                tick={{ fill: 'rgba(148, 163, 184, 0.8)', fontSize: 11 }}
                 tickMargin={8}
-                width={60}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 'calc(var(--radius) - 2px)',
-                  color: 'hsl(var(--popover-foreground))',
-                  fontSize: '12px',
+                width={65}
+                axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)' }}
+                tickLine={false}
+                tickFormatter={(value) => {
+                  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}M`;
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(0)}jt`;
+                  if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                  return `${value}`;
                 }}
-                labelStyle={{ color: 'hsl(var(--primary))', fontSize: '12px' }}
               />
+              <Tooltip content={SmartTooltip} cursor={{ fill: 'rgba(6, 182, 212, 0.08)' }} />
               <Legend 
-                wrapperStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '12px' }}
-                iconSize={12}
+                wrapperStyle={{ 
+                  color: 'rgba(148, 163, 184, 0.9)', 
+                  fontSize: '12px',
+                  paddingTop: '16px'
+                }}
+                iconSize={14}
               />
-              <Bar 
-                dataKey={Array.isArray(chart.yKey) ? chart.yKey[0] : chart.yKey} 
-                fill="hsl(var(--primary))" 
-                radius={[6, 6, 0, 0]} 
-              />
+              {barYKeys.map((key) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={`url(#hatched-pattern-${key})`}
+                  stroke={barColor}
+                  strokeWidth={2}
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={60}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         );
@@ -668,9 +929,63 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
       {chart.title && (
         <CardHeader className="relative pb-4 pt-6 px-6 border-b border-cyan-500/20">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
-          <CardTitle className="text-subtitle text-cyan-400 font-semibold tracking-wide">
-            {chart.title}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-subtitle text-cyan-400 font-semibold tracking-wide">
+                {chart.title}
+              </CardTitle>
+              {/* Trend Badge */}
+              {primaryChangePercent !== 0 && chart.type !== 'pie' && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1 font-mono text-xs",
+                    primaryTrend === 'up' && "text-green-500 bg-green-500/10 border-green-500/20",
+                    primaryTrend === 'down' && "text-red-500 bg-red-500/10 border-red-500/20",
+                    primaryTrend === 'neutral' && "text-gray-400 bg-gray-500/10 border-gray-500/20"
+                  )}
+                >
+                  {primaryTrend === 'up' && <TrendingUp className="h-3.5 w-3.5" />}
+                  {primaryTrend === 'down' && <TrendingDown className="h-3.5 w-3.5" />}
+                  {primaryTrend === 'neutral' && <Minus className="h-3.5 w-3.5" />}
+                  <span>{primaryTrend === 'up' ? '+' : ''}{primaryChangePercent.toFixed(1)}%</span>
+                </Badge>
+              )}
+            </div>
+            
+            {/* Chart Type Toggle */}
+            {(chart.type === 'bar' || chart.type === 'line') && (
+              <div className="flex items-center gap-1 bg-black/30 rounded-lg p-1 border border-cyan-500/20">
+                <button
+                  onClick={() => setChartTypeOverride('bar')}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded-md transition-all duration-200",
+                    effectiveChartType === 'bar' 
+                      ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                      : "text-gray-400 hover:text-gray-300"
+                  )}
+                >
+                  Bar
+                </button>
+                <button
+                  onClick={() => setChartTypeOverride('line')}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded-md transition-all duration-200",
+                    effectiveChartType === 'line' 
+                      ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                      : "text-gray-400 hover:text-gray-300"
+                  )}
+                >
+                  Line
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Unit label */}
+          <CardDescription className="text-xs text-gray-500 mt-1">
+            Dalam Rupiah (IDR)
+          </CardDescription>
         </CardHeader>
       )}
       <CardContent className="relative px-6 pb-6 pt-6">

@@ -1,17 +1,106 @@
 // Utility untuk parse structured output dari AI
 // Memaksa AI mengembalikan JSON untuk actions tertentu
 
+// Update StructuredResponse to include business chart fields
 export interface StructuredResponse {
   action: 'show_chart' | 'text_only' | 'show_table';
   message?: string;
-  // Untuk chart
+  // Untuk market chart
   asset_type?: 'crypto' | 'stock';
   symbol?: string;
   timeframe?: string;
   chart_type?: 'candlestick' | 'line' | 'bar' | 'pie' | 'area';
   indicators?: string[];
-  chart?: any;
+  // Untuk business chart 
+  data?: any[]; // Array of objects for the chart
+  xKey?: string;
+  yKey?: string | string[];
+  title?: string;
+  chart?: any; // Fallback container
   table?: any;
+}
+
+// ... existing parseStructuredOutput ...
+
+// ... existing getStructuredPrompt ...
+
+/**
+ * Generate prompt untuk memaksa AI return structured business chart JSON
+ */
+/**
+ * Generate prompt untuk memaksa AI return structured business chart JSON
+ */
+/**
+ * Generate prompt untuk memaksa AI return structured business chart JSON
+ */
+export function getBusinessDataPrompt(query: string): string {
+  // Detect requested chart type from query for hints
+  const isLine = /line|garis/i.test(query);
+  const isPie = /pie|lingkaran/i.test(query);
+  const isBar = /bar|batang/i.test(query);
+  const isArea = /area|wilayah/i.test(query);
+  
+  // Detect comparison intent
+  const isComparison = /banding|compare|vs|versus|komparasi/i.test(query);
+  
+  const preferredType = isLine ? "line" : (isPie ? "pie" : (isArea ? "area" : (isComparison ? "bar" : "bar")));
+  
+  // Custom instruction for comparison vs single data
+  const comparisonInstruction = isComparison 
+    ? `MODE PERBANDINGAN TERDETEKSI:
+       - Gunakan "yKey" sebagai ARRAY string (contoh: ["Revenue", "Expense"] atau ["2024", "2025"]).
+       - "data" harus memiliki multiple value per kategori.
+       - "message" harus fokus pada ANALISIS GAP (selisih), Growth (pertumbuhan), dan Insight "Mengapa berbeda?".`
+    : `MODE SINGLE DATA: "yKey" cukup string tunggal.`;
+
+  return `KAMU ADALAH DATA VISUALIZATION EXPERT.
+TUGAS: Merubah data bisnis dan narasi menjadi konfigurasi JSON Chart yang siap render.
+
+KONTEKS USER QUERY: "${query}"
+PREFERENSI CHART: ${preferredType} (Prioritaskan ini jika cocok)
+${comparisonInstruction}
+
+ATURAN MUTLAK (SYSTEM CRITICAL):
+1. Output WAJIB berupa JSON valid (dimulai { dan diakhiri }).
+2. JANGAN ada teks pengantar atau penutup di luar blok JSON.
+3. Pastikan angka adalah NUMBER (1000000), bukan string ("1 juta").
+
+FORMAT JSON TARGET (WAJIB IKUTI STRUKTUR INI):
+{
+  "action": "show_chart",
+  "chart_type": "bar" | "line" | "pie" | "area", 
+  "title": "Judul Chart yang Singkat & Jelas",
+  "message": "Penjelasan/Insight naratif singkat (maks 2 paragraf) tentang data ini.",
+  "data": [
+    { "category": "Okt 2025", "Product A": 120, "Product B": 80 },
+    { "category": "Nov 2025", "Product A": 150, "Product B": 90 }
+  ],
+  "xKey": "category",
+  "yKey": ["Product A", "Product B"] 
+}
+
+PENJELASAN FIELD:
+- "chart_type": Gunakan "bar" untuk perbandingan side-by-side, "line" untuk tren perbandingan.
+- "data": Array object. Kunci (keys) harus konsisten.
+- "xKey": Sumbu X (Kategori/Waktu).
+- "yKey": Sumbu Y. PENTING: Jika perbandingan, GUNAKAN ARRAY (["Series1", "Series2"]). Jika single, string biasa.
+- "message": JANGAN MENJELASKAN ULANG ANGKA. Jelaskan *Insight*: Tren naik/turun, Pemenang vs Pecundang, Anomali, dan Rekomendasi singkat.
+
+CONTOH VALID (PERBANDINGAN):
+{
+  "action": "show_chart",
+  "chart_type": "bar",
+  "title": "Pendapatan vs Pengeluaran Q4 2025",
+  "message": "Meskipun pendapatan meningkat di bulan Desember, pengeluaran juga melonjak tajam, mengakibatkan margin keuntungan menipis. Perlu efisiensi biaya operasional.",
+  "data": [
+    { "month": "Oct", "Revenue": 500, "Expense": 300 },
+    { "month": "Nov", "Revenue": 650, "Expense": 400 },
+    { "month": "Dec", "Revenue": 900, "Expense": 850 }
+  ],
+  "xKey": "month",
+  "yKey": ["Revenue", "Expense"]
+}
+`;
 }
 
 /**
@@ -49,15 +138,62 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
       jsonMatch = response.match(/\{[\s\S]*?"action"[\s\S]*?\}/);
     }
     
-    // Strategy 4: Extract dari first { sampai last } (aggressive)
+    // Strategy 4: Find JSON with "data" array (for business charts without action)
+    if (!jsonMatch) {
+      // Look for pattern like { "data": [...], "xKey": "...", "yKey": ... }
+      const dataMatch = response.match(/\{[^{}]*"data"\s*:\s*\[[\s\S]*?\][^{}]*\}/);
+      if (dataMatch) {
+        jsonMatch = [dataMatch[0]];
+      }
+    }
+    
+    // Strategy 5: Extract dari first { sampai last } (aggressive)
     if (!jsonMatch) {
       const jsonStart = response.indexOf('{');
       const jsonEnd = response.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         const potentialJson = response.substring(jsonStart, jsonEnd + 1);
-        // Validate it's likely JSON by checking for action field
-        if (potentialJson.includes('"action"') || potentialJson.includes("'action'")) {
+        // Validate it's likely JSON by checking for action or data field
+        if (potentialJson.includes('"action"') || potentialJson.includes("'action'") || 
+            potentialJson.includes('"data"') || potentialJson.includes('"xKey"')) {
           jsonMatch = [potentialJson];
+        }
+      }
+    }
+    
+    // Strategy 6: Detect formatted data display like "[Memuat Visualisasi Data...]"
+    // and try to reconstruct from structured text patterns
+    if (!jsonMatch) {
+      const dataArrayMatch = response.match(/\[\s*\{[^{}]+\}(?:\s*,\s*\{[^{}]+\})*\s*\]/);
+      if (dataArrayMatch) {
+        // Found a data array, try to construct chart object
+        const xKeyMatch = response.match(/"xKey"\s*:\s*"([^"]+)"/);
+        const yKeyMatch = response.match(/"yKey"\s*:\s*(\[[^\]]+\]|"[^"]+")/);
+        
+        if (xKeyMatch || yKeyMatch) {
+          try {
+            const dataArray = JSON.parse(dataArrayMatch[0]);
+            const xKey = xKeyMatch ? xKeyMatch[1] : Object.keys(dataArray[0] || {})[0] || 'name';
+            let yKey: string | string[];
+            if (yKeyMatch) {
+              yKey = JSON.parse(yKeyMatch[1]);
+            } else {
+              // Infer yKey from data keys (exclude xKey)
+              const keys = Object.keys(dataArray[0] || {}).filter(k => k !== xKey);
+              yKey = keys.length === 1 ? keys[0] : keys;
+            }
+            
+            return {
+              action: 'show_chart',
+              chart_type: 'bar',
+              data: dataArray,
+              xKey: xKey,
+              yKey: yKey,
+              title: 'Data Visualization',
+            } as StructuredResponse;
+          } catch (e) {
+            console.warn('Failed to construct chart from data array:', e);
+          }
         }
       }
     }
@@ -67,17 +203,30 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
       try {
         const parsed = JSON.parse(jsonStr);
         
-        if (parsed && typeof parsed === 'object' && parsed.action) {
-          return parsed as StructuredResponse;
+        // If parsed has data but no action, add show_chart action
+        if (parsed && typeof parsed === 'object') {
+          if (!parsed.action && parsed.data && Array.isArray(parsed.data)) {
+            parsed.action = 'show_chart';
+          }
+          if (parsed.action) {
+            return parsed as StructuredResponse;
+          }
         }
       } catch (parseError) {
         // Try to fix common JSON issues
         try {
           // Remove trailing commas
-          const fixed = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+          let fixed = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+          // Fix single quotes to double quotes
+          fixed = fixed.replace(/'/g, '"');
           const parsed = JSON.parse(fixed);
-          if (parsed && typeof parsed === 'object' && parsed.action) {
-            return parsed as StructuredResponse;
+          if (parsed && typeof parsed === 'object') {
+            if (!parsed.action && parsed.data && Array.isArray(parsed.data)) {
+              parsed.action = 'show_chart';
+            }
+            if (parsed.action) {
+              return parsed as StructuredResponse;
+            }
           }
         } catch (e) {
           console.warn('Failed to parse JSON even after fixing:', e);

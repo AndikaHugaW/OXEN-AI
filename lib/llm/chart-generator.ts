@@ -511,6 +511,8 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
     // Business data analysis patterns
     /(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales|revenue|pendapatan|keuangan|financial|bisnis|business|perusahaan|company|produk|product|customer|pelanggan|marketing|operasional|operational).*(?:dari|from|dengan|with|metode|method|cara|how|bagaimana|gimana)/i,
     /(?:cara|how|bagaimana|gimana|metode|method).*(?:identifikasi|identify|analisis|analysis|trend|tren|data|penjualan|sales|revenue|pendapatan|keuangan|financial|bisnis|business)/i,
+    // Generic comparison patterns (without explicit symbols, usually business comparison)
+    /^(bandingkan|compare|komparasi|perbandingan|vs|versus)\s+(?!.*(btc|eth|sol|ada|dot|xrp|aapl|msft|googl|tsla|nvda|goto|bbca|bbri)).*$/i,
   ];
   
   // CRITICAL: Check for business words that might be confused with crypto symbols

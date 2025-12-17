@@ -9,6 +9,7 @@ import LoginAlert from './LoginAlert';
 import { createClient } from '@/lib/supabase/client';
 import LetterGenerator from './LetterGenerator';
 import OnboardCard from './ui/onboard-card';
+import { extractDataFromUserInput, datasetToChartData } from '@/lib/llm/data-parser';
 
 interface Message {
   id?: string; // Unique ID for each message
@@ -186,62 +187,81 @@ export default function ChatInterface() {
     const lowerInput = userInput.toLowerCase();
     const lowerResponse = aiResponse.toLowerCase();
     
-    // Market-related recommendations
-    if (view === 'market' || lowerInput.includes('saham') || lowerInput.includes('stock') || 
-        lowerInput.includes('crypto') || lowerInput.includes('bitcoin') || lowerInput.includes('btc')) {
-      const symbols = lowerInput.match(/\b(btc|eth|sol|bnb|xrp|ada|doge|bbca|bbri|tlkm|goto|bca|bri)\b/gi);
-      if (symbols && symbols.length > 0) {
-        const symbol = symbols[0].toUpperCase();
-        recommendations.push(`Analisis teknikal ${symbol} lebih detail`);
-        recommendations.push(`Bandingkan ${symbol} dengan aset lain`);
-        recommendations.push(`Prediksi harga ${symbol} minggu depan`);
+    // Comprehensive Crypto & Stock Pattern
+    const cryptoSymbols = 'btc|eth|sol|bnb|xrp|ada|doge|dot|matic|avax|ltc|link|uni|atom|trx|etc|xlm|fil|hbar|apt|arb|op|ldo|qnt|vet|near|algo|grt|ftm|sand|mana|axs|theta|eos|aave|flow|xtz|imx|gala|chz|kcs|bsv|usdt|usdc';
+    const stockSymbols = 'bbca|bbri|tlkm|goto|bca|bri|asii|bmri|icbp|unvr|adro|ptba|pgas|antm|mdka|indf|hmsp|ggrm|towr|exc|fren';
+    const symbolRegex = new RegExp(`\\b(${cryptoSymbols}|${stockSymbols})\\b`, 'gi');
+    
+    // Check for symbols in input
+    const symbolsMatch = lowerInput.match(symbolRegex);
+    
+    // 1. Market Analysis Scenario
+    if (view === 'market' || symbolsMatch || lowerInput.includes('saham') || lowerInput.includes('stock') || lowerInput.includes('crypto')) {
+      if (symbolsMatch && symbolsMatch.length > 0) {
+        // Use the LAST mentioned symbol for freshness, or the first one if only one
+        const symbol = symbolsMatch[0].toUpperCase();
+        
+        // Detect context of the question
+        const isTechnical = lowerInput.includes('teknikal') || lowerInput.includes('chart') || lowerInput.includes('grafik') || lowerInput.includes('analisis');
+        const isFundamental = lowerInput.includes('fundamental') || lowerInput.includes('berita') || lowerInput.includes('news') || lowerInput.includes('prospek');
+        const isPrediction = lowerInput.includes('prediksi') || lowerInput.includes('harga') || lowerInput.includes('target') || lowerInput.includes('profict');
+        
+        if (isTechnical) {
+          recommendations.push(`Apa level support & resistance ${symbol} terdekat?`);
+          recommendations.push(`Indikator apa yang valid untuk ${symbol} saat ini?`);
+          recommendations.push(`Apakah ${symbol} sudah overbought atau oversold?`);
+        } else if (isFundamental) {
+          recommendations.push(`Apakah sentimen pasar terhadap ${symbol} positif?`);
+          recommendations.push(`Event penting apa untuk ${symbol} minggu ini?`);
+          recommendations.push(`Bandingkan fundamental ${symbol} dengan kompetitornya`);
+        } else if (isPrediction) { 
+          recommendations.push(`Skenario bearish untuk ${symbol} seperti apa?`);
+          recommendations.push(`Faktor apa yang bisa membatalkan kenaikan ${symbol}?`);
+          recommendations.push(`Target harga realistis ${symbol} akhir tahun`);
+        } else {
+          // General mixture if no specific context detected
+          recommendations.push(`Analisis tren jangka pendek ${symbol}`);
+          recommendations.push(`Berita terbaru yang mempengaruhi ${symbol}`);
+          recommendations.push(`Risk/Reward ratio entry ${symbol} sekarang`);
+        }
       } else {
-        recommendations.push('Analisis tren pasar crypto hari ini');
-        recommendations.push('Saham apa yang sedang naik daun?');
-        recommendations.push('Bandingkan performa BTC vs ETH');
+        // No symbol detected specific recommendations
+        recommendations.push('Sektor apa yang sedang menarik minggu ini?');
+        recommendations.push('Analisis korelasi BTC dengan Saham Tech');
+        recommendations.push('Cara manajemen risiko saat market volatile');
+        recommendations.push('Top 3 altcoin potensial bulan ini');
       }
     }
-    // Business/Report recommendations
-    else if (view === 'reports' || lowerInput.includes('laporan') || lowerInput.includes('report')) {
-      recommendations.push('Buat executive summary dari data ini');
-      recommendations.push('Tambahkan visualisasi grafik');
-      recommendations.push('Buat rekomendasi action items');
+    // 2. Business/Report Scenario
+    else if (view === 'reports' || lowerInput.includes('laporan') || lowerInput.includes('report') || lowerInput.includes('data')) {
+      recommendations.push('Identifikasi anomali data yang signifikan');
+      recommendations.push('Buat visualisasi tren pertumbuhan dari data ini');
+      recommendations.push('Rangkum insight utama untuk C-Level');
+      recommendations.push('Proyeksikan data ini untuk kuartal depan');
     }
-    // General business admin recommendations
-    else if (lowerInput.includes('bisnis') || lowerInput.includes('business') || 
-             lowerInput.includes('strategi') || lowerInput.includes('marketing')) {
-      recommendations.push('Jelaskan lebih detail langkah implementasinya');
-      recommendations.push('Apa risiko dari strategi ini?');
-      recommendations.push('Berikan contoh kasus sukses serupa');
+    // 3. General Business Admin / Strategy
+    else if (lowerInput.includes('bisnis') || lowerInput.includes('strategi') || lowerInput.includes('plan') || lowerInput.includes('pemasaran')) {
+      if (lowerResponse.includes('langkah')) {
+        recommendations.push('Detailkan langkah pertama agar lebih praktis');
+        recommendations.push('KPI apa yang harus dipantau untuk strategi ini?');
+      } else {
+        recommendations.push('Buatkan timeline implementasi 30 hari');
+        recommendations.push('Apa bottleneck terbesar dari rencana ini?');
+        recommendations.push('Estimasi budget minimal untuk eksekusi');
+      }
     }
-    // Budget/Finance recommendations
-    else if (lowerInput.includes('budget') || lowerInput.includes('anggaran') || 
-             lowerInput.includes('keuangan') || lowerInput.includes('finance')) {
-      recommendations.push('Buat breakdown alokasi budget');
-      recommendations.push('Apa prioritas pengeluaran tertinggi?');
-      recommendations.push('Bagaimana cara optimasi cost efficiency?');
-    }
-    // Default recommendations based on AI response keywords
+    // 4. Default / Conversational
     else {
-      if (lowerResponse.includes('langkah') || lowerResponse.includes('step')) {
-        recommendations.push('Jelaskan langkah pertama lebih detail');
+      if (lowerResponse.length > 200) {
+        recommendations.push('Persingkat penjelasan di atas (TL;DR)');
       }
-      if (lowerResponse.includes('rekomendasi') || lowerResponse.includes('recommend')) {
-        recommendations.push('Apa alternatif lain yang bisa dipertimbangkan?');
-      }
-      if (lowerResponse.includes('risiko') || lowerResponse.includes('risk')) {
-        recommendations.push('Bagaimana cara mitigasi risiko tersebut?');
-      }
-      // Fallback recommendations
-      if (recommendations.length === 0) {
-        recommendations.push('Jelaskan lebih detail');
-        recommendations.push('Berikan contoh konkret');
-        recommendations.push('Apa langkah selanjutnya?');
-      }
+      recommendations.push('Jelaskan dengan analogi sederhana');
+      recommendations.push('Apa pro dan kontra dari penjelasan tadi?');
+      recommendations.push('Berikan contoh nyata yang relevan');
     }
     
-    // Limit to 3 recommendations
-    return recommendations.slice(0, 3);
+    // Shuffle and pick 3 unique random ones to ensure variety
+    return recommendations.sort(() => 0.5 - Math.random()).slice(0, 3);
   };
 
   // Handle view change to reset chat or set initial context
@@ -309,25 +329,50 @@ export default function ChatInterface() {
       setCurrentChatId(chatId);
     }
 
-    // Create placeholder for streaming response
-    // ✅ UX TRICK: Send partial response immediately
-    // Dynamic loading message
-    let loadingText = 'Thinking...';
-    if (activeView === 'market') loadingText = '📊 Analyzing market data...';
-    else if (activeView === 'reports') loadingText = '📝 Generating report...';
-    else if (activeView === 'visualization') loadingText = '📈 Visualizing data...';
-    else loadingText = '🤖 Thinking...';
-
+    // Template for the assistant message (will be added when response starts)
     const assistantMessage: Message = {
       role: 'assistant',
-      content: loadingText,
+      content: '',
       timestamp: new Date(),
     };
-    const streamingMessages = [...newMessages, assistantMessage];
-    setMessages(streamingMessages);
     
     // Show loading indicator
     setIsLoading(true);
+
+    // 🔥 PARSER V2: Try to extract data locally first (Chart-First Architecture)
+    let parserChart: ChartData | null = null;
+    let parserMessage = '';
+    
+    // Only run parser if we are in visualization mode OR input looks like data
+    const looksLikeData = /[\d]+.*(jt|juta|m|b|rb|ribu|%)/i.test(input) || /(:|=).*\d/.test(input);
+    
+    if (activeView === 'visualization' || looksLikeData) {
+      try {
+        console.log('🔍 Running Local Parser V2 on input...');
+        const extracted = extractDataFromUserInput(input);
+        
+        if (extracted.success && extracted.dataPoints.length > 0) {
+          console.log('✅ Parser Success:', extracted.dataPoints);
+          const chartResult = datasetToChartData(extracted);
+          
+          if (chartResult) {
+            console.log('📊 Chart Generated Locally:', chartResult.chart_type);
+            parserChart = {
+              type: chartResult.chart_type as any,
+              title: chartResult.title,
+              data: chartResult.data,
+              xKey: chartResult.xKey,
+              yKey: chartResult.yKey,
+              source: 'internal',
+              error: chartResult.error
+            };
+            parserMessage = chartResult.message;
+          }
+        }
+      } catch (err) {
+        console.error('❌ Parser failed:', err);
+      }
+    }
 
     try {
       const conversationHistory = messages.map((msg) => ({
@@ -348,7 +393,7 @@ export default function ChatInterface() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
              try { controller.abort(new Error('Request timed out')); } catch(e) { controller.abort(); }
-        }, 60000); // 60 second timeout
+        }, 300000); // 300 second timeout (5 minutes) for local models
         
         response = await fetch('/api/chat', {
           method: 'POST',
@@ -413,12 +458,19 @@ export default function ChatInterface() {
           throw new Error('No response body for streaming');
         }
 
+        let isFirstChunk = true;
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
           accumulatedContent += chunk;
+
+          if (isFirstChunk) {
+            setIsLoading(false); // Hide loading card now that we have content
+            isFirstChunk = false;
+          }
 
           // Update message in real-time
           setMessages([
@@ -433,10 +485,17 @@ export default function ChatInterface() {
         // Parse structured output dari AI response
         const { parseStructuredOutput } = await import('@/lib/llm/structured-output');
         const { needsVisualization, isMarketDataRequest, extractMultipleSymbols } = await import('@/lib/llm/chart-generator');
+        const { extractDataFromUserInput, datasetToChartData, validateAIAgainstParser } = await import('@/lib/llm/data-parser');
         
         const structuredOutput = parseStructuredOutput(accumulatedContent);
         const needsChart = needsVisualization(input);
         const marketInfo = isMarketDataRequest(input);
+        
+        // 🔥 STRICT MODE V2: Extract literal data from user input (PARSER = KING)
+        const userExtractedData = extractDataFromUserInput(input);
+        const hasUserProvidedData = userExtractedData.success; // Use success flag from V2
+        
+        console.log('📊 User Extracted Data:', userExtractedData);
         
         // Extract multiple symbols dari text response (untuk handle multiple charts)
         const multipleSymbols = extractMultipleSymbols(accumulatedContent);
@@ -448,6 +507,8 @@ export default function ChatInterface() {
           needsChart,
           marketInfo,
           structuredOutput,
+          hasUserProvidedData,
+          userDataPoints: userExtractedData.dataPoints.length,
           rawResponse: accumulatedContent.substring(0, 200),
         });
 
@@ -458,6 +519,21 @@ export default function ChatInterface() {
           content: structuredOutput?.message || accumulatedContent,
           recommendations: generateRecommendations(input, accumulatedContent, activeView),
         };
+
+        // 🔥 PRIORITAS 0: Local Parser Result (Chart-First Architecture)
+        // This ensures chart is shown even if AI streams text-only
+        if (parserChart) {
+          console.log('✅✅ USING LOCAL PARSER CHART (Bypassing AI logic)');
+          finalAssistantMessage.chart = parserChart;
+          
+          // Helper to integrate parser insight
+          if (parserMessage && (!finalAssistantMessage.content || finalAssistantMessage.content.length < 50)) {
+             finalAssistantMessage.content = parserMessage;
+          } else if (parserMessage && !finalAssistantMessage.content.includes(parserMessage.substring(0, 20))) {
+             // Append parser insight as supplementary
+             finalAssistantMessage.content += `\n\n${parserMessage}`;
+          }
+        }
 
         // Helper function to fetch market data via API
         const fetchMarketChart = async (symbol: string, type: 'crypto' | 'stock', days: number = 7) => {
@@ -556,13 +632,13 @@ export default function ChatInterface() {
         // PRIORITAS 1A: Handle comparison request (multiple symbols = comparison chart)
         // Note: Comparison chart should come from /api/chat response, not separate API call
         // The market-analysis-handler will detect comparison and return comparison chart
-        if (isComparison && multipleSymbols.length >= 2) {
+        if (!parserChart && isComparison && multipleSymbols.length >= 2) {
           console.log(`📊 Comparison request detected with ${multipleSymbols.length} symbols`);
           console.log('📊 Note: Comparison chart should be included in /api/chat response');
           // Chart will be handled below when checking response data
         }
         // PRIORITAS 1B: Handle multiple symbols (untuk multiple individual charts, bukan comparison)
-        else if (multipleSymbols.length > 1 && !isComparison) {
+        else if (!parserChart && multipleSymbols.length > 1 && !isComparison) {
           console.log(`✅ Multiple symbols detected (${multipleSymbols.length}), generating charts for each...`);
           
           const chartPromises = multipleSymbols.map(async ({ symbol, type }) => {
@@ -588,16 +664,107 @@ export default function ChatInterface() {
             }
           }
         }
-        // PRIORITAS 2: Handle structured output dari AI (single chart)
-        else if (structuredOutput?.action === 'show_chart') {
+        // 🔥 PRIORITAS 1.5: Parser detected literal data → BYPASS AI COMPLETELY
+        // Parser V2 is the ONLY source of truth for Data Visualization
+        else if (userExtractedData.success && activeView === 'visualization' && !marketInfo.isMarket) {
+          console.log('🚀 STRICT MODE V2: Parser detected literal data - BYPASSING AI');
+          console.log('📊 Parsed data points:', userExtractedData.dataPoints);
+          
+          // Convert parsed data to chart format (DETERMINISTIC, no AI)
+          const chartFromUserData = datasetToChartData(userExtractedData);
+          
+          if (chartFromUserData) {
+            const userChart: ChartData = {
+              type: chartFromUserData.chart_type as ChartData['type'],
+              title: chartFromUserData.title,
+              data: chartFromUserData.data,
+              xKey: chartFromUserData.xKey,
+              yKey: chartFromUserData.yKey,
+              source: 'internal' as const,
+            };
+            
+            finalAssistantMessage.chart = userChart;
+            finalAssistantMessage.content = chartFromUserData.message;
+            
+            console.log('✅✅ Chart from PARSER (not AI) successfully rendered:', {
+              labels: userExtractedData.detectedLabels,
+              dataPoints: userExtractedData.dataPoints.length,
+              unit: userExtractedData.detectedUnit,
+            });
+          } else {
+            console.warn('⚠️ Parser succeeded but datasetToChartData returned null');
+            finalAssistantMessage.content = accumulatedContent;
+          }
+        }
+        // PRIORITAS 2: Handle structured output dari AI (chart)
+        else if (!parserChart && structuredOutput?.action === 'show_chart') {
           const symbol = structuredOutput.symbol || marketInfo.symbol;
-          const assetType = structuredOutput.asset_type || marketInfo.type || 'stock';
-          const timeframe = structuredOutput.timeframe || '7d';
-          const days = parseInt(timeframe.replace('d', '')) || 7;
+          const hasInlineData = structuredOutput.data && Array.isArray(structuredOutput.data) && structuredOutput.data.length > 0;
           
-          console.log('✅ FOUND structured output - Rendering chart:', { symbol, assetType, days, structuredOutput });
+          console.log('✅ FOUND structured output - Chart info:', { 
+            symbol, 
+            hasInlineData, 
+            dataLength: structuredOutput.data?.length,
+            chartType: structuredOutput.chart_type,
+            structuredOutput 
+          });
           
-          if (symbol) {
+          // 🛡️ AI MIDDLEWARE VALIDATION
+          const { aiMiddleware } = await import('@/lib/llm/ai-middleware');
+          const middlewareResult = aiMiddleware({
+            activeModule: activeView === 'visualization' ? 'data-visualization' : 
+                         activeView === 'market' ? 'market' : 
+                         activeView as any,
+            userInput: input,
+            aiResponse: structuredOutput,
+            extractedUserData: hasUserProvidedData ? {
+              labels: userExtractedData.detectedLabels,
+              dataPoints: userExtractedData.dataPoints.length
+            } : undefined,
+          });
+          
+          console.log('🛡️ Middleware result:', middlewareResult);
+          
+          // If validation FAILED → show fallback message, DON'T render chart
+          if (!middlewareResult.valid) {
+            console.warn('❌ AI Middleware REJECTED response:', middlewareResult.errors);
+            finalAssistantMessage.content = middlewareResult.fallbackMessage || 
+              'Visualisasi tidak dapat ditampilkan karena data tidak sesuai dengan konteks menu aktif.';
+            // Don't set chart - let the content show the error message
+          }
+          // CASE A: Business Chart (has inline data, no symbol) - render directly
+          else if (hasInlineData && !symbol) {
+            console.log('📊 Business chart detected - rendering from inline data');
+            
+            // Build chart from structured output
+            const businessChart: ChartData = {
+              type: (structuredOutput.chart_type as ChartData['type']) || 'bar',
+              title: structuredOutput.title || 'Data Visualization',
+              data: (structuredOutput.data || []) as Array<Record<string, any>>,
+              xKey: structuredOutput.xKey || 'name',
+              yKey: structuredOutput.yKey || 'value',
+              source: 'internal' as const,
+            };
+            
+            finalAssistantMessage.chart = businessChart;
+            
+            // Use message from structured output if available
+            if (structuredOutput.message && structuredOutput.message.trim().length > 0) {
+              finalAssistantMessage.content = structuredOutput.message;
+            } else {
+              finalAssistantMessage.content = `Berikut adalah ${structuredOutput.chart_type || 'bar'} chart untuk data yang diminta.`;
+            }
+            
+            console.log('✅✅ Business chart successfully added to message');
+          }
+          // CASE B: Market Chart (has symbol) - fetch from API
+          else if (symbol) {
+            const assetType = structuredOutput.asset_type || marketInfo.type || 'stock';
+            const timeframe = structuredOutput.timeframe || '7d';
+            const days = parseInt(timeframe.replace('d', '')) || 7;
+            
+            console.log('📈 Market chart detected - fetching from API:', { symbol, assetType, days });
+            
             try {
               const chart = await fetchMarketChart(symbol, assetType, days);
               console.log('✅ Chart fetched from API:', chart);
@@ -613,7 +780,7 @@ export default function ChatInterface() {
                 finalAssistantMessage.content = `Berikut adalah ${structuredOutput.chart_type || 'candlestick'} chart untuk ${symbol}. Analisis data menunjukkan pergerakan harga dalam ${days} hari terakhir.`;
               }
               
-              console.log('✅✅ Chart successfully added to message');
+              console.log('✅✅ Market chart successfully added to message');
             } catch (error: any) {
               console.error('❌ Error fetching chart from API:', error);
               const errorMsg = error.message || 'Unknown error';
@@ -626,7 +793,9 @@ export default function ChatInterface() {
               }
             }
           } else {
-            console.warn('⚠️ Structured output shows show_chart but no symbol found');
+            console.warn('⚠️ Structured output shows show_chart but no data or symbol found');
+            // Keep original AI response
+            finalAssistantMessage.content = accumulatedContent;
           }
         } 
         // PRIORITAS 2: Jika ada multiple symbols tapi tidak ada structured output, generate charts
@@ -658,7 +827,7 @@ export default function ChatInterface() {
         }
         // PRIORITAS 3: Jika market request terdeteksi TAPI tidak ada structured output, generate chart langsung (fallback agresif)
         // BUT: Only if it's a clear market request (not a business question)
-        else if (marketInfo.isMarket && marketInfo.symbol) {
+        else if (!parserChart && marketInfo.isMarket && marketInfo.symbol) {
           // Additional check: Make sure it's not a business question that was misclassified
           const isBusinessQuestion = /^(aku|saya|kami|kita|perusahaan|bisnis|produk|produkku|produk saya).*(masalah|problem|issue|kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i.test(input) ||
                                     /^(gimana|bagaimana|tolong|bisa|mau|ingin).*(cara|strategi|solusi|solution|analisis|analysis|masalah|problem)/i.test(input) ||

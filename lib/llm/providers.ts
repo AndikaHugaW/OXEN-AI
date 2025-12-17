@@ -366,7 +366,7 @@ class OllamaProvider implements LLMProvider {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(60000), // 60 seconds timeout
+        signal: AbortSignal.timeout(300000), // 300 seconds timeout (5 minutes)
       });
     } catch (fetchError: any) {
       console.error('❌ [Ollama] Fetch failed:', {
@@ -377,7 +377,7 @@ class OllamaProvider implements LLMProvider {
       
       // Check for timeout errors
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
-        throw new Error(`Ollama request timeout (60s). Pastikan model ${model} sudah di-download dan Ollama berjalan.`);
+        throw new Error(`Ollama request timeout (300s). Pastikan model ${model} sudah di-download dan Ollama berjalan.`);
       }
       
       // Check for connection errors (Windows and Unix)
@@ -531,7 +531,7 @@ class OllamaProvider implements LLMProvider {
         },
         body: JSON.stringify(requestBody),
         // Add timeout untuk streaming juga
-        signal: AbortSignal.timeout(120000), // 120 seconds untuk streaming (lebih lama)
+        signal: AbortSignal.timeout(300000), // 300 seconds timeout (5 minutes)
       });
     } catch (fetchError: any) {
       console.error('❌ [Ollama Stream] Fetch failed:', {
@@ -542,7 +542,7 @@ class OllamaProvider implements LLMProvider {
       
       // Check for timeout errors
       if (fetchError.name === 'AbortError' || fetchError.name === 'TimeoutError') {
-        throw new Error(`Ollama streaming timeout (120s). Request terlalu lama.`);
+        throw new Error(`Ollama streaming timeout (300s). Request terlalu lama.`);
       }
       
       // Check for connection errors (Windows and Unix)
