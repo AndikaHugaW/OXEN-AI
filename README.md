@@ -1,8 +1,8 @@
 # OXEN-AI
 
-Oxen AI adalah solusi cerdas untuk bisnis modern—membantu mengotomatisasi proses, menganalisis data dengan cepat, dan mengambil keputusan lebih tepat. Lebih efisien, lebih akurat, dan jelas lebih pintar (tanpa minta lembur).
+**Oxen AI** adalah Asisten Bisnis Cerdas untuk enterprise modern. Menggabungkan **Next.js**, **Tailwind CSS**, dan **Chart-First Architecture** untuk menghadirkan visualisasi data instan, otomatisasi dokumen, dan analisis strategis yang akurat.
 
-Aplikasi asisten bisnis berbasis AI yang menggunakan Next.js, Tailwind CSS, dan LLM dengan RAG (Retrieval-Augmented Generation) untuk menghasilkan jawaban dan dokumen bisnis dengan style Gen-Z yang engaging tapi tetap professional.
+Dilengkapi dengan **Smart Data Parser** yang mampu mendeteksi pola data kompleks, typo, dan konteks pasar secara otomatis. Oxen AI bukan sekadar chatbot, melainkan analis data proaktif yang siap membantu Anda mengambil keputusan lebih cepat.
 
 ## 🏗️ Arsitektur
 
