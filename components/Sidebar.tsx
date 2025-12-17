@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, MessageSquare, Clock, ChevronLeft, ChevronRight, Trash2, X, User as UserIcon, LogOut, Settings, Edit, Sparkles, Sliders, HelpCircle, PanelLeft, Bot, FileText, Activity, TrendingUp, PieChart } from 'lucide-react';
+import { Plus, MessageSquare, Clock, ChevronLeft, ChevronRight, Trash2, X, User as UserIcon, LogOut, Settings, Edit, Sparkles, Sliders, HelpCircle, PanelLeft, Bot, FileText, Activity, TrendingUp, PieChart, Sun, Moon, BookOpen, BarChart3, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ProfileEditModal from './ProfileEditModal';
 
@@ -33,6 +33,7 @@ export default function Sidebar({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const supabase = createClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +49,9 @@ export default function Sidebar({
           .eq('id', user.id)
           .single();
         setProfile(data);
+        if (data?.role === 'admin') {
+            setIsAdmin(true);
+        }
       }
     };
 
@@ -217,6 +221,30 @@ export default function Sidebar({
               {sidebarOpen && <span className="text-sm font-medium">Data Visualization</span>}
             </button>
 
+            {/* Knowledge Base (New) */}
+            <a
+              href="/documents"
+              className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
+                sidebarOpen ? 'justify-start' : 'justify-center'
+              } text-cyan-200/70 hover:bg-cyan-500/10 hover:text-cyan-300`}
+            >
+              <BookOpen className="w-5 h-5" />
+              {sidebarOpen && <span className="text-sm font-medium">Knowledge Base</span>}
+            </a>
+
+            {/* Admin Dashboard (Only for Admin) */}
+            {isAdmin && (
+              <a
+                href="/admin/dashboard"
+                className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
+                  sidebarOpen ? 'justify-start' : 'justify-center'
+                } text-orange-200/70 hover:bg-orange-500/10 hover:text-orange-300 mt-2`}
+              >
+                <ShieldCheck className="w-5 h-5 text-orange-400" />
+                {sidebarOpen && <span className="text-sm font-medium text-orange-100">Admin Panel</span>}
+              </a>
+            )}
+
             {/* History Section Header (Visual only currently) */}
 
           </div>
@@ -336,6 +364,52 @@ export default function Sidebar({
                     <Settings className="w-4 h-4" />
                     Settings
                   </button>
+
+                  {/* Theme Selector - Inline buttons */}
+                  <div className="px-4 py-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Moon className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-400">Theme</span>
+                    </div>
+                    <div className="flex gap-1 bg-[#18181b] p-1 rounded-lg">
+                      <button
+                        onClick={() => {
+                          // Apply dark theme directly
+                          document.documentElement.classList.remove('light');
+                          document.documentElement.classList.add('dark');
+                          localStorage.setItem('oxen-theme', 'dark');
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                          !document.documentElement.classList.contains('light') 
+                            ? 'bg-cyan-500 text-black font-medium' 
+                            : 'text-gray-400 hover:text-white hover:bg-[#27272a]'
+                        }`}
+                      >
+                        <Moon className="w-3 h-3" />
+                        Dark
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Apply light theme directly
+                          document.documentElement.classList.remove('dark');
+                          document.documentElement.classList.add('light');
+                          localStorage.setItem('oxen-theme', 'light');
+                          setIsProfileDropdownOpen(false);
+                          // Force re-render
+                          window.location.reload();
+                        }}
+                        className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                          document.documentElement.classList.contains('light') 
+                            ? 'bg-cyan-500 text-black font-medium' 
+                            : 'text-gray-400 hover:text-white hover:bg-[#27272a]'
+                        }`}
+                      >
+                        <Sun className="w-3 h-3" />
+                        Light
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="h-px bg-[#27272a] my-1" />

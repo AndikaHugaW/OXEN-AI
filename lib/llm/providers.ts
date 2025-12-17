@@ -690,10 +690,42 @@ export function getLLMProvider(): LLMProvider {
 
     case "openai":
     default:
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY tidak dikonfigurasi. Untuk alternatif gratis, gunakan LLM_PROVIDER=groq");
+      // ✅ INTELLIGENT DEFAULT:
+      // If no valid provider is set, try to find ANY working configuration
+      
+      // 1. Try Gemini (Best Free Option)
+      if (process.env.GEMINI_API_KEY) {
+        console.log("ℹ️ Using Gemini as default provider (auto-detected)");
+        return new GeminiProvider(process.env.GEMINI_API_KEY);
       }
-      return new OpenAIProvider(process.env.OPENAI_API_KEY);
+      
+      // 2. Try Groq (Very Fast)
+      if (process.env.GROQ_API_KEY) {
+        console.log("ℹ️ Using Groq as default provider (auto-detected)");
+        return new GroqProvider(process.env.GROQ_API_KEY);
+      }
+      
+      // 3. Try Hugging Face
+      if (process.env.HUGGINGFACE_API_KEY) {
+        console.log("ℹ️ Using Hugging Face as default provider (auto-detected)");
+        return new HuggingFaceProvider(
+          process.env.HUGGINGFACE_API_KEY,
+          process.env.HUGGINGFACE_MODEL
+        );
+      }
+
+      // 4. Try OpenAI (Standard)
+      if (process.env.OPENAI_API_KEY) {
+        return new OpenAIProvider(process.env.OPENAI_API_KEY);
+      }
+      
+      // 5. Fallback to Ollama (Local - might fail if not running)
+      // This is the safest last resort since it doesn't need API key
+      console.log("ℹ️ No API keys found, falling back to local Ollama");
+      return new OllamaProvider(
+        (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace('localhost', '127.0.0.1'),
+        process.env.OLLAMA_MODEL || "llama3"
+      );
   }
 }
 

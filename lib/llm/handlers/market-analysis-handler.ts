@@ -364,14 +364,37 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
       }))
     : extractMultipleSymbols(message);
   
+  // ✅ KEY FIX: Limit the number of symbols to what user actually requested
+  // Check if user specified a specific number of assets to compare
+  let maxSymbols = 5; // Default max
+  
+  // Detect if user explicitly asked for 2 symbols (e.g., "compare X vs Y")
+  const specificCompareMatch = message.match(/(?:compare|bandingkan|vs|versus)\s+([A-Z]{3,5})\s+(?:vs|dengan|dan|&)\s+([A-Z]{3,5})/i);
+  if (specificCompareMatch) {
+    // User specified exactly 2 symbols
+    maxSymbols = 2;
+    console.log('📊 [Comparison] User specified 2-symbol comparison:', specificCompareMatch[1], specificCompareMatch[2]);
+  }
+  
+  // Also check for "(Symbols: X, Y)" format injected by route.ts
+  const symbolsMatch = message.match(/\(Symbols?:\s*([A-Z]{3,5}(?:\s*,\s*[A-Z]{3,5})*)\)/i);
+  if (symbolsMatch) {
+    const symbolList = symbolsMatch[1].split(/\s*,\s*/);
+    maxSymbols = Math.min(maxSymbols, symbolList.length);
+    console.log('📊 [Comparison] Found explicit symbols list, limiting to:', maxSymbols, 'symbols');
+  }
+  
   const candidates = extractCandidateTokens(message);
 
   // If old extractor didn't find enough, try resolving by name/symbol using real APIs (no sample data)
-  let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols.map((s: { symbol: string; type: 'crypto' | 'stock' }) => ({ symbol: s.symbol, type: s.type }));
+  // But limit to maxSymbols
+  let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols
+    .slice(0, maxSymbols) // ✅ Apply limit here
+    .map((s: { symbol: string; type: 'crypto' | 'stock' }) => ({ symbol: s.symbol, type: s.type }));
 
   if (resolvedList.length < 2 && candidates.length >= 2) {
     const resolved = await Promise.all(
-      candidates.slice(0, 5).map(async (c) => {
+      candidates.slice(0, maxSymbols).map(async (c) => { // ✅ Limit candidates too
         // Try crypto then stock; we keep whichever resolves first
         const cr = await resolveCrypto(c).catch(() => null);
         if (cr && cr.type === 'crypto') return { symbol: cr.symbol, type: 'crypto' as const, coinId: cr.coinId };
@@ -383,12 +406,34 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
 
     resolvedList = resolved.filter(Boolean) as any;
   }
+  
+  // ✅ Final limit - ensure we don't exceed requested number
+  resolvedList = resolvedList.slice(0, maxSymbols);
 
   if (resolvedList.length < 2) {
+    // Prepare a helpful response instead of just error
+    const foundSymbols = resolvedList.map(s => s.symbol).join(', ');
+    const helpText = resolvedList.length === 1 
+      ? `Saya menemukan simbol **${foundSymbols}**, tapi untuk membandingkan dibutuhkan minimal 2 aset.\n\n`
+      : `Saya tidak dapat menemukan simbol yang valid dalam pesan Anda.\n\n`;
+    
+    const response = `${helpText}📌 **Untuk membandingkan aset, silakan sebutkan simbol secara spesifik:**\n\n` +
+      `**Contoh untuk saham Indonesia:**\n` +
+      `- "Bandingkan BBCA dengan BBRI dan BBNI"\n` +
+      `- "Compare GOTO vs TLKM"\n\n` +
+      `**Contoh untuk kripto:**\n` +
+      `- "Bandingkan BTC dengan ETH dan SOL"\n` +
+      `- "Compare Bitcoin vs Ethereum"\n\n` +
+      `💡 *Tip: Sebutkan 2-5 simbol aset yang ingin dibandingkan.*`;
+    
     return {
-      success: false,
+      success: true, // Return as success so the message is displayed properly
       mode: RequestMode.MARKET_ANALYSIS,
-      error: 'Butuh minimal 2 aset untuk dibandingkan. Coba tulis simbolnya jelas (contoh: BBCA, BBRI, BBNI atau BTC, ETH, SOL).',
+      response: response,
+      structuredOutput: {
+        action: 'text_only',
+        message: response,
+      },
     };
   }
 

@@ -263,7 +263,7 @@ function normalizeStockSymbol(symbol: string): string {
   }
   
   // Indonesian stocks need .JK suffix
-  // Extended list of Indonesian stocks (IDX)
+  // Extended list of known Indonesian stocks (IDX)
   const indonesianStocks = [
     // Banks
     'GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'BNGA', 'BJBR', 'BTPN', 'BNII',
@@ -280,8 +280,14 @@ function normalizeStockSymbol(symbol: string): string {
     // Mining
     'ANTM', 'INCO', 'PTBA',
     // Others
-    'KLBF', 'GGRM', 'SMGR', 'INTP', 'TKIM', 'CPIN', 'SRIL', 'AKRA'
+    'KLBF', 'GGRM', 'SMGR', 'INTP', 'TKIM', 'CPIN', 'SRIL', 'AKRA',
+    // Additional common IDX stocks
+    'AXSI', 'IGAR', 'JAGG', 'JAGO', 'ARTO', 'EMTK', 'SCMA', 'ACES', 'AMRT',
+    'ESSA', 'JPFA', 'MAIN', 'MDKA', 'PANI', 'SMRA', 'TAPG', 'TPIA', 'UNTR', 
+    'TOWR', 'BRIS', 'BBTN', 'MEGA', 'NISP', 'BUAH', 'BJTM', 'SDRA', 'NOBU'
   ];
+  
+  // Check if it's a known Indonesian stock
   if (indonesianStocks.includes(symbolUpper) && !symbolUpper.includes('.')) {
     return `${symbolUpper}.JK`;
   }
@@ -294,6 +300,22 @@ function normalizeStockSymbol(symbol: string): string {
   // Jika sudah ada suffix, return as is
   if (symbolUpper.includes('.')) {
     return symbolUpper;
+  }
+  
+  // ✅ HEURISTIC: If it's a 4-letter uppercase symbol that's not a known US stock,
+  // try to resolve it as Indonesian stock first (most Indonesian stocks are 4 letters)
+  // Known US major stocks that should NOT get .JK suffix
+  const knownUSStocks = [
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD', 'INTC',
+    'NFLX', 'COST', 'PYPL', 'ADBE', 'CSCO', 'ORCL', 'UBER', 'LYFT', 'SPOT', 'SNAP'
+  ];
+  
+  if (!knownUSStocks.includes(symbolUpper) && 
+      /^[A-Z]{4}$/.test(symbolUpper) && 
+      !symbolUpper.includes('.')) {
+    // 4-letter symbol not in US list = likely Indonesian
+    console.log(`📌 [Normalize Stock Symbol] Assuming ${symbolUpper} is Indonesian stock, adding .JK suffix`);
+    return `${symbolUpper}.JK`;
   }
   
   return symbolUpper;

@@ -3,27 +3,53 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
+  /* Light Mode (default) */
+  :root,
+  .light {
+    --background: 0 0% 98%;
     --foreground: 222.2 84% 4.9%;
+
+    /* Chart Colors */
+    --color-teal-500: #14b8a6;
+    --color-violet-500: #8b5cf6;
+    --color-lime-500: #84cc16;
+    --color-sky-500: #0ea5e9;
+    
+    /* Semantic Colors for Badges */
+    --color-success-accent: #15803d;
+    --color-success-soft: #dcfce7;
+    --color-success-foreground: #ffffff;
+    
+    --color-warning-accent: #a16207;
+    --color-warning-soft: #fef9c3;
+    
+    --color-info-accent: #6d28d9;
+    --color-info-soft: #ede9fe;
+    
+    --color-destructive-accent: #b91c1c;
+    --color-destructive-soft: #fee2e2;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 187 85% 45%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 187 85% 43%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 187 85% 43%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 85%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 187 85% 45%;
+    --ring: 187 85% 43%;
     --radius: 0.5rem;
+    
+    /* Sidebar specific for light mode */
+    --sidebar-bg: 210 20% 98%;
+    --sidebar-border: 214.3 31.8% 85%;
   }
 
   .dark {
@@ -80,12 +106,472 @@
   }
 }
 
+/* Smooth theme transition */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 body {
   color: hsl(var(--foreground));
   background: hsl(var(--background));
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   line-height: var(--line-height-normal, 1.5);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* ==========================================
+   LIGHT MODE - Complete Theme Overrides
+   ========================================== */
+
+.light {
+  --tw-bg-opacity: 1;
+}
+
+/* Background Colors */
+.light .bg-\[\#09090b\],
+.light .bg-\[\#0a0a0b\],
+.light .bg-\[\#0a0a0a\] {
+  background-color: #ffffff !important;
+}
+
+.light .bg-\[\#18181b\] {
+  background-color: #f4f4f5 !important;
+}
+
+.light .bg-\[\#27272a\] {
+  background-color: #e4e4e7 !important;
+}
+
+.light .bg-black,
+.light .bg-black\/80,
+.light .bg-black\/60,
+.light .bg-black\/50,
+.light .bg-black\/30,
+.light .bg-black\/10 {
+  background-color: #ffffff !important;
+}
+
+/* Main Content Background */
+.light .from-\[\#0a0a0b\],
+.light .via-\[\#0c0c0e\],
+.light .to-\[\#0a0a0b\] {
+  --tw-gradient-from: #f8fafc !important;
+  --tw-gradient-via: #ffffff !important;
+  --tw-gradient-to: #f8fafc !important;
+}
+
+/* Card and Popover backgrounds */
+.light .bg-card,
+.light [class*="bg-\[hsl\(var\(--card\)"] {
+  background-color: #ffffff !important;
+}
+
+/* Border Colors */
+.light .border-cyan-500\/30,
+.light .border-cyan-500\/20,
+.light .border-cyan-400\/50 {
+  border-color: hsl(187 85% 43% / 0.3) !important;
+}
+
+.light .border-white\/5,
+.light .border-white\/10 {
+  border-color: hsl(0 0% 0% / 0.1) !important;
+}
+
+.light .border-\[\#27272a\] {
+  border-color: #e4e4e7 !important;
+}
+
+/* Text Colors */
+.light .text-white {
+  color: #18181b !important;
+}
+
+.light .text-gray-300,
+.light .text-gray-400 {
+  color: #52525b !important;
+}
+
+.light .text-gray-500 {
+  color: #71717a !important;
+}
+
+.light .text-cyan-400 {
+  color: #0891b2 !important;
+}
+
+.light .text-cyan-400\/50,
+.light .text-cyan-400\/60 {
+  color: hsl(187 85% 35% / 0.7) !important;
+}
+
+.light .text-cyan-200\/70 {
+  color: #0891b2 !important;
+}
+
+/* Gradient Text */
+.light .bg-gradient-to-r.from-cyan-400.to-blue-500 {
+  background: linear-gradient(to right, #0891b2, #2563eb) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+/* Cyan Accent Colors */
+.light .bg-cyan-500 {
+  background-color: #06b6d4 !important;
+}
+
+.light .bg-cyan-500\/10,
+.light .bg-cyan-500\/20 {
+  background-color: hsl(187 85% 43% / 0.15) !important;
+}
+
+.light .shadow-cyan-500\/50 {
+  --tw-shadow-color: hsl(187 85% 43% / 0.3) !important;
+}
+
+/* Chat Input */
+.light input[type="text"],
+.light textarea {
+  background-color: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Cards in main content */
+.light .bg-\[\#0a0a0a\] {
+  background-color: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+
+/* Hover states */
+.light .hover\:bg-white\/5:hover,
+.light .hover\:bg-white\/\[0\.02\]:hover {
+  background-color: hsl(0 0% 0% / 0.03) !important;
+}
+
+.light .hover\:bg-cyan-500\/10:hover {
+  background-color: hsl(187 85% 43% / 0.1) !important;
+}
+
+.light .hover\:bg-\[\#27272a\]:hover {
+  background-color: #e4e4e7 !important;
+}
+
+/* Icons in boxes */
+.light .bg-cyan-500\/10,
+.light .bg-indigo-500\/10,
+.light .bg-pink-500\/10 {
+  background-color: hsl(187 85% 43% / 0.1) !important;
+}
+
+/* Message bubbles */
+.light .bg-cyan-500\/10 {
+  background-color: hsl(187 85% 43% / 0.08) !important;
+}
+
+/* Charts and data tables */
+.light .bg-gradient-to-br.from-black\/80 {
+  background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+}
+
+/* Scrollbar for light mode */
+.light ::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+/* Profile dropdown */
+.light .bg-\[\#09090b\].border.border-cyan-500\/30 {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Gradient backgrounds override */
+.light .bg-gradient-to-br,
+.light .bg-gradient-to-r,
+.light .bg-gradient-to-b {
+  --tw-gradient-from: #f8fafc !important;
+  --tw-gradient-to: #ffffff !important;
+}
+
+/* Hero section cards */
+.light .group.p-6.bg-\[\#0a0a0a\] {
+  background-color: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+}
+
+.light .group.p-6.bg-\[\#18181b\] {
+  background-color: #f8fafc !important;
+  border: 1px solid #e4e4e7 !important;
+}
+
+/* Icon backgrounds in cards */
+.light .bg-cyan-500\/10,
+.light .bg-indigo-500\/10,
+.light .bg-pink-500\/10,
+.light .bg-purple-500\/10 {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+}
+
+/* Main container */
+.light main,
+.light .flex-1 {
+  background-color: #f8fafc !important;
+}
+
+/* Fix text colors in light mode */
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light h5,
+.light h6 {
+  color: #18181b !important;
+}
+
+.light p {
+  color: #3f3f46 !important;
+}
+
+/* Ensure links and buttons are visible */
+.light a.text-cyan-400,
+.light button.text-cyan-400 {
+  color: #0891b2 !important;
+}
+
+/* Chat messages */
+.light .rounded-2xl.bg-cyan-500\/10 {
+  background-color: rgba(6, 182, 212, 0.08) !important;
+}
+
+.light .rounded-2xl.bg-\[\#18181b\] {
+  background-color: #f4f4f5 !important;
+}
+
+/* Modal backgrounds */
+.light .fixed.inset-0.bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Form inputs in light mode */
+.light .rounded-2xl.bg-\[\#18181b\].border-2 {
+  background-color: #ffffff !important;
+  border-color: #d4d4d8 !important;
+}
+
+.light .rounded-2xl.bg-\[\#18181b\].border-2:focus-within {
+  border-color: #06b6d4 !important;
+}
+
+/* Data table in light mode */
+.light table {
+  background-color: #ffffff !important;
+}
+
+.light thead tr {
+  background-color: #f4f4f5 !important;
+}
+
+.light tbody tr {
+  border-color: #e4e4e7 !important;
+}
+
+.light tbody tr:nth-child(even) {
+  background-color: #fafafa !important;
+}
+
+.light tbody tr:hover {
+  background-color: #f0f9ff !important;
+}
+
+/* Main content area - force white background */
+.light > body,
+.light body {
+  background-color: #f8fafc !important;
+}
+
+.light .h-screen,
+.light .min-h-screen,
+.light [class*="h-full"] {
+  background-color: #f8fafc !important;
+}
+
+/* Chat area right side */
+.light .flex.flex-col.flex-1 {
+  background-color: #f8fafc !important;
+}
+
+/* Hero title visibility */
+.light .text-4xl,
+.light .text-5xl,
+.light .md\:text-5xl {
+  color: #18181b !important;
+}
+
+/* Gradient text fix for hero */
+.light .text-transparent.bg-clip-text {
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(to right, #0891b2, #2563eb) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+/* Chat history items */
+.light .hover\:bg-cyan-500\/10:hover {
+  background-color: rgba(6, 182, 212, 0.08) !important;
+}
+
+.light .bg-cyan-500\/20 {
+  background-color: rgba(6, 182, 212, 0.12) !important;
+}
+
+/* Sidebar history item backgrounds */
+.light .p-2.rounded-lg.cursor-pointer {
+  background-color: transparent !important;
+}
+
+.light .p-2.rounded-lg.cursor-pointer:hover {
+  background-color: #f0f9ff !important;
+}
+
+.light .p-2.rounded-lg.cursor-pointer.bg-cyan-500\/20 {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+}
+
+/* Footer links */
+.light .text-cyan-400\/80 {
+  color: #0891b2 !important;
+}
+
+/* All dark bg overrides */
+.light [class*="bg-[#0"],
+.light [class*="bg-[#1"] {
+  background-color: #ffffff !important;
+}
+
+/* Dividers */
+.light .border-t,
+.light .border-b {
+  border-color: #e4e4e7 !important;
+}
+
+/* Focus states */
+.light .focus\:border-cyan-500:focus,
+.light .focus\:ring-cyan-500:focus {
+  border-color: #06b6d4 !important;
+}
+
+/* Card borders in light mode */
+.light .border.border-cyan-500\/30,
+.light .border.border-cyan-400\/50 {
+  border-color: rgba(6, 182, 212, 0.25) !important;
+}
+
+/* Second level backgrounds */
+.light .rounded-xl.bg-\[\#18181b\],
+.light .rounded-2xl.bg-\[\#18181b\],
+.light .rounded-lg.bg-\[\#18181b\] {
+  background-color: #f4f4f5 !important;
+}
+/* Navigation buttons */
+.light .p-3.rounded-xl.text-cyan-200\/70 {
+  color: #0891b2 !important;
+}
+
+.light .p-3.rounded-xl.bg-cyan-500\/20 {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+}
+
+/* ==========================================
+   SIDEBAR - Force Light Background
+   ========================================== */
+
+/* Sidebar container */
+.light .flex-shrink-0.h-full.bg-\[\#09090b\],
+.light .w-64.bg-\[\#09090b\],
+.light .w-20.bg-\[\#09090b\],
+.light [class*="w-64"][class*="bg-[#09090b]"],
+.light [class*="w-20"][class*="bg-[#09090b]"] {
+  background-color: #ffffff !important;
+  border-right-color: #e4e4e7 !important;
+}
+
+/* Sidebar - more specific */
+.light .flex-shrink-0 {
+  background-color: #ffffff !important;
+}
+
+.light .border-r.border-cyan-500\/30 {
+  border-right-color: #e4e4e7 !important;
+}
+
+/* Sidebar navigation items */
+.light .w-full.p-3.rounded-xl {
+  background-color: transparent !important;
+}
+
+.light .w-full.p-3.rounded-xl:hover {
+  background-color: #f0f9ff !important;
+}
+
+.light .w-full.p-3.rounded-xl.bg-cyan-500\/20 {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+}
+
+/* ==========================================
+   BOTTOM FOOTER AREA
+   ========================================== */
+
+/* Bottom input area container */
+.light .sticky.bottom-0,
+.light .fixed.bottom-0 {
+  background-color: #f8fafc !important;
+}
+
+/* Footer links */
+.light .flex.items-center.justify-center.gap-6 {
+  background-color: transparent !important;
+}
+
+/* Settings, Share, Notifications buttons */
+.light button.text-cyan-400\/80,
+.light a.text-cyan-400\/80 {
+  color: #0891b2 !important;
+}
+
+.light .text-sm.text-cyan-400\/80 {
+  color: #0891b2 !important;
+}
+
+/* Profile section at bottom of sidebar */
+.light .border-t.border-cyan-500\/20 {
+  border-top-color: #e4e4e7 !important;
+  background-color: #ffffff !important;
+}
+
+/* Profile avatar background */
+.light .w-8.h-8.rounded-full.bg-cyan-900\/30,
+.light .w-10.h-10.rounded-full.bg-cyan-900\/30 {
+  background-color: #f0f9ff !important;
+}
+
+/* Free Plan text */
+.light .text-xs.text-cyan-400\/60 {
+  color: #0891b2 !important;
+}
+
 
 /* Typography hierarchy */
 .text-title {
@@ -196,6 +682,31 @@ canvas {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
   
   /* Web3 Glassmorphism Effects */

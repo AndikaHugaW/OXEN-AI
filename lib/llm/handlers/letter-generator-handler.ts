@@ -204,6 +204,7 @@ ATURAN WAJIB:
 4. Format harus sesuai template yang diberikan.
 5. Jangan mengarang informasi yang tidak diberikan.
 6. Surat harus siap digunakan setelah data lengkap diisi.
+7. BAHASA (SANGAT PENTING): Gunakan bahasa yang SAMA dengan permintaan pengguna. Jika permintaan dalam Bahasa Indonesia, surat HARUS dalam Bahasa Indonesia (kecuali diminta sebaliknya).
 
 ${template.format}
 
@@ -303,7 +304,7 @@ export async function processLetterGenerator(
     const messages = [
       {
         role: 'system',
-        content: 'Kamu adalah expert dalam membuat surat resmi untuk bisnis dan perusahaan. Format harus benar dan professional, tapi bahasa bisa natural dan tidak terlalu kaku.',
+        content: 'Kamu adalah expert dalam membuat surat resmi. ATURAN KRUSIAL: Identifikasi bahasa yang digunakan user dalam permintaan detail surat. JIKA USER MENGGUNAKAN BAHASA INDONESIA, MAKA OUTPUT SURAT WAJIB 100% BAHASA INDONESIA. Jangan gunakan Bahasa Inggris kecuali diminta secara eksplisit atau jika permintaan user dalam Bahasa Inggris.',
       },
       {
         role: 'user',

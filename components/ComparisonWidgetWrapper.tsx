@@ -24,32 +24,44 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
       
       // Fetch new data for all symbols
       const fetchPromises = symbols.map(async (symbol) => {
-        const endpoint = assetType === 'crypto' ? '/api/coingecko/ohlc' : '/api/market';
-        const payload: Record<string, any> = { symbol, days };
-        if (endpoint === '/api/market') payload.type = assetType;
+        try {
+          const endpoint = assetType === 'crypto' ? '/api/coingecko/ohlc' : '/api/market';
+          const payload: Record<string, any> = { symbol, days };
+          if (endpoint === '/api/market') payload.type = assetType;
 
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data for ${symbol}`);
+          if (!response.ok) {
+            console.warn(`Failed to fetch data for ${symbol}`);
+            return null;
+          }
+
+          const data = await response.json();
+          if (!data.success || !data.data) {
+            console.warn(`Invalid data for ${symbol}`);
+            return null;
+          }
+
+          return {
+            symbol,
+            data: data.data,
+          };
+        } catch (err) {
+          console.error(`Error fetching ${symbol}:`, err);
+          return null;
         }
-
-        const data = await response.json();
-        if (!data.success || !data.data) {
-          throw new Error(`Invalid data for ${symbol}`);
-        }
-
-        return {
-          symbol,
-          data: data.data,
-        };
       });
 
-      const fetchedData = await Promise.all(fetchPromises);
+      const results = await Promise.all(fetchPromises);
+      const fetchedData = results.filter((item): item is { symbol: string; data: any } => item !== null);
+
+      if (fetchedData.length === 0) {
+        throw new Error('Gagal mengambil data untuk semua aset.');
+      }
       
       // Rebuild comparison data similar to market-analysis-handler
       const { calculateIndicators } = await import('@/lib/market/data-fetcher');

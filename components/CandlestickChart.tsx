@@ -79,6 +79,41 @@ export default function CandlestickChart({
   const [assetLogoUrl, setAssetLogoUrl] = useState<string | null>(null);
   const [assetDisplayName, setAssetDisplayName] = useState<string | null>(null);
 
+  // Detect if this is an Indonesian stock and determine currency
+  const isIndonesianStock = useMemo(() => {
+    if (!symbol || assetType === 'crypto') return false;
+    const s = symbol.toUpperCase();
+    if (s.endsWith('.JK')) return true;
+    // Known Indonesian stock symbols
+    const idxSymbols = [
+      'GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'TLKM', 'ASII', 'UNVR', 'ICBP',
+      'INDF', 'PGAS', 'ADRO', 'KLBF', 'GGRM', 'SMGR', 'ANTM', 'INCO', 'PTBA',
+      'JSMR', 'WIKA', 'BSDE', 'CTRA', 'EXCL', 'ISAT', 'MYOR', 'ROTI', 'ULTJ',
+      'BNGA', 'BJBR', 'BTPN', 'BNII', 'WEGE', 'ADHI', 'DMAS', 'TKIM', 'CPIN',
+      'SRIL', 'AKRA', 'AXSI', 'IGAR', 'JAGG', 'JAGO', 'ARTO', 'EMTK', 'SCMA'
+    ];
+    return idxSymbols.includes(s) || (s.length === 4 && /^[A-Z]{4}$/.test(s));
+  }, [symbol, assetType]);
+
+  // Format price based on currency
+  const formatPrice = useCallback((price: number): string => {
+    if (isIndonesianStock) {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(price);
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(price);
+  }, [isIndonesianStock]);
+
+
   const normalizedStockTicker = useMemo(() => {
     if (!symbol) return null;
     return symbol.toUpperCase().replace('.JK', '');
@@ -1102,11 +1137,11 @@ export default function CandlestickChart({
             </div>
             <div>
               <CardTitle className="text-xl font-semibold text-[hsl(var(--card-foreground))] mb-0.5">
-                {symbol ? (assetType === 'crypto' ? `${symbol} USD` : `${symbol}`) : title}
+                {symbol ? (assetType === 'crypto' ? `${symbol} USD` : isIndonesianStock ? `${symbol} IDR` : `${symbol}`) : title}
               </CardTitle>
               {symbol && (
                 <div className="text-sm text-[hsl(var(--muted-foreground))]">
-                  {(assetDisplayName || symbol)}{assetType === 'crypto' ? 'USD' : ''} · {assetType === 'crypto' ? 'CRYPTO' : 'STOCK'}
+                  {(assetDisplayName || symbol)}{assetType === 'crypto' ? ' USD' : isIndonesianStock ? ' IDR' : ''} · {assetType === 'crypto' ? 'CRYPTO' : isIndonesianStock ? 'IDX STOCK' : 'NYSE/NASDAQ'}
                 </div>
               )}
             </div>
@@ -1161,10 +1196,7 @@ export default function CandlestickChart({
             {(currentPriceState !== undefined || currentPrice !== undefined) && (
               <div className="flex items-center gap-2">
                 <div className="text-3xl font-bold text-[hsl(var(--card-foreground))] mb-1">
-                  ${(currentPriceState ?? currentPrice ?? 0).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatPrice(currentPriceState ?? currentPrice ?? 0)}
                 </div>
                 {isLoading && (
                   <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
@@ -1174,7 +1206,7 @@ export default function CandlestickChart({
             {(change24hState !== undefined || change24h !== undefined) && (
               <div className={cn("flex items-center gap-2 text-lg font-semibold", changeColor)}>
                 {changeAbs !== undefined && (
-                  <span>{isPositive ? '+' : '-'}${changeAbs.toFixed(2)}</span>
+                  <span>{isPositive ? '+' : '-'}{isIndonesianStock ? 'Rp' : '$'}{changeAbs.toLocaleString(isIndonesianStock ? 'id-ID' : 'en-US', { maximumFractionDigits: isIndonesianStock ? 0 : 2 })}</span>
                 )}
                 <span className="flex items-center gap-1">
                   {isPositive ? (

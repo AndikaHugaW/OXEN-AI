@@ -830,6 +830,54 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
     }
   }
   
+  // ✅ DYNAMIC SYMBOL DETECTION: Detect stock symbols from AI response text
+  // Look for patterns like "**AXSI**", "(AXSI)", "[AXSI]", "AXSI:" or standalone 3-5 uppercase letters that look like tickers
+  const stockTickerPatterns = [
+    /\*\*([A-Z]{3,5})\*\*/g,     // **AXSI**
+    /\(([A-Z]{3,5})\)/g,         // (AXSI)
+    /\[([A-Z]{3,5})\]/g,         // [AXSI]
+    /\b([A-Z]{3,5}):\s/g,        // AXSI: followed by space
+    /Symbol:\s*([A-Z]{3,5})\b/gi, // Symbol: AXSI
+    /saham\s+([A-Z]{3,5})\b/gi,   // saham AXSI
+    /stock\s+([A-Z]{3,5})\b/gi,   // stock AXSI
+    /\|\s*([A-Z]{3,5})\s*\|/g,    // | AXSI | (markdown table)
+    /^\s*\d+\.\s*([A-Z]{3,5})\b/gm,  // 1. AXSI (numbered list)
+    /[-•]\s*([A-Z]{3,5})\b/g,     // - AXSI or • AXSI (bullet list)
+    /\b([A-Z]{3,5})\s*[-–]\s/g,    // AXSI - (followed by dash)
+    /"\s*([A-Z]{3,5})\s*"/g,      // "AXSI" (in quotes)
+    /'\s*([A-Z]{3,5})\s*'/g,      // 'AXSI' (in single quotes)
+    /Symbols?:\s*([A-Z]{3,5})/gi,  // Symbols: AXSI or Symbol: AXSI
+  ];
+  
+  // Also detect comma-separated symbols like "AXSI, IGAR, JAGG"
+  const commaSeparatedMatch = text.match(/\(Symbols?:\s*([A-Z]{3,5}(?:\s*,\s*[A-Z]{3,5})*)\)/i);
+  if (commaSeparatedMatch) {
+    const symbolsStr = commaSeparatedMatch[1];
+    const symbolList = symbolsStr.split(/\s*,\s*/);
+    for (const sym of symbolList) {
+      const upperSym = sym.toUpperCase().trim();
+      if (upperSym.length >= 3 && upperSym.length <= 5 && !foundSymbols.has(upperSym)) {
+        foundSymbols.add(upperSym);
+        symbols.push({ symbol: upperSym, type: 'stock' });
+      }
+    }
+  }
+  
+  for (const pattern of stockTickerPatterns) {
+    let match;
+    // Reset lastIndex for global patterns
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text)) !== null) {
+      const sym = match[1].toUpperCase();
+      // Avoid common words that might match
+      const excludeWords = ['YANG', 'DARI', 'UNTUK', 'DENGAN', 'AKAN', 'BISA', 'JIKA', 'SAAT', 'PADA', 'ATAS', 'BUAT', 'LIHAT', 'DATA', 'INFO', 'CHAT', 'NEXT', 'ABOUT', 'SHOW', 'MAKE', 'HAVE', 'THIS', 'THAT', 'THEM', 'THAN', 'THEN', 'YOUR', 'SOME', 'ALSO', 'INTO', 'OPEN', 'HIGH', 'LOW', 'LINE', 'YEAR', 'TYPE', 'CHART'];
+      if (!excludeWords.includes(sym) && !foundSymbols.has(sym)) {
+        foundSymbols.add(sym);
+        symbols.push({ symbol: sym, type: 'stock' });
+      }
+    }
+  }
+  
   return symbols;
 }
 

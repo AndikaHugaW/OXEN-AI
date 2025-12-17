@@ -6,6 +6,11 @@ import { StructuredResponse } from '@/lib/llm/structured-output';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
+// Import optimization services
+import { getCachedResponse, setCachedResponse, shouldCacheQuery } from '@/lib/cache/response-cache';
+import { buildRAGContext } from '@/lib/rag/rag-service';
+import { createUsageTracker, estimateTokens } from '@/lib/usage/usage-tracker';
+
 // ✅ OPTIMIZED: Separate concerns - chat endpoint only handles LLM + streaming
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -82,6 +87,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ CACHING: Create usage tracker for timing
+    const usageTracker = createUsageTracker();
+
+    // ✅ CACHING: Check for cached response if query is cacheable
+    if (shouldCacheQuery(message)) {
+      try {
+        const cachedResponse = await getCachedResponse(message);
+        if (cachedResponse && cachedResponse.hit) {
+          console.log('🎯 [Cache] Returning cached response');
+          
+          // Log cached usage
+          usageTracker.log(user.id, {
+            queryType: 'chat',
+            modelUsed: 'cached',
+            inputTokens: estimateTokens(message),
+            outputTokens: estimateTokens(cachedResponse.response_text),
+            cached: true
+          });
+          
+          return NextResponse.json({
+            success: true,
+            response: cachedResponse.response_text,
+            cached: true
+          });
+        }
+      } catch (cacheError) {
+        console.warn('Cache check failed, continuing without cache:', cacheError);
+      }
+    }
+
     // Check if streaming is requested and supported
     const useStreaming = stream !== false; // Default to true for speed
     const llmProvider = getLLMProvider();
@@ -89,7 +124,7 @@ export async function POST(request: NextRequest) {
     // Check if this is a comparison request
     const isComparisonRequest = /(?:bandingkan|perbandingan|compare|comparison|vs|versus)/i.test(message);
     const marketInfo = isMarketDataRequest(message);
-    const isMarketRequest = marketInfo.isMarket && marketInfo.symbol;
+    const isMarketRequest = !!(marketInfo.isMarket && marketInfo.symbol);
     
     // ✅ OPTIMIZATION NOTE: 
     // For comparison requests, data fetching is handled inside processMarketComparison
@@ -113,12 +148,14 @@ export async function POST(request: NextRequest) {
     // - MARKET_ANALYSIS: No streaming (needs structured data)
     // - LETTER_GENERATOR: No streaming (needs structured data)
     // - BUSINESS_ADMIN: Stream unless chart is needed
+    // - COMPARISON: No streaming (needs structured chart data)
     const isExemptFromStreaming = 
       (mode === RequestMode.MARKET_ANALYSIS) || 
       (mode === RequestMode.LETTER_GENERATOR) ||
       needsChart || 
       isMarketRequest || 
-      isLetterRequest;
+      isLetterRequest ||
+      isComparisonRequest; // ← Comparison needs structured chart data
 
     const shouldStream = useStreaming && llmProvider.generateStreamResponse && !isExemptFromStreaming;
 
@@ -128,26 +165,15 @@ export async function POST(request: NextRequest) {
       // For business admin mode (non-market, non-letter)
        try {
           // Get context from RAG
-          let context = "";
-          const needsRAG = message.length > 10 && 
-            ['prosedur', 'procedure', 'dokumen', 'document', 
-             'cara', 'how to', 'bagaimana', 'strategi', 'strategy', 'bisnis', 'business',
-             'perusahaan', 'company', 'marketing', 'hr', 'recruitment', 'finance', 'keuangan',
-             'sales', 'customer', 'client', 'proposal', 'laporan', 'report', 'analisis', 'analysis',
-             'planning', 'perencanaan', 'budget', 'anggaran', 'branding', 'brand']
-              .some(keyword => message.toLowerCase().includes(keyword));
-
-          if (needsRAG) {
-            try {
-              const { initializeVectorStore } = await import('@/lib/llm/rag-service');
-              const store = await initializeVectorStore();
-              const relevantDocs = await store.similaritySearch(message, 2);
-              if (relevantDocs.length > 0) {
-                context = relevantDocs.map((doc: any) => doc.pageContent).join("\n\n");
-              }
-            } catch (ragError) {
-              console.warn("RAG retrieval failed, continuing without context:", ragError);
+          let ragContext = "";
+          try {
+            const ragResult = await buildRAGContext(message, user.id);
+            if (ragResult.hasRelevantDocs) {
+              ragContext = ragResult.contextText;
+              console.log(`📚 [RAG-Stream] Found ${ragResult.documents.length} relevant documents`);
             }
+          } catch (ragError) {
+            console.warn("RAG retrieval failed, continuing without context:", ragError);
           }
 
           // Detect language from user message
@@ -187,7 +213,7 @@ ATURAN WAJIB:
 - Jika data tidak tersedia dari API, beri tahu user bahwa data tidak bisa diambil
 - JANGAN gunakan sample data sebagai fallback
 
-${context ? `KONTEKS YANG TERSEDIA:\n${context}\n\n` : ""}FOKUS AREA:
+${ragContext ? `KONTEKS YANG TERSEDIA:\n${ragContext}\n\n` : ""}FOKUS AREA:
 - Business strategy & planning
 - Marketing & branding
 - HR & recruitment
@@ -234,7 +260,7 @@ FORMAT WAJIB OUTPUT:
             { role: "user", content: message },
           ];
 
-          const streamResponse = await llmProvider.generateStreamResponse(messages, { 
+          const streamResponse = await llmProvider.generateStreamResponse?.(messages, { 
             temperature: 0.7,
           });
 
@@ -248,16 +274,95 @@ FORMAT WAJIB OUTPUT:
         } catch (streamError: any) {
           console.warn('Streaming failed, falling back to router:', streamError);
           // Fall through to non-streaming router
-        }
       }
     }
 
     // ✅ NON-STREAMING: For market analysis, letter generation, and comparison
     // These need structured output (charts, tables) which requires full response
+    
+    // For comparison requests, we need to extract symbols from conversation history
+    // if they're not in the current message
+    let enhancedMessage = message;
+    if (isComparisonRequest) {
+      const currentSymbols = extractMultipleSymbols(message);
+      
+      console.log('🔍 [Chat API] Current message symbols:', currentSymbols);
+      
+      // ✅ PRIORITY: If there are 2+ symbols in the current message, use ONLY those
+      // Do NOT add more from history - user specified exactly what they want to compare
+      if (currentSymbols.length >= 2) {
+        console.log('✅ [Chat API] Found 2+ symbols in current message, using those only');
+        // Message already has enough symbols, no enhancement needed
+        // But still append for clarity in processing
+        const symbolsList = currentSymbols.map(s => s.symbol).join(', ');
+        enhancedMessage = `${message} (Symbols: ${symbolsList})`;
+      } else if (currentSymbols.length === 1) {
+        // User mentioned 1 symbol and wants to compare "with other assets"
+        // Look in recent history for context, but still require user to specify
+        console.log('⚠️ [Chat API] Only 1 symbol in message, looking for context in history...');
+        
+        // Extract symbols from recent messages only (last 3 messages max)
+        const recentMessages = conversationHistory.slice(-3);
+        const historySymbols: Array<{ symbol: string; type: 'crypto' | 'stock' }> = [];
+        
+        for (const msg of recentMessages) {
+          const content = msg.content || '';
+          // Clean recommendation sections
+          let cleanContent = content.replace(/Pertanyaan Lanjutan[\s\S]*$/i, '');
+          
+          const extracted = extractMultipleSymbols(cleanContent);
+          for (const sym of extracted) {
+            // Avoid duplicates, limit to 3 additional symbols max
+            if (!historySymbols.some(s => s.symbol === sym.symbol) && 
+                !currentSymbols.some(s => s.symbol === sym.symbol) &&
+                historySymbols.length < 3) {
+              historySymbols.push(sym);
+            }
+          }
+        }
+        
+        console.log('🔍 [Chat API] Recent history symbols (max 3):', historySymbols);
+        
+        // Combine current symbol with 1 from history to make a pair (total 2)
+        // Don't add ALL history symbols
+        const currentSymbol = currentSymbols[0];
+        const matchingHistorySymbol = historySymbols.find(s => s.type === currentSymbol.type);
+        
+        if (matchingHistorySymbol) {
+          const symbolsList = [currentSymbol.symbol, matchingHistorySymbol.symbol].join(', ');
+          enhancedMessage = `${message} (Symbols: ${symbolsList})`;
+          console.log('✅ [Chat API] Enhanced message with 1 symbol from current + 1 from history:', symbolsList);
+        } else {
+          // No matching type in history - user needs to specify more symbols
+          console.log('⚠️ [Chat API] No matching symbol type in history, user needs to specify');
+        }
+      } else {
+        // No symbols in current message - user is vague
+        // Don't try to guess, let the handler ask for clarification
+        console.log('⚠️ [Chat API] No symbols found in current message, will request clarification');
+      }
+    }
+
+    // ✅ RAG: Build context from relevant documents
+    let ragContextText = '';
+    let usedDocumentIds: string[] = [];
+
+    try {
+      const ragResult = await buildRAGContext(enhancedMessage, user.id);
+      if (ragResult.hasRelevantDocs) {
+        ragContextText = ragResult.contextText;
+        usedDocumentIds = ragResult.documents.map(d => d.id);
+        console.log(`📚 [RAG] Found ${ragResult.documents.length} relevant documents`);
+      }
+    } catch (ragError) {
+      console.warn('RAG context build failed, continuing without:', ragError);
+    }
+    
     const context: AIRequestContext = {
-      message,
+      message: enhancedMessage,
       conversationHistory,
       stream: false,
+      ragContext: ragContextText || undefined, // Pass RAG context to router
     };
 
     const routerResponse = await routeAIRequest(context);
@@ -323,7 +428,7 @@ FORMAT WAJIB OUTPUT:
     // If no chart but market request detected, try to generate one
     if (!finalChart && isMarketRequest && marketInfo.symbol) {
       try {
-        const visualization = await generateVisualization(message, marketInfo);
+        const visualization = await generateVisualization(message);
         if (visualization?.chart) {
           finalChart = visualization.chart;
         }
@@ -371,6 +476,32 @@ FORMAT WAJIB OUTPUT:
       }
     );
 
+    // ✅ CACHING: Store response in cache for future use (non-blocking)
+    if (shouldCacheQuery(message) && finalResponse) {
+      setCachedResponse(message, finalResponse, {
+        model: 'gemini-2.0-flash',
+        metadata: {
+          mode: routerResponse.mode,
+          has_chart: !!finalChart,
+          has_table: !!finalTable
+        }
+      }).catch(err => console.warn('Failed to cache response:', err));
+    }
+
+    // ✅ USAGE: Log API usage (non-blocking)
+    usageTracker.log(user.id, {
+      queryType: (routerResponse.mode as any) || 'chat',
+      modelUsed: 'gemini-2.0-flash',
+      inputTokens: estimateTokens(message),
+      outputTokens: estimateTokens(finalResponse),
+      cached: false,
+      metadata: {
+        has_chart: !!finalChart,
+        has_table: !!finalTable,
+        source_documents: usedDocumentIds
+      }
+    }).catch(err => console.warn('Failed to log usage:', err));
+
     return NextResponse.json(response);
   } catch (error: any) {
     console.error('Chat API error:', error);
@@ -404,9 +535,4 @@ FORMAT WAJIB OUTPUT:
       { status: statusCode }
     );
   }
-}
-
-// Helper function to extract symbols from comparison message
-function extractSymbolsFromMessage(message: string): Array<{ symbol: string; type: 'crypto' | 'stock' }> {
-  return extractMultipleSymbols(message);
 }

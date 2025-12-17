@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, BarChart3, TrendingUp, FileText, Send, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell } from 'lucide-react';
+import { Plus, BarChart3, TrendingUp, FileText, ArrowUp, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell, Reply, MessageCircle, ChevronRight, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChartRenderer, { ChartData } from './ChartRenderer';
 import DataTable, { TableData } from './DataTable';
 import LoginAlert from './LoginAlert';
 import { createClient } from '@/lib/supabase/client';
 import LetterGenerator from './LetterGenerator';
+import OnboardCard from './ui/onboard-card';
 
 interface Message {
+  id?: string; // Unique ID for each message
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
@@ -17,6 +19,12 @@ interface Message {
   charts?: ChartData[]; // Support multiple charts
   table?: TableData;
   imageUrl?: string;
+  replyTo?: { // Reply reference
+    id: string;
+    content: string;
+    role: 'user' | 'assistant';
+  };
+  recommendations?: string[]; // Follow-up suggestions
 }
 
 interface ChatHistory {
@@ -36,6 +44,7 @@ export default function ChatInterface() {
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeView, setActiveView] = useState<'chat' | 'letter' | 'market' | 'reports' | 'visualization'>('chat');
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -95,6 +104,27 @@ export default function ChatInterface() {
     }
   }, []);
 
+  const [feedbackState, setFeedbackState] = useState<Record<string, number>>({});
+
+  const handleFeedback = async (messageId: string, rating: number) => {
+    // Prevent double voting same rating
+    if (feedbackState[messageId] === rating) return;
+    
+    setFeedbackState(prev => ({...prev, [messageId]: rating}));
+    
+    try {
+        await fetch('/api/chat/feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+                rating,
+                messageId
+            })
+        });
+    } catch (err) {
+        console.error('Feedback failed:', err);
+    }
+  };
+
   // Save chat histories to localStorage
   const saveChatHistories = (histories: ChatHistory[]) => {
     localStorage.setItem('chatHistories', JSON.stringify(histories));
@@ -150,6 +180,70 @@ export default function ChatInterface() {
     }
   };
 
+  // Helper to generate follow-up recommendations based on conversation context
+  const generateRecommendations = (userInput: string, aiResponse: string, view: string): string[] => {
+    const recommendations: string[] = [];
+    const lowerInput = userInput.toLowerCase();
+    const lowerResponse = aiResponse.toLowerCase();
+    
+    // Market-related recommendations
+    if (view === 'market' || lowerInput.includes('saham') || lowerInput.includes('stock') || 
+        lowerInput.includes('crypto') || lowerInput.includes('bitcoin') || lowerInput.includes('btc')) {
+      const symbols = lowerInput.match(/\b(btc|eth|sol|bnb|xrp|ada|doge|bbca|bbri|tlkm|goto|bca|bri)\b/gi);
+      if (symbols && symbols.length > 0) {
+        const symbol = symbols[0].toUpperCase();
+        recommendations.push(`Analisis teknikal ${symbol} lebih detail`);
+        recommendations.push(`Bandingkan ${symbol} dengan aset lain`);
+        recommendations.push(`Prediksi harga ${symbol} minggu depan`);
+      } else {
+        recommendations.push('Analisis tren pasar crypto hari ini');
+        recommendations.push('Saham apa yang sedang naik daun?');
+        recommendations.push('Bandingkan performa BTC vs ETH');
+      }
+    }
+    // Business/Report recommendations
+    else if (view === 'reports' || lowerInput.includes('laporan') || lowerInput.includes('report')) {
+      recommendations.push('Buat executive summary dari data ini');
+      recommendations.push('Tambahkan visualisasi grafik');
+      recommendations.push('Buat rekomendasi action items');
+    }
+    // General business admin recommendations
+    else if (lowerInput.includes('bisnis') || lowerInput.includes('business') || 
+             lowerInput.includes('strategi') || lowerInput.includes('marketing')) {
+      recommendations.push('Jelaskan lebih detail langkah implementasinya');
+      recommendations.push('Apa risiko dari strategi ini?');
+      recommendations.push('Berikan contoh kasus sukses serupa');
+    }
+    // Budget/Finance recommendations
+    else if (lowerInput.includes('budget') || lowerInput.includes('anggaran') || 
+             lowerInput.includes('keuangan') || lowerInput.includes('finance')) {
+      recommendations.push('Buat breakdown alokasi budget');
+      recommendations.push('Apa prioritas pengeluaran tertinggi?');
+      recommendations.push('Bagaimana cara optimasi cost efficiency?');
+    }
+    // Default recommendations based on AI response keywords
+    else {
+      if (lowerResponse.includes('langkah') || lowerResponse.includes('step')) {
+        recommendations.push('Jelaskan langkah pertama lebih detail');
+      }
+      if (lowerResponse.includes('rekomendasi') || lowerResponse.includes('recommend')) {
+        recommendations.push('Apa alternatif lain yang bisa dipertimbangkan?');
+      }
+      if (lowerResponse.includes('risiko') || lowerResponse.includes('risk')) {
+        recommendations.push('Bagaimana cara mitigasi risiko tersebut?');
+      }
+      // Fallback recommendations
+      if (recommendations.length === 0) {
+        recommendations.push('Jelaskan lebih detail');
+        recommendations.push('Berikan contoh konkret');
+        recommendations.push('Apa langkah selanjutnya?');
+      }
+    }
+    
+    // Limit to 3 recommendations
+    return recommendations.slice(0, 3);
+  };
+
   // Handle view change to reset chat or set initial context
   useEffect(() => {
     if (activeView !== 'chat' && activeView !== 'letter') {
@@ -191,14 +285,21 @@ export default function ChatInterface() {
     }
 
     const userMessage: Message = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: 'user',
       content: input,
       timestamp: new Date(),
+      replyTo: replyingTo ? {
+        id: replyingTo.id || '',
+        content: replyingTo.content.substring(0, 150) + (replyingTo.content.length > 150 ? '...' : ''),
+        role: replyingTo.role,
+      } : undefined,
     };
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
+    setReplyingTo(null); // Clear reply reference
     setIsLoading(true);
 
     // Create or update chat history
@@ -234,40 +335,49 @@ export default function ChatInterface() {
         content: msg.content,
       }));
 
+      // Build message with reply context if replying to a specific message
+      let messageToSend = input;
+      if (userMessage.replyTo) {
+        messageToSend = `[Merespons pesan ${userMessage.replyTo.role === 'user' ? 'saya' : 'AI'}: "${userMessage.replyTo.content}"]\n\n${input}`;
+      }
+
       let response: Response;
+      
       try {
+        // Add timeout for long-running comparison requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+             try { controller.abort(new Error('Request timed out')); } catch(e) { controller.abort(); }
+        }, 60000); // 60 second timeout
+        
         response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: input,
+            message: messageToSend,
             conversationHistory,
             stream: true, // Enable streaming for faster response
             mode: getModeFromView(activeView),
           }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
       } catch (fetchError: any) {
         console.error('❌ Fetch failed:', fetchError);
         
-        // Detect specific network error types
-        const errorMsg = fetchError.message || '';
         let userFriendlyError = 'Network error: Tidak dapat terhubung ke server.';
         
-        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError') || errorMsg.includes('ERR_INTERNET_DISCONNECTED')) {
-          userFriendlyError = 'Network error: Tidak dapat terhubung ke server. Pastikan:\n' +
-            '1. Koneksi internet Anda aktif\n' +
-            '2. Server berjalan dengan baik\n' +
-            '3. Tidak ada firewall yang memblokir koneksi';
-        } else if (errorMsg.includes('timeout') || errorMsg.includes('TIMEOUT')) {
-          userFriendlyError = 'Network error: Request timeout. Server mungkin sedang sibuk atau koneksi lambat. Silakan coba lagi.';
-        } else if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('connection refused')) {
-          userFriendlyError = 'Network error: Server menolak koneksi. Pastikan server berjalan di localhost:3000.';
-        } else if (errorMsg.includes('CORS') || errorMsg.includes('cors')) {
-          userFriendlyError = 'Network error: Masalah CORS. Pastikan server dikonfigurasi dengan benar.';
+        if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+            userFriendlyError = '⏱️ Request timeout: Server membutuhkan waktu terlalu lama untuk merespons. Silakan coba lagi.';
+        } else if (fetchError.message?.includes('Failed to fetch')) {
+            userFriendlyError = '🌐 Network error: Gagal terhubung ke API. Pastikan server backend berjalan.';
+        } else {
+             userFriendlyError = `Error: ${fetchError.message || 'Unknown network error'}`;
         }
-        
+
         throw new Error(userFriendlyError);
       }
 
@@ -344,7 +454,9 @@ export default function ChatInterface() {
         // Final message with complete content
         const finalAssistantMessage: Message = {
           ...assistantMessage,
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           content: structuredOutput?.message || accumulatedContent,
+          recommendations: generateRecommendations(input, accumulatedContent, activeView),
         };
 
         // Helper function to fetch market data via API
@@ -666,12 +778,14 @@ export default function ChatInterface() {
           
           // For comparison requests, ensure chart is displayed first, then text below
           const finalAssistantMessage: Message = {
+            id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'assistant',
             content: responseText,
             timestamp: new Date(),
             chart: data.chart || undefined,
             table: data.table || undefined,
             imageUrl: data.imageUrl || undefined,
+            recommendations: generateRecommendations(input, responseText, activeView),
           };
           
           // Log for debugging comparison requests
@@ -866,7 +980,7 @@ export default function ChatInterface() {
         onClose={() => setShowLoginAlert(false)}
         onLogin={handleLoginClick}
       />
-      <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#09090b]">
+      <div className="flex h-screen overflow-hidden bg-[#09090b]">
         <Sidebar
           onNewChat={createNewChat}
           chatHistories={chatHistories}
@@ -928,6 +1042,25 @@ export default function ChatInterface() {
                             : 'bg-[#18181b] text-gray-300 border border-cyan-500/30 px-6 py-5'
                         }`}
                       >
+                        {/* Reply Reference Indicator */}
+                        {message.replyTo && (
+                          <div className={`mb-3 p-2.5 rounded-lg border-l-2 ${
+                            message.role === 'user' 
+                              ? 'bg-black/20 border-black/40' 
+                              : 'bg-cyan-500/10 border-cyan-500/40'
+                          }`}>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Reply className={`w-3 h-3 ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`} />
+                              <span className={`text-xs font-medium ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`}>
+                                Replying to {message.replyTo.role === 'user' ? 'yourself' : 'AI'}
+                              </span>
+                            </div>
+                            <p className={`text-xs line-clamp-2 ${message.role === 'user' ? 'text-black/60' : 'text-gray-400'}`}>
+                              {message.replyTo.content}
+                            </p>
+                          </div>
+                        )}
+                        
                         {/* Visualization Rendering */}
                         {message.imageUrl && (
                           <div className="mb-4 rounded-lg overflow-hidden">
@@ -977,21 +1110,87 @@ export default function ChatInterface() {
                         <p className="whitespace-pre-wrap leading-relaxed">
                           {message.content}
                         </p>
+                        
+                        {/* Recommendations Section for AI messages */}
+                        {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
+                          <div className="mt-5 pt-4 border-t border-cyan-500/20">
+                            <div className="flex items-center gap-2 mb-3">
+                              <MessageCircle className="w-4 h-4 text-cyan-400" />
+                              <span className="text-sm font-medium text-cyan-400">Pertanyaan Lanjutan</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {message.recommendations.map((rec, recIdx) => (
+                                <button
+                                  key={recIdx}
+                                  onClick={() => setInput(rec)}
+                                  className="group px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full text-cyan-400 hover:text-cyan-300 transition-all flex items-center gap-1.5"
+                                >
+                                  {rec}
+                                  <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Reply & Feedback Actions */}
+                        <div className={`mt-3 pt-2 border-t flex items-center justify-between ${
+                          message.role === 'user' ? 'border-black/20' : 'border-cyan-500/10'
+                        }`}>
+                          <button
+                            onClick={() => {
+                              setReplyingTo(message);
+                              setInput(message.content);
+                            }}
+                            className={`flex items-center gap-1.5 text-xs transition-colors ${
+                              message.role === 'user' 
+                                ? 'text-black/50 hover:text-black/80' 
+                                : 'text-gray-500 hover:text-cyan-400'
+                            }`}
+                          >
+                            <Reply className="w-3 h-3" />
+                            Reply
+                          </button>
+
+                          {/* Feedback for AI */}
+                          {message.role === 'assistant' && (
+                             <div className="flex items-center gap-2">
+                                <button 
+                                   onClick={() => handleFeedback(message.id || '', 1)}
+                                   className={`p-1 rounded hover:bg-cyan-500/10 transition-colors ${
+                                     (message.id && feedbackState[message.id] === 1) ? 'text-cyan-400' : 'text-gray-500 hover:text-cyan-400'
+                                   }`}
+                                   title="Helpful"
+                                >
+                                   <ThumbsUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                   onClick={() => handleFeedback(message.id || '', -1)}
+                                   className={`p-1 rounded hover:bg-red-500/10 transition-colors ${
+                                     (message.id && feedbackState[message.id] === -1) ? 'text-red-400' : 'text-gray-500 hover:text-red-400'
+                                   }`}
+                                   title="Not helpful"
+                                >
+                                   <ThumbsDown className="w-3.5 h-3.5" />
+                                </button>
+                             </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                   {isLoading && (
-                    <div className="flex items-start gap-3 justify-start animate-fade-in">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                    <div className="flex items-start gap-4 justify-start animate-fade-in pl-1 mb-6">
+                      <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-2">
                         <Sparkles className="w-4 h-4 text-cyan-400" />
                       </div>
-                      <div className="bg-[#18181b] rounded-2xl px-6 py-4 border border-cyan-500/30 backdrop-blur-xl">
-                        <div className="typing-indicator flex gap-1">
-                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                          <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-                        </div>
-                      </div>
+                      <OnboardCard 
+                          duration={2500}
+                          step1="Analyzing Request"
+                          step2="AI Processing"
+                          step3="Generating Response"
+                          className="scale-90 origin-top-left"
+                       />
                     </div>
                   )}
                   <div ref={messagesEndRef} />
@@ -1002,6 +1201,29 @@ export default function ChatInterface() {
             {/* Input Area - Sticky */}
             <div className="sticky bottom-0 border-t border-cyan-500/20 bg-black/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
               <div className="max-w-5xl mx-auto">
+                {/* Reply Indicator */}
+                {replyingTo && (
+                  <div className="mb-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start justify-between gap-3 animate-fade-in">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Reply className="w-4 h-4 text-cyan-400" />
+                        <span className="text-sm font-medium text-cyan-400">
+                          Replying to {replyingTo.role === 'user' ? 'your message' : 'AI'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-400 line-clamp-2">
+                        {replyingTo.content.substring(0, 150)}{replyingTo.content.length > 150 ? '...' : ''}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setReplyingTo(null)}
+                      className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
                 <form onSubmit={handleSubmit} className="relative">
                   <div className="relative">
                     <input
@@ -1009,12 +1231,15 @@ export default function ChatInterface() {
                       value={input}
                       onChange={handleInputChange}
                       placeholder={
+                        replyingTo ? `Reply to ${replyingTo.role === 'user' ? 'your message' : 'AI'}...` :
                         activeView === 'market' ? "Ask about stocks, crypto, or comparisons..." :
                         activeView === 'reports' ? "Describe the report you need..." :
                         activeView === 'visualization' ? "Paste your data or describe a chart..." :
                         "What do you want to know..."
                       }
-                      className="w-full px-6 py-4 pr-24 bg-[#18181b] border-2 border-cyan-500/30 rounded-2xl focus:outline-none focus:border-cyan-500 text-white placeholder-cyan-400/50 transition-all"
+                      className={`w-full px-6 py-4 pr-24 bg-[#18181b] border-2 ${
+                        replyingTo ? 'border-cyan-500/50' : 'border-cyan-500/30'
+                      } rounded-2xl focus:outline-none focus:border-cyan-500 text-white placeholder-cyan-400/50 transition-all`}
                       disabled={isLoading}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -1029,7 +1254,7 @@ export default function ChatInterface() {
                         disabled={isLoading || !input.trim()}
                         className="p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
-                        <Send className="w-5 h-5" />
+                        <ArrowUp className="w-5 h-5" />
                       </button>
                     </div>
                   </div>

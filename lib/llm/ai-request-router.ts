@@ -70,6 +70,8 @@ export interface AIRequestContext {
   subject?: string;
   content?: string;
   additionalContext?: string;
+  // RAG context from document search
+  ragContext?: string;
 }
 
 // Response from handlers
@@ -87,6 +89,8 @@ export interface AIRequestResponse {
   letter?: string;
   // Structured output
   structuredOutput?: any;
+  // Generated Image URL
+  imageUrl?: string;
 }
 
 /**
@@ -130,7 +134,25 @@ export function detectRequestMode(context: AIRequestContext): RequestMode {
     return RequestMode.BUSINESS_ADMIN;
   }
   
-  // PRIORITY 2: Check for market analysis requests - MUST be explicit
+  // PRIORITY 2: Check for COMPARISON requests first
+  // Comparison requests should always go to MARKET_ANALYSIS mode
+  const comparisonKeywords = [
+    'bandingkan', 'perbandingan', 'compare', 'comparison', 'vs', 'versus',
+    'membandingkan', 'dibandingkan', 'banding', 'komparasi'
+  ];
+  const isComparisonRequest = comparisonKeywords.some(keyword => message.includes(keyword));
+  
+  // If it's a comparison request with market-related context, route to market analysis
+  if (isComparisonRequest && (message.includes('saham') || message.includes('stock') || 
+      message.includes('chart') || message.includes('crypto') || message.includes('kripto') ||
+      message.includes('aset') || message.includes('asset') || message.includes('harga') ||
+      message.includes('price') || message.includes('coin') || message.includes('koin') ||
+      // Also check if any stock/crypto symbol pattern exists in the message
+      /\b[A-Z]{3,5}\b/.test(context.message || ''))) {
+    return RequestMode.MARKET_ANALYSIS;
+  }
+  
+  // PRIORITY 3: Check for market analysis requests - MUST be explicit
   const marketInfo = isMarketDataRequest(context.message || '');
   if (marketInfo.isMarket && marketInfo.symbol) {
     // Only route to market analysis if symbol is explicitly detected

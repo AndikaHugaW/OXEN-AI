@@ -281,7 +281,42 @@ export default function ComparisonWidget({
     URL.revokeObjectURL(url);
   };
 
-  const formatPrice = (price: number): string => {
+  // Detect if stock is Indonesian (IDX)
+  const isIndonesianStock = (symbol: string): boolean => {
+    const s = symbol.toUpperCase();
+    // Check if ends with .JK or is a known Indonesian stock symbol
+    if (s.endsWith('.JK')) return true;
+    
+    // Known Indonesian stock symbols (4 uppercase letters typically)
+    const idxSymbols = [
+      'GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'TLKM', 'ASII', 'UNVR', 'ICBP',
+      'INDF', 'PGAS', 'ADRO', 'KLBF', 'GGRM', 'SMGR', 'ANTM', 'INCO', 'PTBA',
+      'JSMR', 'WIKA', 'BSDE', 'CTRA', 'EXCL', 'ISAT', 'MYOR', 'ROTI', 'ULTJ',
+      'BNGA', 'BJBR', 'BTPN', 'BNII', 'WEGE', 'ADHI', 'DMAS', 'TKIM', 'CPIN',
+      'SRIL', 'AKRA', 'AXSI', 'IGAR', 'JAGG', 'JAGO', 'ARTO', 'EMTK', 'SCMA',
+      'ACES', 'AMRT', 'ESSA', 'JPFA', 'MAIN', 'MDKA', 'PANI', 'SMRA', 'TAPG',
+      'TPIA', 'UNTR', 'TOWR', 'BRIS', 'BBTN', 'MEGA', 'NISP', 'BUAH', 'BJTM',
+      'SDRA', 'NOBU', 'MEDC', 'BUMI'
+    ];
+    return idxSymbols.includes(s) || (s.length === 4 && /^[A-Z]{4}$/.test(s) && assetType === 'stock');
+  };
+
+  // Check if any asset is Indonesian
+  const hasIndonesianAssets = assets.some(a => isIndonesianStock(a.symbol));
+
+  const formatPrice = (price: number, symbol?: string): string => {
+    // Determine if this is an Indonesian stock
+    const isIDR = symbol ? isIndonesianStock(symbol) : hasIndonesianAssets;
+    
+    if (isIDR) {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(price);
+    }
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -290,9 +325,9 @@ export default function ComparisonWidget({
     }).format(price);
   };
 
-  const formatChange = (change: number): string => {
+  const formatChange = (change: number, symbol?: string): string => {
     const sign = change >= 0 ? '+' : '';
-    return `${sign}${formatPrice(change)}`;
+    return `${sign}${formatPrice(Math.abs(change), symbol)}`;
   };
 
   const formatPercent = (percent: number): string => {
@@ -495,7 +530,7 @@ export default function ComparisonWidget({
               {/* Price Info */}
               <div className="text-right flex flex-col justify-center">
                 <div className="text-white font-bold text-2xl mb-1">
-                  {formatPrice(asset.currentPrice)}
+                  {formatPrice(asset.currentPrice, asset.symbol)}
                 </div>
                 <div className={cn(
                   "text-base font-semibold flex items-center gap-1.5 justify-end",
@@ -508,7 +543,7 @@ export default function ComparisonWidget({
                   ) : (
                     <TrendingDown className="w-4 h-4" />
                   )}
-                  <span className="font-mono">{formatChange(asset.change)}</span>
+                  <span className="font-mono">{formatChange(asset.change, asset.symbol)}</span>
                   <span className="font-mono">({formatPercent(asset.changePercent)})</span>
                 </div>
                 {asset.timestamp && (
@@ -923,7 +958,7 @@ export default function ComparisonWidget({
 
                 {/* Price */}
                 <div className="text-white font-semibold text-sm">
-                  {formatPrice(asset.currentPrice)}
+                  {formatPrice(asset.currentPrice, asset.symbol)}
                 </div>
 
                 {/* Change */}
@@ -936,7 +971,7 @@ export default function ComparisonWidget({
                   ) : (
                     <TrendingDown className="w-3 h-3" />
                   )}
-                  <span>{formatChange(asset.change)}</span>
+                  <span>{formatChange(asset.change, asset.symbol)}</span>
                 </div>
 
                 {/* Percent */}
