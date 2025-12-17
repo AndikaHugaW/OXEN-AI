@@ -27,7 +27,10 @@ Jawaban / Surat
 - ⚡ **Streaming Response**: Respons cepat dengan streaming untuk pengalaman yang lebih baik
 - 🎯 **Business-Focused**: Fokus ke kebutuhan bisnis dan perusahaan
 - 💬 **Gen-Z Style**: Komunikasi dengan style Gen-Z yang engaging tapi tetap professional
-- 📊 **Data Visualization**: Menampilkan grafik dan chart untuk data bisnis (line chart, bar chart, pie chart)
+- 📊 **Smart Data Visualization**: *Chart-First Architecture* yang memprioritaskan visualisasi data instan dengan parser lokal yang robust.
+- 🧠 **Smart Data Parser**: Mendeteksi typo (e.g. "Januri"), inferensi unit otomatis ("500" jadi "500 Juta" jika konteksnya juta), dan support format angka Indonesia (1.500.000).
+- 〽️ **Market Comparison**: Otomatis mendeteksi permintaan komparasi market share (Pie Chart) vs tren (Line Chart) vs perbandingan (Bar Chart).
+- 🛡️ **Context Guard**: Mencegah "Context Bleeding" (halusinasi data antar topik) dengan arsitektur isolasi state yang ketat.
 - 🖼️ **Image Support**: Support untuk menampilkan gambar dalam response (extendable untuk image generation)
 
 ## 🚀 Getting Started
