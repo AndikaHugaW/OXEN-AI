@@ -118,19 +118,41 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
               {children}
             </ol>
           ),
-          li: ({ children, ordered }) => (
+          li: ({ children }) => (
             <li className="flex items-start gap-2 text-gray-300">
-              {!ordered && (
-                <span className="text-cyan-400 mt-1.5 flex-shrink-0">•</span>
-              )}
+              <span className="text-cyan-400 mt-1.5 flex-shrink-0">•</span>
               <span className="flex-1">{children}</span>
             </li>
           ),
           
           // Emphasis
-          strong: ({ children }) => (
-            <strong className="font-bold text-white">{children}</strong>
-          ),
+          strong: ({ children }) => {
+            const text = String(children);
+            // Check if this is a main section header (e.g., "ANALISIS TEKNIKAL KRIPTO ETH")
+            const isMainHeader = /^(ANALISIS|PERBANDINGAN|RINGKASAN|KESIMPULAN)/i.test(text) ||
+                                 /^(ANALYSIS|COMPARISON|SUMMARY|CONCLUSION)/i.test(text);
+            
+            // Check if this is a numbered section header (e.g., "1. Data yang Digunakan")
+            const isSectionHeader = /^\d+\.\s+/i.test(text);
+            
+            if (isMainHeader) {
+              return (
+                <strong className="block text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mt-2 mb-4 pb-2 border-b border-cyan-500/20">
+                  {children}
+                </strong>
+              );
+            }
+            
+            if (isSectionHeader) {
+              return (
+                <strong className="block text-base font-semibold text-cyan-400 mt-5 mb-2">
+                  {children}
+                </strong>
+              );
+            }
+            
+            return <strong className="font-bold text-white">{children}</strong>;
+          },
           em: ({ children }) => (
             <em className="italic text-gray-200">{children}</em>
           ),

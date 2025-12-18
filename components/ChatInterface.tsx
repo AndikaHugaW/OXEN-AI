@@ -1272,7 +1272,7 @@ export default function ChatInterface() {
                         {message.role === 'assistant' ? (
                           <MarkdownRenderer 
                             content={message.content} 
-                            className="leading-relaxed"
+                            className={`leading-relaxed ${(message.chart || (message.charts && message.charts.length > 0) || message.table) ? 'mt-6' : ''}`}
                           />
                         ) : (
                           <p className="whitespace-pre-wrap leading-relaxed">
