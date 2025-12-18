@@ -94,66 +94,41 @@ function buildTechnicalAnalysis(marketData: any, indicators: any, preprocessed: 
   const stats = preprocessed.statistics || {};
   const assetTypeLabel = assetType === 'crypto' ? 'KRIPTO' : 'SAHAM';
   
-  let analysis = `━━━━━━━━━━━━━━━━━━━━━━
-ANALISIS TEKNIKAL ${assetTypeLabel} ${symbol.toUpperCase()}
-━━━━━━━━━━━━━━━━━━━━━━
+  let analysis = `**ANALISIS TEKNIKAL ${assetTypeLabel} ${symbol.toUpperCase()}**
 
-1. DATA YANG DIGUNAKAN
-   - Timeframe: ${summary.timeframe || 'N/A'}
-   - Jumlah data points: ${summary.totalCandles || marketData.data.length}
-   - Rentang waktu: ${summary.dateRange?.from ? new Date(summary.dateRange.from).toLocaleDateString('id-ID') : 'N/A'} - ${summary.dateRange?.to ? new Date(summary.dateRange.to).toLocaleDateString('id-ID') : 'N/A'}
-   - Sumber data: OHLC yang diberikan
+**1. Data yang Digunakan**
+Analisis ini menggunakan data ${summary.timeframe || 'N/A'} dengan ${summary.totalCandles || marketData.data.length} data points. Rentang waktu yang dianalisis adalah dari ${summary.dateRange?.from ? new Date(summary.dateRange.from).toLocaleDateString('id-ID') : 'N/A'} hingga ${summary.dateRange?.to ? new Date(summary.dateRange.to).toLocaleDateString('id-ID') : 'N/A'}. Sumber data adalah OHLC yang diberikan.
 
-2. FAKTA DARI DATA
-   - Harga tertinggi: $${summary.priceRange?.max?.toFixed(2) || 'N/A'}
-   - Harga terendah: $${summary.priceRange?.min?.toFixed(2) || 'N/A'}
-   - Harga saat ini: $${marketData.currentPrice?.toFixed(2) || summary.priceRange?.current?.toFixed(2) || 'N/A'}
-   - Perubahan 24h: ${marketData.change24h !== undefined ? `${marketData.change24h.toFixed(2)}%` : 'N/A'}
-   - Volatilitas: ${summary.volatility ? `${summary.volatility.toFixed(2)}%` : 'N/A'}
-   - Rata-rata harga: $${stats.averagePrice?.toFixed(2) || 'N/A'}
-   - Indikator yang terhitung: ${indicators.rsi !== null ? 'RSI' : ''} ${indicators.ma20 !== null ? 'MA20' : ''} ${indicators.trend ? 'Trend' : ''}
+**2. Fakta dari Data**
+Harga tertinggi dalam periode ini adalah $${summary.priceRange?.max?.toFixed(2) || 'N/A'}, sementara harga terendah adalah $${summary.priceRange?.min?.toFixed(2) || 'N/A'}. Harga saat ini berada di $${marketData.currentPrice?.toFixed(2) || summary.priceRange?.current?.toFixed(2) || 'N/A'} dengan perubahan ${marketData.change24h !== undefined ? `${marketData.change24h.toFixed(2)}%` : 'N/A'} dalam 24 jam terakhir. Volatilitas tercatat sebesar ${summary.volatility ? `${summary.volatility.toFixed(2)}%` : 'N/A'} dan rata-rata harga adalah $${stats.averagePrice?.toFixed(2) || 'N/A'}. Indikator yang berhasil dihitung: ${[indicators.rsi !== null ? 'RSI' : '', indicators.ma20 !== null ? 'MA20' : '', indicators.trend ? 'Trend' : ''].filter(Boolean).join(', ') || 'Tidak ada'}.
 
-3. ANALISIS TEKNIKAL
-   - Interpretasi trend: ${indicators.trend === 'bullish' ? 'BULLISH (Naik)' : indicators.trend === 'bearish' ? 'BEARISH (Turun)' : 'NEUTRAL (Sideways)'}
-     ${indicators.trend === 'bullish' ? 'Harga menunjukkan kecenderungan naik berdasarkan pergerakan harga dan indikator.' : indicators.trend === 'bearish' ? 'Harga menunjukkan kecenderungan turun berdasarkan pergerakan harga dan indikator.' : 'Harga bergerak dalam range tertentu tanpa trend jelas.'}
-   
-   - Analisis RSI: ${indicators.rsi !== null ? `${indicators.rsi.toFixed(2)}` : 'N/A'} 
-     ${indicators.rsi !== null ? (indicators.rsi > 70 ? '(Overbought - Harga mungkin akan koreksi turun)' : indicators.rsi < 30 ? '(Oversold - Harga mungkin akan rebound naik)' : '(Neutral - Tidak ada sinyal ekstrem)') : '(Data tidak cukup untuk menghitung RSI)'}
-   
-   - Analisis MA20: ${indicators.ma20 !== null ? `$${indicators.ma20.toFixed(2)}` : 'N/A'}
-     ${indicators.ma20 !== null && marketData.currentPrice ? (marketData.currentPrice > indicators.ma20 ? 'Harga di atas MA20 menunjukkan momentum bullish.' : 'Harga di bawah MA20 menunjukkan momentum bearish.') : ''}
-   
-   - Level support & resistance: 
-     * Support: $${summary.priceRange?.min?.toFixed(2) || 'N/A'} (harga terendah dalam periode)
-     * Resistance: $${summary.priceRange?.max?.toFixed(2) || 'N/A'} (harga tertinggi dalam periode)
+**3. Analisis Teknikal**
+Interpretasi trend menunjukkan kondisi ${indicators.trend === 'bullish' ? 'BULLISH (Naik)' : indicators.trend === 'bearish' ? 'BEARISH (Turun)' : 'NEUTRAL (Sideways)'}. ${indicators.trend === 'bullish' ? 'Harga menunjukkan kecenderungan naik berdasarkan pergerakan harga dan indikator.' : indicators.trend === 'bearish' ? 'Harga menunjukkan kecenderungan turun berdasarkan pergerakan harga dan indikator.' : 'Harga bergerak dalam range tertentu tanpa trend jelas.'}
 
-4. SKENARIO KEMUNGKINAN
-   - Skenario 1 (Bullish): ${indicators.trend === 'bullish' ? 'Kemungkinan harga akan melanjutkan kenaikan jika momentum tetap kuat dan volume mendukung. Probabilitas: 60-70%' : 'Jika harga berhasil break resistance, kemungkinan akan naik lebih lanjut. Probabilitas: 40-50%'}
-   
-   - Skenario 2 (Bearish): ${indicators.trend === 'bearish' ? 'Kemungkinan harga akan melanjutkan penurunan jika momentum bearish tetap kuat. Probabilitas: 60-70%' : 'Jika harga break support, kemungkinan akan turun lebih lanjut. Probabilitas: 40-50%'}
-   
-   - Skenario 3 (Sideways): ${indicators.trend === 'neutral' ? 'Harga kemungkinan akan tetap bergerak dalam range saat ini. Probabilitas: 50-60%' : 'Jika momentum melemah, harga mungkin akan konsolidasi. Probabilitas: 30-40%'}
+Analisis RSI menunjukkan nilai ${indicators.rsi !== null ? `${indicators.rsi.toFixed(2)}` : 'N/A'} ${indicators.rsi !== null ? (indicators.rsi > 70 ? '(Overbought - Harga mungkin akan koreksi turun)' : indicators.rsi < 30 ? '(Oversold - Harga mungkin akan rebound naik)' : '(Neutral - Tidak ada sinyal ekstrem)') : '(Data tidak cukup untuk menghitung RSI)'}.
 
-5. RISIKO & KETERBATASAN
-   - Risiko yang teridentifikasi: 
-     * Volatilitas ${summary.volatility && summary.volatility > 5 ? 'tinggi' : 'normal'} dapat menyebabkan pergerakan harga yang tidak terduga
-     * Data historis tidak menjamin pergerakan masa depan
-     * Faktor eksternal (berita, regulasi) dapat mempengaruhi harga
-   
-   - Keterbatasan analisis:
-     * Analisis ini berdasarkan data historis ${summary.totalCandles || marketData.data.length} data points
-     * ${indicators.rsi === null ? 'RSI tidak dapat dihitung karena data kurang' : ''}
-     * ${indicators.ma20 === null ? 'MA20 tidak dapat dihitung karena data kurang' : ''}
-     * Tidak mempertimbangkan faktor fundamental atau berita terkini
-   
-   - Disclaimer: Analisis ini berdasarkan data historis dan indikator teknis. Bukan jaminan pergerakan harga di masa depan. Selalu lakukan riset tambahan dan kelola risiko dengan baik.
+MA20 berada di ${indicators.ma20 !== null ? `$${indicators.ma20.toFixed(2)}` : 'N/A'}. ${indicators.ma20 !== null && marketData.currentPrice ? (marketData.currentPrice > indicators.ma20 ? 'Harga di atas MA20 menunjukkan momentum bullish.' : 'Harga di bawah MA20 menunjukkan momentum bearish.') : ''}
 
-6. KESIMPULAN SINGKAT
-   ${assetType === 'crypto' ? 'Kripto' : 'Saham'} ${symbol.toUpperCase()} menunjukkan trend ${indicators.trend === 'bullish' ? 'bullish' : indicators.trend === 'bearish' ? 'bearish' : 'neutral'} dengan ${indicators.rsi !== null ? `RSI ${indicators.rsi > 70 ? 'overbought' : indicators.rsi < 30 ? 'oversold' : 'neutral'}` : 'indikator terbatas'}. Harga saat ini $${marketData.currentPrice?.toFixed(2) || 'N/A'} dengan perubahan ${marketData.change24h !== undefined ? `${marketData.change24h > 0 ? '+' : ''}${marketData.change24h.toFixed(2)}%` : 'N/A'} dalam 24 jam terakhir. 
+Level support diidentifikasi di $${summary.priceRange?.min?.toFixed(2) || 'N/A'} (harga terendah dalam periode), sementara resistance berada di $${summary.priceRange?.max?.toFixed(2) || 'N/A'} (harga tertinggi dalam periode).
 
-   ${indicators.trend === 'bullish' ? 'Dapat dipertimbangkan untuk monitoring lebih lanjut dengan hati-hati terhadap level resistance.' : indicators.trend === 'bearish' ? 'Perlu monitoring lebih lanjut dengan hati-hati terhadap level support. Hati-hati dengan potensi penurunan lebih lanjut.' : 'Perlu monitoring lebih lanjut untuk konfirmasi breakout dari range saat ini.'}
+**4. Skenario Kemungkinan**
+Skenario 1 (Bullish): ${indicators.trend === 'bullish' ? 'Kemungkinan harga akan melanjutkan kenaikan jika momentum tetap kuat dan volume mendukung. Probabilitas: 60-70%.' : 'Jika harga berhasil break resistance, kemungkinan akan naik lebih lanjut. Probabilitas: 40-50%.'}
 
-━━━━━━━━━━━━━━━━━━━━━━`;
+Skenario 2 (Bearish): ${indicators.trend === 'bearish' ? 'Kemungkinan harga akan melanjutkan penurunan jika momentum bearish tetap kuat. Probabilitas: 60-70%.' : 'Jika harga break support, kemungkinan akan turun lebih lanjut. Probabilitas: 40-50%.'}
+
+Skenario 3 (Sideways): ${indicators.trend === 'neutral' ? 'Harga kemungkinan akan tetap bergerak dalam range saat ini. Probabilitas: 50-60%.' : 'Jika momentum melemah, harga mungkin akan konsolidasi. Probabilitas: 30-40%.'}
+
+**5. Risiko dan Keterbatasan**
+Risiko yang teridentifikasi meliputi volatilitas ${summary.volatility && summary.volatility > 5 ? 'tinggi' : 'normal'} yang dapat menyebabkan pergerakan harga tidak terduga, data historis yang tidak menjamin pergerakan masa depan, serta faktor eksternal seperti berita dan regulasi yang dapat mempengaruhi harga.
+
+Keterbatasan analisis ini adalah berbasis ${summary.totalCandles || marketData.data.length} data points historis${indicators.rsi === null ? ', RSI tidak dapat dihitung karena data kurang' : ''}${indicators.ma20 === null ? ', MA20 tidak dapat dihitung karena data kurang' : ''}, dan tidak mempertimbangkan faktor fundamental atau berita terkini.
+
+Disclaimer: Analisis ini berdasarkan data historis dan indikator teknis. Bukan jaminan pergerakan harga di masa depan. Selalu lakukan riset tambahan dan kelola risiko dengan baik.
+
+**6. Kesimpulan**
+${assetType === 'crypto' ? 'Kripto' : 'Saham'} ${symbol.toUpperCase()} menunjukkan trend ${indicators.trend === 'bullish' ? 'bullish' : indicators.trend === 'bearish' ? 'bearish' : 'neutral'} dengan ${indicators.rsi !== null ? `RSI ${indicators.rsi > 70 ? 'overbought' : indicators.rsi < 30 ? 'oversold' : 'neutral'}` : 'indikator terbatas'}. Harga saat ini $${marketData.currentPrice?.toFixed(2) || 'N/A'} dengan perubahan ${marketData.change24h !== undefined ? `${marketData.change24h > 0 ? '+' : ''}${marketData.change24h.toFixed(2)}%` : 'N/A'} dalam 24 jam terakhir.
+
+${indicators.trend === 'bullish' ? 'Dapat dipertimbangkan untuk monitoring lebih lanjut dengan hati-hati terhadap level resistance.' : indicators.trend === 'bearish' ? 'Perlu monitoring lebih lanjut dengan hati-hati terhadap level support. Hati-hati dengan potensi penurunan lebih lanjut.' : 'Perlu monitoring lebih lanjut untuk konfirmasi breakout dari range saat ini.'}`;
 
   return analysis;
 }
@@ -167,102 +142,83 @@ function getTechPrompt(marketData: any, indicators: any, preprocessed: any, asse
   const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
   const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
   
-  const langNote = `\n🚨🚨🚨 PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI): 🚨🚨🚨
+  const langNote = `
+
+PENTING SEKALI - BAHASA RESPONS (WAJIB DIPATUHI):
 - User bertanya dalam: ${detectedLanguage}
 - KAMU HARUS menjawab dalam ${detectedLanguage} yang SAMA
 - JANGAN gunakan bahasa lain selain ${detectedLanguage}
-- Jika user bertanya dalam Bahasa Indonesia → jawab 100% dalam Bahasa Indonesia
-- Jika user bertanya dalam English → jawab 100% dalam English
+- Jika user bertanya dalam Bahasa Indonesia maka jawab 100% dalam Bahasa Indonesia
+- Jika user bertanya dalam English maka jawab 100% dalam English
 - Ini adalah ATURAN WAJIB yang TIDAK BOLEH dilanggar`;
   
   const assetTypeLabel = assetType === 'crypto' ? 'kripto' : 'saham';
   const assetTypeLabelUpper = assetType === 'crypto' ? 'KRIPTO' : 'SAHAM';
   return `Kamu adalah AI Assistant untuk analisis pasar ${assetTypeLabel}.${langNote}
 
-━━━━━━━━━━━━━━━━━━━━━━
-MODE: MODE_MARKET_ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━
+**MODE: MODE_MARKET_ANALYSIS**
+Tanggal: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
 
-PENTING - JENIS ASET:
-- Aset yang sedang dianalisis adalah ${assetTypeLabel.toUpperCase()} (${assetTypeLabelUpper}), BUKAN ${assetType === 'crypto' ? 'saham' : 'kripto'}.
-- Gunakan terminologi yang tepat: ${assetType === 'crypto' ? '"kripto", "cryptocurrency", "koin"' : '"saham", "stock", "equity"'}.
-- JANGAN menyebut ini sebagai ${assetType === 'crypto' ? 'saham' : 'kripto'}.
-- Dalam header/judul, gunakan: "ANALISIS TEKNIKAL ${assetTypeLabelUpper}" bukan "ANALISIS TEKNIKAL ${assetType === 'crypto' ? 'SAHAM' : 'KRIPTO'}".
+**PENTING - JENIS ASET:**
+Aset yang sedang dianalisis adalah ${assetTypeLabel.toUpperCase()} (${assetTypeLabelUpper}), BUKAN ${assetType === 'crypto' ? 'saham' : 'kripto'}. Gunakan terminologi yang tepat: ${assetType === 'crypto' ? '"kripto", "cryptocurrency", "koin"' : '"saham", "stock", "equity"'}. JANGAN menyebut ini sebagai ${assetType === 'crypto' ? 'saham' : 'kripto'}. Dalam header/judul, gunakan: "ANALISIS TEKNIKAL ${assetTypeLabelUpper}" bukan "ANALISIS TEKNIKAL ${assetType === 'crypto' ? 'SAHAM' : 'KRIPTO'}".
 
-ATURAN WAJIB:
+**ATURAN WAJIB:**
 1. Gunakan HANYA data OHLC, volume, dan timeframe yang diberikan di bawah ini.
 2. TIDAK mengakses data real-time atau data di luar yang diberikan.
 3. TIDAK memberikan sinyal BUY/SELL absolut. Gunakan probabilitas, bukan kepastian.
 4. Jangan mengarang data, harga, atau fakta.
-5. Jika data tidak cukup → tolak analisis dan minta data tambahan.
+5. Jika data tidak cukup, tolak analisis dan minta data tambahan.
 6. Pisahkan dengan jelas: FAKTA, ANALISIS, dan ASUMSI.
 7. Output bersifat informatif, bukan keputusan final.
 8. SELALU sebutkan bahwa ini adalah analisis ${assetTypeLabel}, bukan ${assetType === 'crypto' ? 'saham' : 'kripto'}.
 
-DATA YANG DIGUNAKAN:
+**DATA YANG DIGUNAKAN:**
 ${preprocessed.formattedForLLM}
 
-INDIKATOR TEKNIS:
-- RSI: ${indicators.rsi !== null ? indicators.rsi.toFixed(2) : 'N/A'} ${indicators.rsi !== null ? (indicators.rsi > 70 ? '(Overbought)' : indicators.rsi < 30 ? '(Oversold)' : '(Neutral)') : '(Data tidak cukup)'}
-- MA20: ${indicators.ma20 !== null ? indicators.ma20.toFixed(2) : 'N/A'}
-- Trend: ${indicators.trend}
-- Harga saat ini: ${marketData.currentPrice || 'N/A'}
-- Perubahan 24h: ${marketData.change24h !== undefined ? `${marketData.change24h.toFixed(2)}%` : 'N/A'}
+**INDIKATOR TEKNIS:**
+Simbol: ${marketData.symbol}
+Nama Perusahaan: ${marketData.companyName || 'N/A'}
+RSI: ${indicators.rsi !== null ? indicators.rsi.toFixed(2) : 'N/A'} ${indicators.rsi !== null ? (indicators.rsi > 70 ? '(Overbought)' : indicators.rsi < 30 ? '(Oversold)' : '(Neutral)') : '(Data tidak cukup)'}
+MA20: ${indicators.ma20 !== null ? indicators.ma20.toFixed(2) : 'N/A'}
+Trend: ${indicators.trend}
+Harga saat ini: ${marketData.currentPrice || 'N/A'}
+Perubahan 24h: ${marketData.change24h !== undefined ? `${marketData.change24h.toFixed(2)}%` : 'N/A'}
 
-━━━━━━━━━━━━━━━━━━━━━━
-FORMAT WAJIB OUTPUT:
-━━━━━━━━━━━━━━━━━━━━━━
+**FORMAT WAJIB OUTPUT (GUNAKAN TEKS BIASA, JANGAN SIMBOL ANEH):**
 
-1. DATA YANG DIGUNAKAN
-   - Timeframe: [sebutkan]
-   - Jumlah data points: [sebutkan]
-   - Rentang waktu: [dari - sampai]
-   - Sumber data: [OHLC yang diberikan]
+**1. Data yang Digunakan**
+Tulis dalam paragraf: timeframe yang dianalisis, jumlah data points, rentang waktu (dari-sampai), dan sumber data (OHLC yang diberikan).
 
-2. FAKTA DARI DATA
-   - Harga tertinggi: [dari data]
-   - Harga terendah: [dari data]
-   - Rata-rata harga: [dari data]
-   - Volatilitas: [dari data]
-   - Indikator yang terhitung: [sebutkan yang valid]
+**2. Fakta dari Data**
+Tulis dalam paragraf mengalir: harga tertinggi, harga terendah, rata-rata harga, volatilitas, dan indikator yang terhitung.
 
-3. ANALISIS TEKNIKAL
-   - Interpretasi trend: [bullish/bearish/sideways] dengan alasan berdasarkan data
-   - Pola candlestick: [pola yang terdeteksi dari data, jika ada]
-   - Level support & resistance: [berdasarkan data, jika bisa diidentifikasi]
-   - Analisis indikator: [RSI, MA20, dll berdasarkan nilai yang ada]
+**3. Analisis Teknikal**
+Tulis analisis dalam paragraf mengalir mengenai interpretasi trend (bullish/bearish/sideways dengan alasan), pola candlestick yang terdeteksi, level support dan resistance, serta analisis indikator (RSI, MA20, dll).
 
-4. SKENARIO KEMUNGKINAN
-   - Skenario 1: [kemungkinan dengan probabilitas, bukan kepastian]
-   - Skenario 2: [alternatif kemungkinan]
-   - Gunakan kata: "kemungkinan", "probabilitas", "berpotensi", BUKAN "pasti", "akan", "harus"
+**4. Skenario Kemungkinan**
+Jelaskan 2 skenario kemungkinan dengan probabilitas (bukan kepastian). Gunakan kata: "kemungkinan", "probabilitas", "berpotensi", BUKAN "pasti", "akan", "harus".
 
-5. RISIKO & KETERBATASAN
-   - Risiko yang teridentifikasi: [sebutkan]
-   - Keterbatasan analisis: [data yang kurang, asumsi yang digunakan]
-   - Disclaimer: Analisis ini berdasarkan data historis, bukan jaminan
+**5. Risiko dan Keterbatasan**
+Sebutkan risiko yang teridentifikasi, keterbatasan analisis (data yang kurang, asumsi yang digunakan), dan disclaimer bahwa analisis ini berdasarkan data historis, bukan jaminan.
 
-6. KESIMPULAN SINGKAT
-   - Ringkasan 1-2 kalimat
-   - TIDAK memberikan rekomendasi BUY/SELL absolut
-   - Gunakan bahasa: "dapat dipertimbangkan", "perlu monitoring", "hati-hati dengan", dll
+**6. Kesimpulan**
+Ringkasan 1-2 paragraf. TIDAK memberikan rekomendasi BUY/SELL absolut. Gunakan bahasa: "dapat dipertimbangkan", "perlu monitoring", "hati-hati dengan", dll.
 
-━━━━━━━━━━━━━━━━━━━━━━
-JIKA DATA TIDAK CUKUP:
-━━━━━━━━━━━━━━━━━━━━━━
+**ATURAN FORMAT (WAJIB):**
+- JANGAN gunakan simbol aneh seperti: ━, •, ▸, ●, ★, ⚠️, 📊, 📈, 🔴, emoji, atau dekorasi
+- Untuk JUDUL gunakan format tebal: **Judul**
+- Tulis dalam PARAGRAF mengalir, bukan bullet points
+- Jika perlu poin, gunakan angka biasa (1., 2., 3.)
+- JANGAN gunakan garis horizontal (━━━ atau ---)
+- Bahasa harus natural dan profesional
 
-Jika data kurang untuk analisis yang valid, jawab:
-"Data tidak cukup untuk analisis teknikal yang valid. Mohon berikan data OHLC yang lebih lengkap dengan timeframe yang jelas."
+**JIKA DATA TIDAK CUKUP:**
+Jika data kurang untuk analisis yang valid, jawab: "Data tidak cukup untuk analisis teknikal yang valid. Mohon berikan data OHLC yang lebih lengkap dengan timeframe yang jelas."
 
-━━━━━━━━━━━━━━━━━━━━━━
-CATATAN PENTING:
-━━━━━━━━━━━━━━━━━━━━━━
-
-- JANGAN mengarang harga atau data yang tidak ada
-- JANGAN memberikan sinyal trading absolut (BUY/SELL pasti)
-- GUNAKAN probabilitas dan kemungkinan
-- PISAHKAN fakta dari analisis dan asumsi
-- OUTPUT informatif, bukan keputusan final
+**CATATAN PENTING:**
+JANGAN mengarang harga atau data yang tidak ada. JANGAN memberikan sinyal trading absolut (BUY/SELL pasti). GUNAKAN probabilitas dan kemungkinan. PISAHKAN fakta dari analisis dan asumsi. OUTPUT informatif, bukan keputusan final. GUNAKAN bahasa yang profesional namun mudah dipahami (actionable insight). SINKRONISASI TIMEFRAME: Pastikan narasi konsisten dengan timeframe harga yang diberikan.
+- Jika RSI < 20 (Extreme Oversold) atau RSI > 80 (Extreme Overbought), berikan peringatan khusus tentang kondisi ekstrem tersebut.
+- Sertakan Disclaimer: "Analisis teknikal ini bukan saran investasi." di akhir.
 
 ⚠️ INGAT: User bertanya dalam ${detectedLanguage}. Jawab dalam ${detectedLanguage} yang SAMA. JANGAN gunakan bahasa lain!
 
@@ -310,9 +266,29 @@ function formatPct(value: number | undefined | null): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
-function formatUsd(value: number | undefined | null): string {
+function formatPrice(value: number | undefined | null, symbol?: string, type: 'crypto' | 'stock' = 'stock'): string {
   if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
-  return `$${value.toFixed(2)}`;
+  
+  const isIDX = symbol && (
+    symbol.endsWith('.JK') || 
+    ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'GOTO', 'UNVR', 'ICBP', 'INDF', 'BRI', 'BCA', 'BNI', 'BNGA', 'MANDIRI', 'TELKOM', 'ASTRA'].includes(symbol.toUpperCase())
+  );
+
+  if (type === 'stock' && isIDX) {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+  
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: value < 1 ? 4 : 2,
+    maximumFractionDigits: value < 1 ? 4 : 2,
+  }).format(value);
 }
 
 function normalizeSeriesTo100(points: Array<{ time: string; close: number }>): Array<{ time: string; value: number }> {
@@ -321,76 +297,158 @@ function normalizeSeriesTo100(points: Array<{ time: string; close: number }>): A
   return points.map((p) => ({ time: p.time, value: (p.close / base) * 100 }));
 }
 
-function buildComparisonFallbackAnalysis(rows: Array<Record<string, any>>, days: number, assetType: 'crypto' | 'stock' = 'crypto'): string {
-  const assetTypeLabel = assetType === 'crypto' ? 'KRIPTO' : 'SAHAM';
-  const header = `━━━━━━━━━━━━━━━━━━━━━━
-PERBANDINGAN ${assetTypeLabel} (${days} hari)
-━━━━━━━━━━━━━━━━━━━━━━`;
+/**
+ * Standardizes market asset data for analysis and UI consistency
+ */
+function normalizeAssetData(symbol: string, type: 'crypto' | 'stock', marketData: any, indicators: any, timeframe: string) {
+  const s = symbol.toUpperCase();
+  const isIDX = type === 'stock' && (
+    s.endsWith('.JK') || 
+    ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'GOTO', 'UNVR', 'ICBP', 'INDF', 'BRI', 'BCA', 'BNI', 'MANDIRI', 'TELKOM', 'ASTRA'].includes(s)
+  );
+  const market = type === 'crypto' ? 'CRYPTO' : (isIDX ? 'IDX' : 'NASDAQ');
+  const currency = market === 'IDX' ? 'IDR' : 'USD';
+  
+  const firstPrice = marketData.data?.[0]?.close || marketData.currentPrice || 0;
+  const lastPrice = marketData.data?.[marketData.data.length - 1]?.close || marketData.currentPrice || 0;
+  const returnPct = firstPrice !== 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+  
+  // 📊 Refined Market Regime Detection (Decision Logic)
+  const rsi = indicators.rsi;
+  const ma20 = indicators.ma20;
+  const currentPrice = marketData.currentPrice || lastPrice;
+  const priceToMA = ma20 ? ((currentPrice - ma20) / ma20) * 100 : 0;
+  
+  let condition = 'NEUTRAL_RANGING';
+  let confidence = 50;
 
-  const body = rows
-    .map((r) => {
-      return `
-${r.Symbol}
-- Harga: ${r['Harga'] || r['Harga (USD)'] || 'N/A'}
-- 24h: ${r['Perubahan 24h']}
-- Return periode: ${r['Return Periode']}
-- Trend: ${r['Trend']}
-- RSI: ${r['RSI']}
-- MA20: ${r['MA20']}`;
-    })
-    .join('\n');
+  if (indicators.trend === 'bullish') {
+    if (priceToMA > 2 && rsi > 50 && rsi < 70) {
+      condition = 'STRONG_UPTREND';
+      confidence = 85;
+    } else if (rsi > 80) {
+      condition = 'BULLISH_EXHAUSTION';
+      confidence = 45;
+    } else {
+      condition = 'MILD_ACCUMULATION';
+      confidence = 65;
+    }
+  } else if (indicators.trend === 'bearish') {
+    if (priceToMA < -2 && rsi < 50 && rsi > 30) {
+      condition = 'STRONG_DOWNTREND';
+      confidence = 85;
+    } else if (rsi < 20) {
+      condition = 'BEARISH_EXHAUSTION';
+      confidence = 40;
+    } else {
+      condition = 'DISTRIBUTION_PHASE';
+      confidence = 60;
+    }
+  } else if (Math.abs(priceToMA) < 1 && rsi > 45 && rsi < 55) {
+    condition = 'LOW_VOLATILITY_SQUEEZE';
+    confidence = 30; // Noise is high in squeeze
+  }
 
-  const footer = `
-
-Catatan:
-- Return periode dihitung dari close candle pertama ke close candle terakhir (dinormalisasi).
-- Ini analisis teknikal berbasis data historis; bukan jaminan pergerakan harga ke depan.`;
-
-  return `${header}\n${body}\n${footer}`;
+  return {
+    symbol,
+    name: marketData.companyName || symbol,
+    market,
+    currency,
+    currentPrice,
+    change24h: marketData.change24h,
+    indicators: {
+      rsi: indicators.rsi,
+      ma20: indicators.ma20,
+      trend: indicators.trend,
+      returnPct,
+      isExtremeOversold: indicators.rsi !== null && indicators.rsi < 20,
+      isExtremeOverbought: indicators.rsi !== null && indicators.rsi > 80,
+    },
+    engine: {
+      condition,
+      confidence,
+      stopLoss: indicators.trend === 'bullish' ? currentPrice * 0.97 : currentPrice * 1.03,
+      invalidation: indicators.trend === 'bullish' ? (ma20 || currentPrice * 0.95) : (ma20 || currentPrice * 1.05),
+      volumeAnalysis: marketData.data?.length > 0 ? {
+        current: marketData.data[marketData.data.length - 1].volume,
+        average: marketData.data.reduce((acc: number, d: any) => acc + (d.volume || 0), 0) / marketData.data.length,
+        isReliable: marketData.data[marketData.data.length - 1].volume > (marketData.data.reduce((acc: number, d: any) => acc + (d.volume || 0), 0) / marketData.data.length) * 0.5
+      } : null
+    },
+    timeframe
+  };
 }
 
-async function processMarketComparison(context: AIRequestContext): Promise<AIRequestResponse> {
-  const message = context.message || '';
-  
-  // ✅ STEP 1: Try to parse function call from message (if LLM already processed it)
-  // This allows LLM to call display_comparison_chart function
-  let functionCall = parseFunctionCall(message);
-  
-  // ✅ STEP 2: If no function call, try to extract symbols directly
-  const symbols = functionCall?.name === 'display_comparison_chart' 
-    ? functionCall.arguments.symbols.map((s: string) => ({ 
-        symbol: s, 
-        type: (functionCall.arguments.asset_type || 'stock') as 'crypto' | 'stock' 
-      }))
-    : extractMultipleSymbols(message);
-  
-  // ✅ KEY FIX: Limit the number of symbols to what user actually requested
-  // Check if user specified a specific number of assets to compare
-  let maxSymbols = 5; // Default max
-  
-  // Detect if user explicitly asked for 2 symbols (e.g., "compare X vs Y")
-  const specificCompareMatch = message.match(/(?:compare|bandingkan|vs|versus)\s+([A-Z]{3,5})\s+(?:vs|dengan|dan|&)\s+([A-Z]{3,5})/i);
-  if (specificCompareMatch) {
-    // User specified exactly 2 symbols
-    maxSymbols = 2;
-    console.log('📊 [Comparison] User specified 2-symbol comparison:', specificCompareMatch[1], specificCompareMatch[2]);
-  }
-  
-  // Also check for "(Symbols: X, Y)" format injected by route.ts
-  const symbolsMatch = message.match(/\(Symbols?:\s*([A-Z]{3,5}(?:\s*,\s*[A-Z]{3,5})*)\)/i);
-  if (symbolsMatch) {
-    const symbolList = symbolsMatch[1].split(/\s*,\s*/);
-    maxSymbols = Math.min(maxSymbols, symbolList.length);
-    console.log('📊 [Comparison] Found explicit symbols list, limiting to:', maxSymbols, 'symbols');
-  }
-  
-  const candidates = extractCandidateTokens(message);
+function buildComparisonFallbackAnalysis(rows: Array<Record<string, any>>, days: number, assetType: 'crypto' | 'stock' = 'crypto'): string {
+  const assetTypeLabel = assetType === 'crypto' ? 'KRIPTO' : 'SAHAM';
 
-  // If old extractor didn't find enough, try resolving by name/symbol using real APIs (no sample data)
-  // But limit to maxSymbols
-  let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols
-    .slice(0, maxSymbols) // ✅ Apply limit here
-    .map((s: { symbol: string; type: 'crypto' | 'stock' }) => ({ symbol: s.symbol, type: s.type }));
+  const body = rows
+    .map((r, index) => {
+      return `**${r.Symbol}:** Harga ${r['Harga'] || r['Harga (USD)'] || 'N/A'}, perubahan 24h sebesar ${r['Perubahan 24h']}, return periode ${r['Return Periode']}, trend ${r['Trend']}, RSI ${r['RSI']}, MA20 ${r['MA20']}.`;
+    })
+    .join('\n\n');
+
+  const footer = `Return periode dihitung dari close candle pertama ke close candle terakhir (dinormalisasi). Ini adalah analisis teknikal berbasis data historis dan bukan jaminan pergerakan harga ke depan.`;
+
+  return `**Perbandingan ${assetTypeLabel} (${days} hari)**\n\n${body}\n\n**Catatan:** ${footer}`;
+}
+
+export async function processMarketComparison(
+  context: AIRequestContext,
+  passedSymbols?: string[],
+  timeframeArg?: string
+): Promise<AIRequestResponse> {
+  try {
+    const message = context.message || '';
+    
+    // ✅ STEP 1: Try to parse function call from message (if LLM already processed it)
+    // This allows LLM to call display_comparison_chart function
+    let functionCall = parseFunctionCall(message);
+    
+    // ✅ STEP 2: If no function call, try to extract symbols directly
+    let rawSymbols = functionCall?.name === 'display_comparison_chart' 
+      ? functionCall.arguments.symbols.map((s: string) => ({ 
+          symbol: s, 
+          type: (functionCall.arguments.asset_type || 'stock') as 'crypto' | 'stock' 
+        }))
+      : extractMultipleSymbols(message);
+    
+    // ✅ DEDUPLICATE: Ensure we don't have the same symbol multiple times
+    const seenSymbols = new Set<string>();
+    const symbols = rawSymbols.filter((s: { symbol: string }) => {
+      const key = `${s.symbol.toUpperCase()}`;
+      if (seenSymbols.has(key)) return false;
+      seenSymbols.add(key);
+      return true;
+    });
+
+    // ✅ KEY FIX: Limit the number of symbols to what user actually requested
+    // Check if user specified a specific number of assets to compare
+    let maxSymbols = 5; // Default max
+    
+    // Detect if user explicitly asked for 2 symbols (e.g., "compare X vs Y")
+    const specificCompareMatch = message.match(/(?:compare|bandingkan|vs|versus)\s+([A-Z]{3,5})\s+(?:vs|dengan|dan|&)\s+([A-Z]{3,5})/i);
+    if (specificCompareMatch) {
+      // User specified exactly 2 symbols
+      maxSymbols = 2;
+      console.log('📊 [Comparison] User specified 2-symbol comparison:', specificCompareMatch[1], specificCompareMatch[2]);
+    }
+    
+    // Also check for "(Symbols: X, Y)" format injected by route.ts
+    const symbolsMatch = message.match(/\(Symbols?:\s*([A-Z]{3,5}(?:\s*,\s*[A-Z]{3,5})*)\)/i);
+    if (symbolsMatch) {
+      const symbolList = symbolsMatch[1].split(/\s*,\s*/);
+      maxSymbols = Math.min(maxSymbols, symbolList.length);
+      console.log('📊 [Comparison] Found explicit symbols list, limiting to:', maxSymbols, 'symbols');
+    }
+    
+    const candidates = extractCandidateTokens(message);
+  
+    // If old extractor didn't find enough, try resolving by name/symbol using real APIs (no sample data)
+    // But limit to maxSymbols
+    let resolvedList: Array<{ symbol: string; type: 'crypto' | 'stock'; coinId?: string }> = symbols
+      .slice(0, maxSymbols) // ✅ Apply limit here
+      .map((s: { symbol: string; type: 'crypto' | 'stock' }) => ({ symbol: s.symbol, type: s.type }));
 
   if (resolvedList.length < 2 && candidates.length >= 2) {
     const resolved = await Promise.all(
@@ -404,9 +462,20 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
       })
     );
 
-    resolvedList = resolved.filter(Boolean) as any;
+    // Deduplicate against already found symbols
+    const additional = (resolved as any[])
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .filter(r => !resolvedList.some(ex => ex.symbol.toUpperCase() === r.symbol.toUpperCase()));
+    
+    resolvedList = [...resolvedList, ...additional as any];
   }
   
+  // ✅ Handle passed symbols (from API) or extracted ones
+  if (passedSymbols && passedSymbols.length > 0) {
+    const type = message.toLowerCase().includes('crypto') || message.toLowerCase().includes('kripto') ? 'crypto' : 'stock';
+    resolvedList = passedSymbols.map(s => ({ symbol: s, type: type as 'crypto' | 'stock' }));
+  }
+
   // ✅ Final limit - ensure we don't exceed requested number
   resolvedList = resolvedList.slice(0, maxSymbols);
 
@@ -441,21 +510,30 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
   const marketInfo = isMarketDataRequest(message);
   let days = marketInfo.days || 7;
   
+  // Helpers for timeframe conversion
+  const getTimeframeLabel = (daysOrTimeframe: number | string): string => {
+    if (typeof daysOrTimeframe === 'string') return daysOrTimeframe;
+    const d = daysOrTimeframe;
+    if (d <= 1) return '1D';
+    if (d <= 5) return '5D';
+    if (d <= 30) return '1M';
+    if (d <= 180) return '6M';
+    if (d <= 365) return '1Y';
+    if (d <= 1825) return '5Y';
+    return 'MAX';
+  };
+
   // ✅ Convert timeframe from function call to days if available
-  if (functionCall?.arguments?.timeframe) {
-    const timeframeStr = functionCall.arguments.timeframe;
+  const tfArg = functionCall?.arguments?.timeframe;
+  if (tfArg) {
     const timeframeMapping: Record<string, number> = {
-      '1D': 1,
-      '5D': 5,
-      '1M': 30,
-      '3M': 90,
-      '6M': 180,
-      '1Y': 365,
-      '5Y': 1825,
-      'MAX': 3650,
+      '1D': 1, '5D': 5, '1M': 30, '3M': 90, '6M': 180, '1Y': 365, '5Y': 1825, 'MAX': 3650,
     };
-    days = timeframeMapping[timeframeStr] || days;
+    days = timeframeMapping[tfArg] || days;
   }
+
+  // ✅ Initialize timeframeStr EARLY to avoid TDZ
+  const timeframeStr = tfArg || getTimeframeLabel(days);
 
   // For now, only compare same asset type group (all crypto OR all stock)
   const types = new Set(resolvedList.map((s) => s.type));
@@ -541,14 +619,14 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
 
     return {
       Symbol: symbol,
-      Harga: formatUsd(marketData.currentPrice ?? last),
+      Harga: formatPrice(marketData.currentPrice ?? last, symbol, type),
       'Perubahan 24h': formatPct(marketData.change24h),
       'Return Periode': formatPct(periodReturn),
       Trend: indicators.trend,
       RSI: indicators.rsi !== null ? indicators.rsi.toFixed(2) : 'N/A',
-      MA20: indicators.ma20 !== null ? indicators.ma20.toFixed(2) : 'N/A',
-      Support: priceRange?.min ? formatUsd(priceRange.min) : 'N/A',
-      Resistance: priceRange?.max ? formatUsd(priceRange.max) : 'N/A',
+      MA20: indicators.ma20 !== null ? formatPrice(indicators.ma20, symbol, type) : 'N/A',
+      Support: priceRange?.min ? formatPrice(priceRange.min, symbol, type) : 'N/A',
+      Resistance: priceRange?.max ? formatPrice(priceRange.max, symbol, type) : 'N/A',
       Volatilitas: typeof vol === 'number' ? `${vol.toFixed(2)}%` : 'N/A',
       'Data Points': marketData.data.length,
     };
@@ -585,57 +663,31 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
 
   // Build comparison assets info for widget
   // Logo menggunakan API endpoint /api/logo untuk konsistensi
-  const comparisonAssets = fetched.map(({ symbol, marketData }, index) => {
-    const priceRange = fetched[index]?.preprocessed?.summary?.priceRange;
-    const firstPrice = marketData.data[0]?.close || marketData.currentPrice || 0;
-    const lastPrice = marketData.data[marketData.data.length - 1]?.close || marketData.currentPrice || 0;
-    const change = lastPrice - firstPrice;
-    const changePercent = firstPrice !== 0 ? ((change / firstPrice) * 100) : 0;
-
+  // Build comparison assets info for widget using standard normalizer
+  // Build comparison assets info for widget using standard normalizer
+  const comparisonAssets = fetched.map(({ symbol, marketData, indicators }) => {
+    // Guard: Pastikan indicators tersedia
+    const safeIndicators = indicators || { rsi: null, ma20: null, trend: 'neutral' };
+    const normalized = normalizeAssetData(symbol, type, marketData, safeIndicators, timeframeStr);
+    
     return {
-      symbol: symbol,
-      name: (marketData as any).companyName || undefined, // Nama perusahaan langsung dari API
-      logo: `/api/logo?symbol=${encodeURIComponent(symbol)}&type=${type}`, // Logo menggunakan API endpoint /api/logo
-      exchange: type === 'stock' ? 'NASDAQ' : undefined, // Default exchange
-      currentPrice: marketData.currentPrice ?? lastPrice,
-      change: change,
-      changePercent: changePercent,
+      symbol: normalized.symbol,
+      name: normalized.name,
+      logo: `/api/logo?symbol=${encodeURIComponent(symbol)}&type=${type}`,
+      exchange: normalized.market,
+      currentPrice: normalized.currentPrice,
+      change: (marketData.currentPrice || 0) - (marketData.data?.[0]?.close || 0),
+      changePercent: normalized.indicators.returnPct,
       timestamp: new Date().toLocaleString('id-ID'),
+      rsi: normalized.indicators.rsi,
+      trend: normalized.indicators.trend,
+      market: normalized.market,
+      currency: normalized.currency,
+      engine: normalized.engine,
     };
   });
 
-  // Determine timeframe label from days or use provided timeframe
-  const getTimeframeLabel = (daysOrTimeframe: number | string): string => {
-    if (typeof daysOrTimeframe === 'string') {
-      return daysOrTimeframe; // Already a timeframe string
-    }
-    const days = daysOrTimeframe;
-    if (days <= 1) return '1D';
-    if (days <= 5) return '5D';
-    if (days <= 30) return '1M';
-    if (days <= 180) return '6M';
-    if (days <= 365) return '1Y';
-    if (days <= 1825) return '5Y';
-    return 'MAX';
-  };
-  
-  // Convert timeframe string to days for API calls
-  const timeframeToDays = (timeframe: string): number => {
-    const mapping: Record<string, number> = {
-      '1D': 1,
-      '5D': 5,
-      '1M': 30,
-      '3M': 90,
-      '6M': 180,
-      '1Y': 365,
-      '5Y': 1825,
-      'MAX': 3650,
-    };
-    return mapping[timeframe] || 365; // Default to 1Y
-  };
-
-  // Get timeframe string for chart
-  const timeframeStr = functionCall?.arguments?.timeframe || getTimeframeLabel(days);
+  // timeframeStr sudah diinisialisasi di atas (LINE ~535) untuk menghindari TDZ error
   
   const chart = {
     type: 'comparison' as const,
@@ -667,18 +719,10 @@ async function processMarketComparison(context: AIRequestContext): Promise<AIReq
     const assetTypeLabel = type === 'crypto' ? 'kripto' : 'saham';
     const assetTypeLabelUpper = type === 'crypto' ? 'KRIPTO' : 'SAHAM';
     
-    // ✅ CRITICAL: Prepare actual data from API for grounding
-    const actualDataSummary = fetched.map(({ symbol, marketData, indicators }) => ({
-      symbol,
-      currentPrice: marketData.currentPrice,
-      change24h: marketData.change24h,
-      rsi: indicators.rsi,
-      ma20: indicators.ma20,
-      trend: indicators.trend,
-      dataPoints: marketData.data.length,
-      firstPrice: marketData.data[0]?.close,
-      lastPrice: marketData.data[marketData.data.length - 1]?.close,
-    }));
+    // ✅ DATA NORMALIZATION: Standardized pipeline for AI grounding
+    const actualDataSummary = fetched.map(({ symbol, marketData, indicators }) => 
+      normalizeAssetData(symbol, type, marketData, indicators, timeframeStr)
+    );
     
     // ✅ CRITICAL: Extract chart data points for AI (for reference only, chart already built from API)
     const chartDataPoints = chartData.slice(-20).map((row: any) => {
@@ -703,34 +747,44 @@ BALAS HANYA DALAM FORMAT JSON VALID.
 DILARANG menulis paragraf, heading, atau markdown.
 DILARANG menulis teks di luar JSON.
 
-Struktur WAJIB (TIDAK BOLEH BERUBAH):
+Struktur WAJIB (Decision Engine Mode):
 {
-  "summary": "string - ringkasan singkat 2-3 kalimat",
-  "analysis": {
-    "winner": "string - simbol dengan performa terbaik",
-    "rsi_comparison": "string - perbandingan RSI",
-    "trend_analysis": "string - analisis trend",
-    "scenarios": [
-      {
-        "name": "string - nama skenario",
-        "probability": "string - probabilitas",
-        "description": "string - deskripsi"
-      }
-    ],
-    "recommendations": [
-      "string - saran 1",
-      "string - saran 2",
-      "string - saran 3"
-    ],
-    "risks": "string - risiko dan batasan"
-  }
+  "summary": "string - analisis narasi (preskriptif, bukan deskriptif)",
+  "bias": "string - BULLISH | BEARISH | NEUTRAL",
+  "confidenceScore": "number - 0-100 (alasan skor harus jelas di summary)",
+  "marketRegime": "string - TRENDING | RANGING | VOLATILE",
+  "strategy": {
+    "entry_zone": "string - area harga ideal untuk masuk",
+    "target_price": "string - target harga potensial",
+    "stop_loss": "string - level proteksi modal",
+    "invalidation_point": "string - level di mana analisis ini GAGAL/INVALID"
+  },
+  "rules": {
+    "valid_if": ["string - kondisi yang harus terpenuhi agar analisis ini tetap valid"],
+    "invalid_if": ["string - kondisi yang akan membatalkan analisis ini"]
+  },
+  "risks": "string - risiko finansial & disclaimer"
 }
 
-⚠️ PENTING:
+⚠️ PENTING - GAYA BAHASA NATURAL:
+- GUNAKAN NAMA PERUSAHAAN yang diberikan (misal: BBRI adalah Bank Rakyat Indonesia, BBCA adalah Bank Central Asia). JANGAN TERBALIK!
 - Jika data tidak tersedia, gunakan null (BUKAN string "N/A" atau "tidak ada")
 - JANGAN menambahkan field di luar struktur di atas
 - JANGAN menulis teks sebelum atau sesudah JSON
 - Output HARUS valid JSON yang bisa di-parse
+
+📝 ATURAN PENULISAN SUMMARY (WAJIB DIIKUTI):
+- Tulis dalam BAHASA INDONESIA yang NATURAL dan MENGALIR, seperti seorang analis senior berbicara ke klien
+- HINDARI bahasa robotik/terjemahan mesin. Contoh BURUK: "BTC menunjukkan performa terbaik dengan -4.16%, 7.56% lebih baik dari ETH"
+- Contoh BAIK: "Dalam periode terakhir, Bitcoin relatif lebih tangguh dibandingkan Ethereum dengan selisih performa sekitar 7.5%"
+- JANGAN mulai kalimat dengan simbol seperti '+', '-', atau '*'
+- Gunakan kata penghubung yang natural: "Sementara itu", "Di sisi lain", "Menariknya", "Perlu dicatat"
+- Variasikan struktur kalimat - jangan monoton
+- Jelaskan MENGAPA, bukan hanya APA (misal: "RSI menunjukkan kondisi oversold yang mengindikasikan potensi rebound jangka pendek")
+- Gunakan istilah teknis dengan penjelasan singkat jika perlu
+- Akhiri dengan insight yang actionable
+
+TANGGAL SEKARANG: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
 
 DATA REAL DARI API (JANGAN NEBAK):
 ${JSON.stringify(actualDataSummary, null, 2)}
@@ -745,12 +799,14 @@ FUNGSI YANG TERSEDIA (untuk referensi):
 ${functionDefinitions}
 
 CATATAN PENTING:
+- SINKRONISASI TIMEFRAME: Pastikan narasi Anda konsisten dengan data timeframe (${timeframeStr}) yang diberikan. 
+- Jika trend hari ini berbeda dengan performa periode (${timeframeStr}), JELASKAN korelasi atau kontradiksinya (misal: "Hari ini rebound namun tren utama periode ini masih bearish").
 - Chart sudah dibuat dari data API di atas, kamu TIDAK perlu membuat chart
 - Kamu hanya perlu menganalisis data yang diberikan sesuai dengan permintaan user
-- Respon HARUS sesuai dengan yang user minta - jika user minta analisis singkat, berikan analisis singkat
-- Jika user minta analisis detail, berikan analisis detail
+- Respon HARUS sesuai dengan yang user minta
 - Output HARUS dalam format JSON sesuai struktur di atas
 - JANGAN membuat chart atau visualisasi tambahan - cukup analisis data
+- Gunakan bahasa yang profesional namun mudah dipahami (actionable insight).
 
 Permintaan User: "${message}"
 
@@ -759,12 +815,15 @@ Jenis aset: ${assetTypeLabel.toUpperCase()} (${assetTypeLabelUpper})
 Timeframe: ${timeframeStr}
 Jumlah simbol: ${fetched.length} (1 comparison chart akan dibuat)
 
-INGAT: 
-- Kamu adalah API. Output JSON saja. Tidak ada teks lain.
-- HANYA 1 comparison chart yang akan dibuat untuk ${fetched.length} simbol ini
-- Logo untuk chart akan diambil dari API endpoint /api/logo
-- Respon sesuai dengan permintaan user
-- Jangan membuat chart tambahan atau visualisasi`;
+INGAT (PRESCRIPTIVE MODE): 
+- USER MODE: Saat ini user menggunakan mode **${context.persona?.toUpperCase() || 'INVESTOR'}**. Sesuaikan gaya bahasa dan fokus strategi (misal: Trader fokus pada pergerakan jangka pendek/breakout, Investor fokus pada tren besar/akumulasi, Edukasi fokus pada penjelasan teknikal).
+- Jangan hanya menjelaskan grafik. Berikan instruksi: "Beli jika X, Jual jika Y".
+- Bias (BULLISH/BEARISH/NEUTRAL) harus sangat berani berdasarkan data.
+- Confidence Score: Jelaskan di summary MENGAPA skornya rendah/tinggi (konflik indikator vs konfluensi).
+- Invalidation Point: LEVEL HARGA di mana trader harus segera keluar karena tesis salah.
+- Valid If / Invalid If: Berikan rule operasional (misal: "Selama volume di atas rata-rata").
+- SINKRONISASI TIMEFRAMES: Pastikan timeframe (${timeframeStr}) konsisten di seluruh narasi.
+- WAJIB: Disclaimer hukum harus ada di field risks.`;
 
     // ✅ CRITICAL: Force JSON output format
     const llm = await llmProvider.generateResponse(
@@ -789,37 +848,58 @@ INGAT:
         parsedAnalysis = JSON.parse(jsonString);
         
         // Validate structure
-        if (!parsedAnalysis.summary || !parsedAnalysis.analysis) {
-          throw new Error('Invalid JSON structure');
+        if (!parsedAnalysis.summary || !parsedAnalysis.bias || !parsedAnalysis.confidenceScore) {
+          throw new Error('Invalid JSON structure from Decision Engine');
         }
         
-        // Build response text from parsed JSON
+        // Build response text from Decision Engine structure
         const parts: string[] = [];
-        if (parsedAnalysis.summary) parts.push(parsedAnalysis.summary);
-        if (parsedAnalysis.analysis?.winner) {
-          parts.push(`\n\n**Pemenang Performa:** ${parsedAnalysis.analysis.winner}`);
+        if (parsedAnalysis.summary) {
+          parts.push(parsedAnalysis.summary);
         }
-        if (parsedAnalysis.analysis?.rsi_comparison) {
-          parts.push(`\n\n**Perbandingan RSI:** ${parsedAnalysis.analysis.rsi_comparison}`);
+        
+        parts.push(`\n\n### 🛡️ Decision Engine Insight (${timeframeStr})`);
+        
+        if (parsedAnalysis.bias) {
+          const biasEmoji = parsedAnalysis.bias === 'BULLISH' ? '🟢' : parsedAnalysis.bias === 'BEARISH' ? '🔴' : '🟡';
+          parts.push(`\n**🎯 Market Bias:** ${biasEmoji} **${parsedAnalysis.bias}**`);
         }
-        if (parsedAnalysis.analysis?.trend_analysis) {
-          parts.push(`\n\n**Analisis Trend:** ${parsedAnalysis.analysis.trend_analysis}`);
+
+        if (parsedAnalysis.marketRegime) {
+          parts.push(`\n**🌐 Regime:** \`${parsedAnalysis.marketRegime.toUpperCase()}\``);
         }
-        if (parsedAnalysis.analysis?.scenarios?.length > 0) {
-          parts.push(`\n\n**Skenario:**`);
-          parsedAnalysis.analysis.scenarios.forEach((s: any) => {
-            parts.push(`- ${s.name} (${s.probability}): ${s.description}`);
-          });
+
+        if (parsedAnalysis.confidenceScore !== undefined) {
+          const score = parsedAnalysis.confidenceScore;
+          const scoreBar = '█'.repeat(Math.round(score / 10)) + '░'.repeat(10 - Math.round(score / 10));
+          parts.push(`\n**📊 Confidence:** \`${scoreBar} ${score}%\``);
         }
-        if (parsedAnalysis.analysis?.recommendations?.length > 0) {
-          parts.push(`\n\n**SARAN:**`);
-          parsedAnalysis.analysis.recommendations.forEach((r: string) => {
-            parts.push(`- ${r}`);
-          });
+        
+        if (parsedAnalysis.strategy) {
+          parts.push(`\n\n**📝 Trading Strategy:**`);
+          if (parsedAnalysis.strategy.entry_zone) parts.push(`\n- **Entry Zone:** ${parsedAnalysis.strategy.entry_zone}`);
+          if (parsedAnalysis.strategy.target_price) parts.push(`\n- **Target:** ${parsedAnalysis.strategy.target_price}`);
+          if (parsedAnalysis.strategy.stop_loss) parts.push(`\n- **Stop Loss:** \`${parsedAnalysis.strategy.stop_loss}\``);
+          if (parsedAnalysis.strategy.invalidation_point) parts.push(`\n- **Invalidation:** \`${parsedAnalysis.strategy.invalidation_point}\``);
         }
-        if (parsedAnalysis.analysis?.risks) {
-          parts.push(`\n\n**Risiko & Batasan:** ${parsedAnalysis.analysis.risks}`);
+
+        if (parsedAnalysis.rules) {
+          if (parsedAnalysis.rules.valid_if?.length > 0) {
+            parts.push(`\n\n**✅ Condition Valid If:**`);
+            parsedAnalysis.rules.valid_if.forEach((r: string) => parts.push(`\n- ${r}`));
+          }
+          if (parsedAnalysis.rules.invalid_if?.length > 0) {
+            parts.push(`\n\n**❌ Invalid If:**`);
+            parsedAnalysis.rules.invalid_if.forEach((r: string) => parts.push(`\n- ${r}`));
+          }
         }
+        
+        if (parsedAnalysis.risks) {
+          parts.push(`\n\n**⚠️ Risks & Disclaimer:**\n${parsedAnalysis.risks}`);
+        }
+
+        // Global Disclaimer
+        parts.push(`\n\n--- \n*Disclaimer: Analisis ini berbasis data teknikal historis dan tidak menjamin pergerakan harga di masa depan. Selalu kelola risiko investasi Anda dengan bijak.*`);
         
         responseText = parts.join('');
         console.log('✅ [Market Handler] Successfully parsed JSON response from LLM');
@@ -834,23 +914,45 @@ INGAT:
     console.warn('⚠️ [Market Handler] LLM comparison narrative failed, using fallback:', e?.message);
   }
 
-  return {
-    success: true,
-    mode: RequestMode.MARKET_ANALYSIS,
-    response: responseText,
-    structuredOutput: {
-      action: 'text_only',
-      message: responseText,
-    },
-    marketData: {
-      type,
-      days,
-      symbols: fetched.map((f) => f.symbol),
-    },
-    indicators: undefined,
-    chart,
-    table,
-  };
+    return {
+      success: true,
+      mode: RequestMode.MARKET_ANALYSIS,
+      response: responseText,
+      structuredOutput: {
+        action: 'show_chart', // Use show_chart to ensure frontend handles it correctly
+        chart_type: 'comparison',
+        title: chart.title,
+        message: responseText,
+        data: chartData,
+        xKey: 'time',
+        yKey: chart.yKey,
+        comparisonAssets: comparisonAssets,
+        asset_type: type,
+        timeframe: timeframeStr,
+      },
+      marketData: {
+        type,
+        days,
+        symbols: fetched.map((f) => f.symbol),
+      },
+      indicators: undefined,
+      chart: chart, // Keep for backward compatibility
+      table: table,
+    };
+  } catch (error: any) {
+    console.error('❌ [Market Handler] Error processing market comparison:', error);
+    return {
+      success: true, // Return true but with error info to keep UI clean
+      mode: RequestMode.MARKET_ANALYSIS,
+      response: `⚠️ **Maaf, terjadi kesalahan teknis saat menyiapkan perbandingan.**\n\n` +
+                `Pesan: ${error.message || 'Gagal memproses perbandingan pasar'}\n\n` +
+                `💡 **Tip:** Coba segarkan halaman atau ulangi perbandingan dengan simbol yang berbeda.`,
+      structuredOutput: {
+        action: 'text_only',
+        message: 'Gagal menyiapkan perbandingan pasar.',
+      },
+    };
+  }
 }
 
 /**
@@ -889,13 +991,38 @@ export async function processMarketAnalysis(
     }
 
     // Extract market information from message
-    const marketInfo = isMarketDataRequest(context.message || '');
+    let marketInfo = isMarketDataRequest(context.message || '');
+    
+    // ✅ NEW: If no symbol found in current message, look in conversation history
+    if ((!marketInfo.isMarket || !marketInfo.symbol) && context.conversationHistory) {
+      console.log('🔍 [Market Handler] No symbol in current message, checking history...');
+      const recentMessages = [...context.conversationHistory].reverse().slice(0, 5);
+      for (const msg of recentMessages) {
+        const historyInfo = isMarketDataRequest(msg.content || '');
+        if (historyInfo.isMarket && historyInfo.symbol) {
+          console.log(`✅ [Market Handler] Found symbol in history: ${historyInfo.symbol}`);
+          marketInfo = historyInfo;
+          break;
+        }
+      }
+    }
     
     if (!marketInfo.isMarket || !marketInfo.symbol) {
+      const response = `Saya tidak dapat menemukan simbol aset (saham/kripto) yang ingin dianalisis dalam pesan Anda.\n\n` +
+        `📌 **Silakan sebutkan simbol secara spesifik:**\n\n` +
+        `**Contoh:**\n` +
+        `- "Analisis chart BBCA"\n` +
+        `- "Berapa harga Bitcoin?"\n` +
+        `- "Tampilkan grafik ETH"`;
+
       return {
-        success: false,
+        success: true, // Return success so the AI message is shown properly
         mode: RequestMode.MARKET_ANALYSIS,
-        error: 'Market symbol not detected in request',
+        response: response,
+        structuredOutput: {
+          action: 'text_only',
+          message: response,
+        },
       };
     }
 
@@ -1102,9 +1229,15 @@ export async function processMarketAnalysis(
   } catch (error: any) {
     console.error('❌ [Market Handler] Error processing market analysis:', error);
     return {
-      success: false,
+      success: true,
       mode: RequestMode.MARKET_ANALYSIS,
-      error: error.message || 'Failed to process market analysis',
+      response: `⚠️ **Mohon maaf, sistem sedang mengalami kendala saat menganalisis data.**\n\n` +
+                `Detail: ${error.message || 'Failed to process market analysis'}\n\n` +
+                `Silakan coba beberapa saat lagi atau tanyakan tentang aset lain.`,
+      structuredOutput: {
+        action: 'text_only',
+        message: 'Gagal menganalisis pasar.',
+      },
     };
   }
 }

@@ -120,7 +120,7 @@ export function validateSemantics(dataPoints: DataPoint[]): SemanticValidation {
   const labels = dataPoints.map(d => d.label.toLowerCase());
   const duplicates = labels.filter((l, i) => labels.indexOf(l) !== i);
   if (duplicates.length > 0) {
-    warnings.push(`Label duplikat terdeteksi: ${[...new Set(duplicates)].join(', ')}`);
+    warnings.push(`Label duplikat terdeteksi: ${Array.from(new Set(duplicates)).join(', ')}`);
   }
   
   return {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, BarChart3, Camera, X, TrendingUp, TrendingDown, ZoomIn, ZoomOut, Download } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Brush } from 'recharts';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Calendar, BarChart3, Camera, X, TrendingUp, TrendingDown, ZoomIn, ZoomOut, Download, Briefcase, MessageCircle, AlertCircle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Brush, Legend } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { timeframeToDays } from '@/lib/market/timeframe-utils';
 
@@ -17,6 +17,16 @@ export interface AssetInfo {
   changePercent: number;
   timestamp?: string;
   color?: string;
+  rsi?: number;
+  trend?: string;
+  market?: string;
+  currency?: string;
+  engine?: {
+    condition: string;
+    confidence: number;
+    stopLoss?: number | null;
+    invalidation?: number | null;
+  };
 }
 
 export interface ComparisonWidgetProps {
@@ -27,8 +37,11 @@ export interface ComparisonWidgetProps {
   timeframe?: string;
   assetType?: 'crypto' | 'stock';
   onTimeframeChange?: (timeframe: string, symbols: string[]) => Promise<void>;
+  onPersonaChange?: (persona: 'investor' | 'trader' | 'education') => Promise<void>;
   onRemoveAsset?: (symbol: string) => void;
   onChartTypeChange?: (type: 'line' | 'area' | 'candlestick') => void;
+  isAnalyzing?: boolean;
+  narrative?: string;
 }
 
 const TIMEFRAMES = ['1D', '1M', '6M', 'YTD', '1Y', '5Y', 'MAX'];
@@ -52,14 +65,18 @@ export default function ComparisonWidget({
   timeframe = '1D',
   assetType = 'stock',
   onTimeframeChange,
+  onPersonaChange,
   onRemoveAsset,
   onChartTypeChange,
+  isAnalyzing = false,
+  narrative,
 }: ComparisonWidgetProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState(timeframe);
   const [assetLogos, setAssetLogos] = useState<Record<string, string>>({});
   const [assetNames, setAssetNames] = useState<Record<string, string>>({});
   const [isLoadingTimeframe, setIsLoadingTimeframe] = useState(false);
   const [chartType, setChartType] = useState<'line' | 'area' | 'candlestick'>('line');
+  const [userPersona, setUserPersona] = useState<'investor' | 'trader' | 'education'>('investor');
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   // Update selected timeframe when prop changes
@@ -290,6 +307,7 @@ export default function ComparisonWidget({
     // Known Indonesian stock symbols (4 uppercase letters typically)
     const idxSymbols = [
       'GOTO', 'BBRI', 'BBCA', 'BBNI', 'BMRI', 'TLKM', 'ASII', 'UNVR', 'ICBP',
+      'BRI', 'BCA',
       'INDF', 'PGAS', 'ADRO', 'KLBF', 'GGRM', 'SMGR', 'ANTM', 'INCO', 'PTBA',
       'JSMR', 'WIKA', 'BSDE', 'CTRA', 'EXCL', 'ISAT', 'MYOR', 'ROTI', 'ULTJ',
       'BNGA', 'BJBR', 'BTPN', 'BNII', 'WEGE', 'ADHI', 'DMAS', 'TKIM', 'CPIN',
@@ -305,8 +323,12 @@ export default function ComparisonWidget({
   const hasIndonesianAssets = assets.some(a => isIndonesianStock(a.symbol));
 
   const formatPrice = (price: number, symbol?: string): string => {
-    // Determine if this is an Indonesian stock
-    const isIDR = symbol ? isIndonesianStock(symbol) : hasIndonesianAssets;
+    // Find asset info if available to check for explicit currency
+    const asset = symbol ? assets.find(a => a.symbol === symbol) : undefined;
+    
+    // Use explicit currency if provided by the data pipeline
+    const explicitCurrency = asset?.currency;
+    const isIDR = explicitCurrency === 'IDR' || (explicitCurrency === undefined && (symbol ? isIndonesianStock(symbol) : hasIndonesianAssets));
     
     if (isIDR) {
       return new Intl.NumberFormat('id-ID', {
@@ -357,12 +379,74 @@ export default function ComparisonWidget({
 
   return (
     <Card className={cn(
-      "my-0 max-w-6xl mx-auto",
+      "my-0 w-full max-w-7xl mx-auto animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
       "bg-gradient-to-br from-black/70 via-black/50 to-black/70",
-      "backdrop-blur-xl border border-cyan-500/30",
-      "shadow-[0_8px_32px_rgba(6,182,212,0.2)]",
-      "relative overflow-hidden rounded-2xl"
+      "border-cyan-500/20 shadow-2xl overflow-hidden rounded-2xl backdrop-blur-3xl",
+      "hover:border-cyan-500/30 transition-all duration-300"
     )}>
+      <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-cyan-500/10 bg-black/40 px-6 py-5 gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 p-[1px]">
+            <div className="w-full h-full rounded-xl bg-black flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-cyan-400" />
+            </div>
+          </div>
+          <div>
+            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+              Analisis Tren & Strategi
+            </CardTitle>
+            <p className="text-xs text-gray-500 font-medium">Market Insight Comparison Engine v1.0</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {/* User Persona Switcher */}
+          <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/5">
+            {[
+              { id: 'investor', label: 'Investor', icon: Briefcase },
+              { id: 'trader', label: 'Trader', icon: TrendingUp },
+              { id: 'education', label: 'Edukasi', icon: MessageCircle }
+            ].map(p => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setUserPersona(p.id as any);
+                  onPersonaChange?.(p.id as any);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all",
+                  userPersona === p.id 
+                    ? "bg-cyan-500 text-black" 
+                    : "text-gray-400 hover:text-white"
+                )}
+              >
+                <p.icon className="w-3.5 h-3.5" />
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex bg-black/30 p-1 rounded-xl border border-white/10">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => handleTimeframeChange(tf)}
+                disabled={isLoadingTimeframe}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all tabular-nums",
+                  selectedTimeframe === tf
+                    ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                    : "text-gray-400 hover:text-white hover:bg-white/5",
+                  isLoadingTimeframe && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+
       {/* Animated gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
 
@@ -371,7 +455,7 @@ export default function ComparisonWidget({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {assets.map((asset, index) => (
             <div
-              key={asset.symbol}
+              key={`${asset.symbol}-${index}`}
               className={cn(
                 "flex items-center gap-4 p-4 rounded-xl",
                 "bg-black/20",
@@ -546,9 +630,50 @@ export default function ComparisonWidget({
                   <span className="font-mono">{formatChange(asset.change, asset.symbol)}</span>
                   <span className="font-mono">({formatPercent(asset.changePercent)})</span>
                 </div>
+                
+                {/* RSI & Trend Badges */}
+                <div className="flex flex-wrap gap-2 justify-end mt-2">
+                  {asset.engine?.condition && (
+                    <div className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-white border border-white/20 uppercase">
+                      {asset.engine.condition.replace('_', ' ')}
+                    </div>
+                  )}
+                  {asset.rsi !== undefined && (
+                    <div className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded uppercase border",
+                      asset.rsi < 20 ? "bg-red-500/20 text-red-400 border-red-500/50 animate-pulse" :
+                      asset.rsi < 30 ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                      asset.rsi > 70 ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                      "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                    )}>
+                      RSI: {asset.rsi.toFixed(1)} {asset.rsi < 20 ? '🔥 EXTREME' : ''}
+                    </div>
+                  )}
+                </div>
+
+                {/* Risk Parameters (Production-Ready) */}
+                {asset.engine?.stopLoss && (
+                  <div className="flex gap-4 justify-end mt-3 border-t border-white/5 pt-2">
+                    <div className="text-[9px] text-gray-400 flex flex-col items-end">
+                      <span className="uppercase opacity-60">Stop Loss</span>
+                      <span className="text-red-400 font-mono font-bold leading-none mt-0.5">
+                        {formatPrice(asset.engine.stopLoss, asset.symbol)}
+                      </span>
+                    </div>
+                    {asset.engine.invalidation && (
+                      <div className="text-[9px] text-gray-400 flex flex-col items-end">
+                        <span className="uppercase opacity-60">Invalidation</span>
+                        <span className="text-purple-400 font-mono font-bold leading-none mt-0.5">
+                          {formatPrice(asset.engine.invalidation, asset.symbol)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {asset.timestamp && (
-                  <div className="text-gray-400 text-xs mt-1.5">
-                    {asset.timestamp}
+                  <div className="text-gray-400 text-[10px] mt-2 italic opacity-60">
+                    Terakhir diperbarui: {asset.timestamp.split(',')[1] || asset.timestamp}
                   </div>
                 )}
               </div>
@@ -577,12 +702,23 @@ export default function ComparisonWidget({
                 )}
                 title={`View ${tf} timeframe`}
               >
-                {tf}
-                {selectedTimeframe === tf && (
+                {isLoadingTimeframe && selectedTimeframe === tf ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                    {tf}
+                  </span>
+                ) : tf}
+                {selectedTimeframe === tf && !isLoadingTimeframe && (
                   <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
                 )}
               </button>
             ))}
+            {isLoadingTimeframe && (
+              <span className="ml-2 text-xs text-cyan-400 animate-pulse">Memuat data...</span>
+            )}
           </div>
 
           {/* Action Icons */}
@@ -630,7 +766,8 @@ export default function ComparisonWidget({
       </div>
 
       {/* Chart */}
-      <CardContent className="relative px-6 pb-8 pt-6" ref={chartContainerRef}>
+      <div ref={chartContainerRef}>
+        <CardContent className="relative px-6 pb-8 pt-6">
         {/* Zoom Controls */}
         <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-lg p-1 border border-cyan-500/20">
             <button
@@ -661,7 +798,7 @@ export default function ComparisonWidget({
             </button>
         </div>
         
-        <ResponsiveContainer width="100%" height={450}>
+        <ResponsiveContainer width="100%" height={520}>
           <LineChart 
             data={percentageChartData} 
             margin={{ top: 10, right: 20, left: 10, bottom: 60 }}
@@ -724,6 +861,17 @@ export default function ComparisonWidget({
               }}
               formatter={(value: any) => `${Number(value).toFixed(2)}%`}
             />
+            <Legend 
+              verticalAlign="top" 
+              height={36} 
+              iconType="circle"
+              wrapperStyle={{
+                paddingBottom: '20px',
+                paddingTop: '0px',
+                fontSize: '14px',
+                fontWeight: 600
+              }}
+            />
             <Brush
               dataKey={xKey}
               height={30}
@@ -777,15 +925,36 @@ export default function ComparisonWidget({
           </LineChart>
         </ResponsiveContainer>
         
-        {/* Summary Insight */}
         {assets.length >= 2 && (
-          <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10 border border-cyan-500/20">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+          <div className={cn(
+            "mt-6 p-5 rounded-xl border transition-all duration-300 relative overflow-hidden",
+            "bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 border-cyan-500/20",
+            isAnalyzing && "opacity-60 cursor-wait"
+          )}>
+            {/* AI Narrative Loading Overlay */}
+            {isAnalyzing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-10">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-6 bg-cyan-500 animate-[bounce_1s_infinite_0ms]" />
+                    <div className="w-1.5 h-6 bg-purple-500 animate-[bounce_1s_infinite_200ms]" />
+                    <div className="w-1.5 h-6 bg-cyan-500 animate-[bounce_1s_infinite_400ms]" />
+                  </div>
+                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Re-Analyzing for {userPersona}...</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-3">
+              <Sparkles className={cn("w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5", isAnalyzing && "animate-pulse")} />
               <div className="flex-1">
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  {(() => {
-                    const sorted = [...assets].sort((a, b) => b.changePercent - a.changePercent);
+                <div className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed space-y-3">
+                  {narrative ? (
+                    <div dangerouslySetInnerHTML={{ __html: narrative.replace(/\n/g, '<br/>') }} />
+                  ) : (
+                    <p>
+                      {(() => {
+                        const sorted = [...assets].sort((a, b) => b.changePercent - a.changePercent);
                     const winner = sorted[0];
                     const loser = sorted[sorted.length - 1];
                     const diff = winner.changePercent - loser.changePercent;
@@ -816,12 +985,55 @@ export default function ComparisonWidget({
                       );
                     }
                   })()}
-                </p>
+                    </p>
+                  )}
+                </div>
+
+                {/* AI Confidence Gauge (Production-Ready) */}
+                {(() => {
+                  const avgConfidence = assets.reduce((acc, a) => acc + (a.engine?.confidence || 50), 0) / assets.length;
+                  return (
+                    <div className="mt-4 pt-3 border-t border-cyan-500/10 space-y-2">
+                       <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-gray-400 font-bold uppercase tracking-wider">AI Analysis Signal Quality</span>
+                          <span className={cn(
+                            "font-bold",
+                            avgConfidence > 75 ? "text-green-400" : avgConfidence > 50 ? "text-cyan-400" : "text-yellow-400"
+                          )}>{avgConfidence.toFixed(0)}% Confidence</span>
+                       </div>
+                       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-1000 ease-out",
+                              avgConfidence > 75 ? "bg-green-500 shadow-[0_0_10px_#22c55e]" : 
+                              avgConfidence > 50 ? "bg-cyan-500 shadow-[0_0_10px_#06b6d4]" : "bg-yellow-500"
+                            )}
+                            style={{ width: `${avgConfidence}%` }}
+                          />
+                       </div>
+                    </div>
+                  )
+                })()}
+
+                {/* CTA Buttons */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <button className="text-[11px] px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg border border-cyan-500/30 transition-all flex items-center gap-1.5 group">
+                    <TrendingUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    Bandingkan Timeframe Lain
+                  </button>
+                  <button className="text-[11px] px-3 py-1.5 bg-black/40 hover:bg-black/60 text-gray-300 hover:text-white rounded-lg border border-white/10 transition-all">
+                    Lihat Detail Aset
+                  </button>
+                  <button className="text-[11px] px-3 py-1.5 bg-black/40 hover:bg-black/60 text-gray-300 hover:text-white rounded-lg border border-white/10 transition-all">
+                    + Watchlist
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
       </CardContent>
+    </div>
 
       {/* Comparison Table */}
       <div className="relative px-6 pb-6 pt-4 border-t border-cyan-500/20">
@@ -830,7 +1042,7 @@ export default function ComparisonWidget({
             const color = getAssetColor(index);
             return (
               <div
-                key={asset.symbol}
+                key={`${asset.symbol}-${index}`}
                 className={cn(
                   "flex items-center gap-4 p-3 rounded-lg",
                   "bg-black/20",
@@ -995,6 +1207,9 @@ export default function ComparisonWidget({
             );
           })}
         </div>
+      </div>
+      <div className="px-6 py-4 bg-black/40 border-t border-cyan-500/10 text-[10px] text-gray-500 italic text-center rounded-b-2xl">
+        Catatan: Indikator teknikal (RSI, MA20) dan AI Insight didasarkan pada data historis. Ini bukan merupakan saran investasi atau jaminan performa harga di masa depan.
       </div>
     </Card>
   );

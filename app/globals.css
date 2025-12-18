@@ -954,3 +954,248 @@ canvas {
   font-weight: bold;
 }
 
+/* ==========================================
+   ENHANCED ANIMATIONS FOR PREMIUM UX
+   ========================================== */
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(6, 182, 212, 0.1) 0%,
+    rgba(6, 182, 212, 0.3) 50%,
+    rgba(6, 182, 212, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Scale-in animation for charts */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out forwards;
+}
+
+/* Smooth number counter animation */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-count-up {
+  animation: countUp 0.5s ease-out forwards;
+}
+
+/* Chart line drawing animation */
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 1000;
+  animation: drawLine 2s ease-out forwards;
+}
+
+/* Floating animation for icons */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Stagger animation for markdown content */
+.markdown-renderer > * {
+  animation: fadeSlideIn 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.markdown-renderer > *:nth-child(1) { animation-delay: 0s; }
+.markdown-renderer > *:nth-child(2) { animation-delay: 0.05s; }
+.markdown-renderer > *:nth-child(3) { animation-delay: 0.1s; }
+.markdown-renderer > *:nth-child(4) { animation-delay: 0.15s; }
+.markdown-renderer > *:nth-child(5) { animation-delay: 0.2s; }
+.markdown-renderer > *:nth-child(6) { animation-delay: 0.25s; }
+.markdown-renderer > *:nth-child(7) { animation-delay: 0.3s; }
+.markdown-renderer > *:nth-child(8) { animation-delay: 0.35s; }
+.markdown-renderer > *:nth-child(9) { animation-delay: 0.4s; }
+.markdown-renderer > *:nth-child(10) { animation-delay: 0.45s; }
+.markdown-renderer > *:nth-child(n+11) { animation-delay: 0.5s; }
+
+/* Highlight box pulse for conclusions */
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(6, 182, 212, 0.15);
+  }
+}
+
+.markdown-renderer div[class*="bg-gradient"] {
+  animation: highlightPulse 3s ease-in-out infinite, fadeSlideIn 0.4s ease-out forwards;
+}
+
+/* Smooth hover transitions for interactive elements */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.2);
+}
+
+/* Data point highlight animation */
+@keyframes dataPointPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-data-point {
+  animation: dataPointPop 0.3s ease-out forwards;
+}
+
+/* Trend indicator animation */
+@keyframes trendUp {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes trendDown {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-trend-up {
+  animation: trendUp 1s ease-in-out infinite;
+}
+
+.animate-trend-down {
+  animation: trendDown 1s ease-in-out infinite;
+}
+
+/* Smooth transitions for chart widgets */
+.recharts-wrapper {
+  transition: opacity 0.3s ease;
+}
+
+.recharts-line path {
+  transition: stroke-width 0.2s ease;
+}
+
+.recharts-line:hover path {
+  stroke-width: 4;
+}
+
+/* Progress bar animation */
+@keyframes progressGrow {
+  from {
+    width: 0;
+  }
+}
+
+.animate-progress {
+  animation: progressGrow 1s ease-out forwards;
+}
+
+/* Badge pop animation */
+@keyframes badgePop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-badge {
+  animation: badgePop 0.4s ease-out forwards;
+}
+
+/* Smooth page transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}

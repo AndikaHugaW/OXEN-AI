@@ -111,41 +111,66 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        <button 
-          onClick={() => setIsUploadModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-cyan-500/20"
-        >
-          <Plus className="w-4 h-4" />
-          Add Document
-        </button>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-6xl mx-auto">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
+        <div className="max-w-6xl mx-auto space-y-12">
           
-          {/* Search */}
-          <div className="mb-8 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-12 pl-12 pr-4 bg-[#18181b] border border-[#27272a] rounded-xl text-gray-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-sans"
-            />
+          {/* Hero Section */}
+          <section className="text-center space-y-4 animate-fade-in py-8">
+            <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
+              <BookOpen className="w-8 h-8 text-cyan-400" />
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+              Enterprise <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Knowledge Base</span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
+              Upload and manage your business intelligence. This data powers the AI's understanding of your specific company policies, products, and operational procedures.
+            </p>
+          </section>
+
+          {/* Search & Actions Area */}
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-cyan-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search your business intelligence..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-14 pl-12 pr-4 bg-[#18181b]/50 backdrop-blur-sm border border-[#27272a] rounded-2xl text-gray-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-sans"
+                />
+              </div>
+              <button 
+                onClick={() => setIsUploadModalOpen(true)}
+                className="h-14 flex items-center justify-center gap-2 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-2xl shadow-lg shadow-cyan-500/20 transition-all shrink-0 active:scale-[0.98]"
+              >
+                <Plus className="w-5 h-5" />
+                Add New Document
+              </button>
+            </div>
           </div>
 
           {/* Doc List */}
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-10 h-10 text-cyan-500 animate-spin" />
             </div>
-          ) : filteredDocs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed border-[#27272a] rounded-2xl bg-[#09090b]/50">
-              <div className="w-16 h-16 rounded-full bg-[#18181b] flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-gray-600" />
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Documentation Repository ({filteredDocs.length})
+                </h3>
               </div>
+              {filteredDocs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 px-4 text-center border-2 border-dashed border-[#27272a] rounded-3xl bg-[#09090b]/50 backdrop-blur-sm">
+                  <div className="w-20 h-20 rounded-full bg-[#18181b] flex items-center justify-center mb-6 border border-white/5">
+                    <FileText className="w-10 h-10 text-gray-600" />
+                  </div>
               <h3 className="text-lg font-medium text-white mb-1">No documents found</h3>
               <p className="text-sm text-gray-400 max-w-sm">
                 Upload business documents (Policies, SOPs, Reports) to help AI understand your context.
@@ -197,10 +222,12 @@ export default function DocumentsPage() {
                   </div>
                 </Card>
               ))}
-            </div>
-          )}
-        </div>
-      </main>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
 
       {/* Upload Modal */}
       {isUploadModalOpen && (

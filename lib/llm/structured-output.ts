@@ -9,7 +9,7 @@ export interface StructuredResponse {
   asset_type?: 'crypto' | 'stock';
   symbol?: string;
   timeframe?: string;
-  chart_type?: 'candlestick' | 'line' | 'bar' | 'pie' | 'area';
+  chart_type?: 'candlestick' | 'line' | 'bar' | 'pie' | 'area' | 'comparison';
   indicators?: string[];
   // Untuk business chart 
   data?: any[]; // Array of objects for the chart
@@ -18,6 +18,8 @@ export interface StructuredResponse {
   title?: string;
   chart?: any; // Fallback container
   table?: any;
+  type?: string; // Alias for chart_type or general type field
+  comparisonAssets?: any[]; // For market comparison
 }
 
 // ... existing parseStructuredOutput ...

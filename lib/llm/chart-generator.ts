@@ -763,12 +763,11 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
   
   // Check for crypto symbols (improved detection)
   for (const sym of cryptoSymbols) {
-    // Match whole word only (avoid matching "bitcoin" when looking for "btc")
-    // Also match if followed by comma, "dan", "and", "vs", "versus", etc.
     const regex = new RegExp(`\\b${sym}\\b`, 'i');
-    if (regex.test(text)) {
-      foundSymbols.add(sym.toUpperCase());
-      symbols.push({ symbol: sym.toUpperCase(), type: 'crypto' });
+    const upperSym = sym.toUpperCase();
+    if (regex.test(text) && !foundSymbols.has(upperSym)) {
+      foundSymbols.add(upperSym);
+      symbols.push({ symbol: upperSym, type: 'crypto' });
     }
   }
   
@@ -790,14 +789,14 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
   
   // Check for crypto full names
   for (const [name, sym] of Object.entries(cryptoMap)) {
-    if (textLower.includes(name) && !foundSymbols.has(sym.toUpperCase())) {
-      foundSymbols.add(sym.toUpperCase());
-      symbols.push({ symbol: sym.toUpperCase(), type: 'crypto' });
+    const upperSym = sym.toUpperCase();
+    if (textLower.includes(name) && !foundSymbols.has(upperSym)) {
+      foundSymbols.add(upperSym);
+      symbols.push({ symbol: upperSym, type: 'crypto' });
     }
   }
   
-  // Check for stock symbols (map BCA to BBCA)
-  const stockSymbols = ['aapl', 'msft', 'googl', 'amzn', 'tsla', 'meta', 'nvda', 'goto', 'bbca', 'bbri', 'bbni', 'bri', 'bni'];
+  // Check for stock symbols with specific mapping for duplicates/aliases
   const stockSymbolMap: Record<string, string> = {
     'bca': 'BBCA',
     'bbca': 'BBCA',
@@ -805,35 +804,35 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
     'bbri': 'BBRI',
     'bni': 'BBNI',
     'bbni': 'BBNI',
+    'tlkm': 'TLKM',
+    'telkom': 'TLKM',
+    'asii': 'ASII',
+    'astra': 'ASII',
   };
+  
+  const stockSymbols = ['aapl', 'msft', 'googl', 'amzn', 'tsla', 'meta', 'nvda', 'goto', 'bbca', 'bbri', 'bbni', 'bri', 'bni', 'bca', 'tlkm', 'asii'];
   
   for (const sym of stockSymbols) {
     const regex = new RegExp(`\\b${sym}\\b`, 'i');
-    if (regex.test(text) && !foundSymbols.has(sym.toUpperCase())) {
-      foundSymbols.add(sym.toUpperCase());
-      // Map BCA to BBCA
+    if (regex.test(text)) {
       const mappedSymbol = stockSymbolMap[sym.toLowerCase()] || sym.toUpperCase();
-      symbols.push({ symbol: mappedSymbol, type: 'stock' });
+      if (!foundSymbols.has(mappedSymbol)) {
+        foundSymbols.add(mappedSymbol);
+        symbols.push({ symbol: mappedSymbol, type: 'stock' });
+      }
     }
-  }
-  
-  // Special case: handle "bca" separately (not in stockSymbols to avoid conflict)
-  const bcaRegex = new RegExp(`\\bbca\\b`, 'i');
-  if (bcaRegex.test(text) && !foundSymbols.has('BBCA')) {
-    foundSymbols.add('BBCA');
-    symbols.push({ symbol: 'BBCA', type: 'stock' });
   }
   
   // Check for stock full names
   for (const [name, sym] of Object.entries(stockMap)) {
-    if (textLower.includes(name) && !foundSymbols.has(sym.toUpperCase())) {
-      foundSymbols.add(sym.toUpperCase());
-      symbols.push({ symbol: sym.toUpperCase(), type: 'stock' });
+    const mappedSymbol = stockSymbolMap[sym.toLowerCase()] || sym.toUpperCase();
+    if (textLower.includes(name) && !foundSymbols.has(mappedSymbol)) {
+      foundSymbols.add(mappedSymbol);
+      symbols.push({ symbol: mappedSymbol, type: 'stock' });
     }
   }
   
   // ✅ DYNAMIC SYMBOL DETECTION: Detect stock symbols from AI response text
-  // Look for patterns like "**AXSI**", "(AXSI)", "[AXSI]", "AXSI:" or standalone 3-5 uppercase letters that look like tickers
   const stockTickerPatterns = [
     /\*\*([A-Z]{3,5})\*\*/g,     // **AXSI**
     /\(([A-Z]{3,5})\)/g,         // (AXSI)
@@ -857,25 +856,27 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
     const symbolsStr = commaSeparatedMatch[1];
     const symbolList = symbolsStr.split(/\s*,\s*/);
     for (const sym of symbolList) {
-      const upperSym = sym.toUpperCase().trim();
-      if (upperSym.length >= 3 && upperSym.length <= 5 && !foundSymbols.has(upperSym)) {
-        foundSymbols.add(upperSym);
-        symbols.push({ symbol: upperSym, type: 'stock' });
+      const rawSym = sym.toUpperCase().trim();
+      const mappedSymbol = stockSymbolMap[rawSym.toLowerCase()] || rawSym;
+      if (mappedSymbol.length >= 3 && mappedSymbol.length <= 5 && !foundSymbols.has(mappedSymbol)) {
+        foundSymbols.add(mappedSymbol);
+        symbols.push({ symbol: mappedSymbol, type: 'stock' });
       }
     }
   }
   
   for (const pattern of stockTickerPatterns) {
     let match;
-    // Reset lastIndex for global patterns
     pattern.lastIndex = 0;
     while ((match = pattern.exec(text)) !== null) {
-      const sym = match[1].toUpperCase();
-      // Avoid common words that might match
+      const rawSym = match[1].toUpperCase();
+      const mappedSymbol = stockSymbolMap[rawSym.toLowerCase()] || rawSym;
+      
       const excludeWords = ['YANG', 'DARI', 'UNTUK', 'DENGAN', 'AKAN', 'BISA', 'JIKA', 'SAAT', 'PADA', 'ATAS', 'BUAT', 'LIHAT', 'DATA', 'INFO', 'CHAT', 'NEXT', 'ABOUT', 'SHOW', 'MAKE', 'HAVE', 'THIS', 'THAT', 'THEM', 'THAN', 'THEN', 'YOUR', 'SOME', 'ALSO', 'INTO', 'OPEN', 'HIGH', 'LOW', 'LINE', 'YEAR', 'TYPE', 'CHART'];
-      if (!excludeWords.includes(sym) && !foundSymbols.has(sym)) {
-        foundSymbols.add(sym);
-        symbols.push({ symbol: sym, type: 'stock' });
+      
+      if (!excludeWords.includes(mappedSymbol) && !foundSymbols.has(mappedSymbol)) {
+        foundSymbols.add(mappedSymbol);
+        symbols.push({ symbol: mappedSymbol, type: 'stock' });
       }
     }
   }

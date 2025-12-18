@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, BarChart3, TrendingUp, FileText, ArrowUp, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell, Reply, MessageCircle, ChevronRight, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Plus, BarChart3, TrendingUp, FileText, ArrowUp, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell, Reply, MessageCircle, ChevronRight, ThumbsUp, ThumbsDown, FileUp, Search, Image as ImageIcon, Globe } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChartRenderer, { ChartData } from './ChartRenderer';
 import DataTable, { TableData } from './DataTable';
@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import LetterGenerator from './LetterGenerator';
 import OnboardCard from './ui/onboard-card';
 import { extractDataFromUserInput, datasetToChartData } from '@/lib/llm/data-parser';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface Message {
   id?: string; // Unique ID for each message
@@ -269,23 +270,7 @@ export default function ChatInterface() {
     if (activeView !== 'chat' && activeView !== 'letter') {
       createNewChat();
       
-      // Optional: Set initial greeting based on view
-      let initialMessage = '';
-      if (activeView === 'market') {
-        initialMessage = "👋 **Welcome to Market Trends Analysis!**\n\nI can help you with:\n- analyzing stock & crypto performance\n- comparing assets (e.g., BTC vs ETH)\n- providing market insights.\n\nWhat market would you like to explore today?";
-      } else if (activeView === 'reports') {
-         initialMessage = "👋 **Welcome into Report Generator.**\n\nI can help you create professional reports for:\n- Startups\n- Agencies\n- Corporate Business\n\nWhat kind of report do you need?";
-      } else if (activeView === 'visualization') {
-         initialMessage = "👋 **Data Visualization Studio.**\n\nPlease provide the data you'd like to visualize, or describe the chart you need. I can create:\n- Bar/Line/Pie Charts\n- Comparison Graphs\n- Trend Analysis";
-      }
-
-      if (initialMessage) {
-        setMessages([{
-          role: 'assistant',
-          content: initialMessage,
-          timestamp: new Date()
-        }]);
-      }
+      // Removed initial messages to show Hero components instead
     }
   }, [activeView]);
 
@@ -497,9 +482,23 @@ export default function ChatInterface() {
         
         console.log('📊 User Extracted Data:', userExtractedData);
         
-        // Extract multiple symbols dari text response (untuk handle multiple charts)
-        const multipleSymbols = extractMultipleSymbols(accumulatedContent);
-        console.log('🔍 Multiple symbols detected:', multipleSymbols);
+        // 🔥 FIX: Extract symbols from BOTH user input AND AI response
+        // This ensures chart is generated even if AI response doesn't mention the symbol
+        const inputSymbols = extractMultipleSymbols(input);
+        const responseSymbols = extractMultipleSymbols(accumulatedContent);
+        
+        // Combine and deduplicate symbols
+        const allSymbolsMap = new Map<string, { symbol: string; type: 'crypto' | 'stock' }>();
+        [...inputSymbols, ...responseSymbols].forEach(s => {
+          if (!allSymbolsMap.has(s.symbol)) {
+            allSymbolsMap.set(s.symbol, s);
+          }
+        });
+        const multipleSymbols = Array.from(allSymbolsMap.values());
+        
+        console.log('🔍 Symbols from user input:', inputSymbols);
+        console.log('🔍 Symbols from AI response:', responseSymbols);
+        console.log('🔍 Combined unique symbols:', multipleSymbols);
         
         // Debug logging - EXTENSIVE
         console.log('🔍 DEBUG Chart Detection:', {
@@ -620,26 +619,18 @@ export default function ChatInterface() {
           }
         };
 
-        // PRIORITAS 1: Check if this is a comparison request
-        const isComparison = input.toLowerCase().includes('bandingkan') || 
+        // PRIORITAS 1: Check if this is a comparison request (only when 2+ symbols AND comparison keyword)
+        const hasComparisonKeyword = input.toLowerCase().includes('bandingkan') || 
                             input.toLowerCase().includes('perbandingan') ||
                             input.toLowerCase().includes('compare') ||
                             input.toLowerCase().includes('comparison') ||
                             input.toLowerCase().includes('vs') ||
-                            input.toLowerCase().includes('versus') ||
-                            (multipleSymbols.length >= 2);
+                            input.toLowerCase().includes('versus');
+        const isComparison = hasComparisonKeyword && multipleSymbols.length >= 2;
         
-        // PRIORITAS 1A: Handle comparison request (multiple symbols = comparison chart)
-        // Note: Comparison chart should come from /api/chat response, not separate API call
-        // The market-analysis-handler will detect comparison and return comparison chart
-        if (!parserChart && isComparison && multipleSymbols.length >= 2) {
-          console.log(`📊 Comparison request detected with ${multipleSymbols.length} symbols`);
-          console.log('📊 Note: Comparison chart should be included in /api/chat response');
-          // Chart will be handled below when checking response data
-        }
-        // PRIORITAS 1B: Handle multiple symbols (untuk multiple individual charts, bukan comparison)
-        else if (!parserChart && multipleSymbols.length > 1 && !isComparison) {
-          console.log(`✅ Multiple symbols detected (${multipleSymbols.length}), generating charts for each...`);
+        // 🔥 PRIORITAS 1A: Always generate chart for ANY detected symbol (Chart-First Architecture)
+        if (!parserChart && multipleSymbols.length >= 1) {
+          console.log(`🚀 Generating chart(s) for ${multipleSymbols.length} detected symbol(s)...`);
           
           const chartPromises = multipleSymbols.map(async ({ symbol, type }) => {
             try {
@@ -655,8 +646,15 @@ export default function ChatInterface() {
           const charts = (await Promise.all(chartPromises)).filter((chart): chart is NonNullable<typeof chart> => chart !== null) as ChartData[];
           
           if (charts.length > 0) {
-            finalAssistantMessage.charts = charts;
-            console.log(`✅✅ ${charts.length} charts successfully added to message`);
+            // Single symbol → use chart property
+            // Multiple symbols → use charts property
+            if (charts.length === 1) {
+              finalAssistantMessage.chart = charts[0];
+              console.log(`✅✅ Single chart added to message.chart`);
+            } else {
+              finalAssistantMessage.charts = charts;
+              console.log(`✅✅ ${charts.length} charts added to message.charts`);
+            }
             
             // Keep the AI's text response as content
             if (!finalAssistantMessage.content || finalAssistantMessage.content.trim().length === 0) {
@@ -697,7 +695,8 @@ export default function ChatInterface() {
           }
         }
         // PRIORITAS 2: Handle structured output dari AI (chart)
-        else if (!parserChart && structuredOutput?.action === 'show_chart') {
+        // PENTING: Skip jika chart sudah di-set dari PRIORITAS 1A (market chart)
+        else if (!parserChart && !finalAssistantMessage.chart && !finalAssistantMessage.charts && structuredOutput?.action === 'show_chart') {
           const symbol = structuredOutput.symbol || marketInfo.symbol;
           const hasInlineData = structuredOutput.data && Array.isArray(structuredOutput.data) && structuredOutput.data.length > 0;
           
@@ -799,7 +798,8 @@ export default function ChatInterface() {
           }
         } 
         // PRIORITAS 2: Jika ada multiple symbols tapi tidak ada structured output, generate charts
-        else if (multipleSymbols.length > 0 && !structuredOutput) {
+        // PENTING: Skip jika chart sudah di-set dari PRIORITAS 1A (market chart)
+        else if (!finalAssistantMessage.chart && !finalAssistantMessage.charts && multipleSymbols.length > 0 && !structuredOutput) {
           console.log(`⚠️ Multiple symbols detected but no structured output - Generating charts for ${multipleSymbols.length} symbols`);
           
           const chartPromises = multipleSymbols.map(async ({ symbol, type }) => {
@@ -827,7 +827,8 @@ export default function ChatInterface() {
         }
         // PRIORITAS 3: Jika market request terdeteksi TAPI tidak ada structured output, generate chart langsung (fallback agresif)
         // BUT: Only if it's a clear market request (not a business question)
-        else if (!parserChart && marketInfo.isMarket && marketInfo.symbol) {
+        // PENTING: Skip jika chart sudah di-set dari PRIORITAS sebelumnya
+        else if (!finalAssistantMessage.chart && !finalAssistantMessage.charts && !parserChart && marketInfo.isMarket && marketInfo.symbol) {
           // Additional check: Make sure it's not a business question that was misclassified
           const isBusinessQuestion = /^(aku|saya|kami|kita|perusahaan|bisnis|produk|produkku|produk saya).*(masalah|problem|issue|kurang|tidak|belum|gimana|bagaimana|tolong|bisa|mau|ingin)/i.test(input) ||
                                     /^(gimana|bagaimana|tolong|bisa|mau|ingin).*(cara|strategi|solusi|solution|analisis|analysis|masalah|problem)/i.test(input) ||
@@ -1205,10 +1206,10 @@ export default function ChatInterface() {
                       )}
                       
                       <div
-                        className={`max-w-[85%] lg:max-w-[75%] rounded-2xl backdrop-blur-xl shadow-lg ${
+                        className={`max-w-[85%] lg:max-w-[75%] ${
                           message.role === 'user'
-                            ? 'bg-cyan-500 text-black border border-cyan-400/50 shadow-cyan-500/30 px-6 py-4'
-                            : 'bg-[#18181b] text-gray-300 border border-cyan-500/30 px-6 py-5'
+                            ? 'text-white px-4 py-3'
+                            : 'text-gray-300 px-4 py-3'
                         }`}
                       >
                         {/* Reply Reference Indicator */}
@@ -1221,7 +1222,7 @@ export default function ChatInterface() {
                             <div className="flex items-center gap-1.5 mb-1">
                               <Reply className={`w-3 h-3 ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`} />
                               <span className={`text-xs font-medium ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`}>
-                                Replying to {message.replyTo.role === 'user' ? 'yourself' : 'AI'}
+                                Membalas {message.replyTo.role === 'user' ? 'Anda' : 'AI'}
                               </span>
                             </div>
                             <p className={`text-xs line-clamp-2 ${message.role === 'user' ? 'text-black/60' : 'text-gray-400'}`}>
@@ -1230,9 +1231,11 @@ export default function ChatInterface() {
                           </div>
                         )}
                         
-                        {/* Visualization Rendering */}
+                        {/* AI Insight Tag removed as requested */}
+
+                        {/* Visualization Rendering - Back to Top as requested */}
                         {message.imageUrl && (
-                          <div className="mb-4 rounded-lg overflow-hidden">
+                          <div className="mb-4 rounded-lg overflow-hidden animate-fade-in">
                             <img
                               src={message.imageUrl}
                               alt="Visualization"
@@ -1244,7 +1247,7 @@ export default function ChatInterface() {
                           </div>
                         )}
                         {message.chart ? (
-                          <div className="mb-4 -mx-6">
+                          <div className="mb-4 -mx-6 animate-fade-in">
                             <ChartRenderer chart={message.chart} />
                           </div>
                         ) : null}
@@ -1261,24 +1264,21 @@ export default function ChatInterface() {
                         )}
                         
                         {message.table && (
-                          <div className="mb-4 -mx-6">
+                          <div className="mb-4 -mx-6 animate-fade-in">
                             <DataTable table={message.table} />
                           </div>
                         )}
-                        
-                        {/* AI Insight Tag */}
-                        {message.role === 'assistant' && message.content && message.content.trim().length > 20 && (
-                          <div className="mb-3 flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium">
-                              <Sparkles className="w-3 h-3" />
-                              AI Insight
-                            </span>
-                          </div>
+
+                        {message.role === 'assistant' ? (
+                          <MarkdownRenderer 
+                            content={message.content} 
+                            className="leading-relaxed"
+                          />
+                        ) : (
+                          <p className="whitespace-pre-wrap leading-relaxed">
+                            {message.content}
+                          </p>
                         )}
-                        
-                        <p className="whitespace-pre-wrap leading-relaxed">
-                          {message.content}
-                        </p>
                         
                         {/* Recommendations Section for AI messages */}
                         {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
@@ -1318,7 +1318,7 @@ export default function ChatInterface() {
                             }`}
                           >
                             <Reply className="w-3 h-3" />
-                            Reply
+                            Balas
                           </button>
 
                           {/* Feedback for AI */}
@@ -1368,7 +1368,7 @@ export default function ChatInterface() {
             </div>
 
             {/* Input Area - Sticky */}
-            <div className="sticky bottom-0 border-t border-cyan-500/20 bg-black/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
+            <div className="sticky bottom-0 bg-black/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
               <div className="max-w-5xl mx-auto">
                 {/* Reply Indicator */}
                 {replyingTo && (
@@ -1377,7 +1377,7 @@ export default function ChatInterface() {
                       <div className="flex items-center gap-2 mb-1">
                         <Reply className="w-4 h-4 text-cyan-400" />
                         <span className="text-sm font-medium text-cyan-400">
-                          Replying to {replyingTo.role === 'user' ? 'your message' : 'AI'}
+                          Membalas {replyingTo.role === 'user' ? 'pesan Anda' : 'AI'}
                         </span>
                       </div>
                       <p className="text-sm text-gray-400 line-clamp-2">
@@ -1400,15 +1400,13 @@ export default function ChatInterface() {
                       value={input}
                       onChange={handleInputChange}
                       placeholder={
-                        replyingTo ? `Reply to ${replyingTo.role === 'user' ? 'your message' : 'AI'}...` :
-                        activeView === 'market' ? "Ask about stocks, crypto, or comparisons..." :
-                        activeView === 'reports' ? "Describe the report you need..." :
-                        activeView === 'visualization' ? "Paste your data or describe a chart..." :
-                        "What do you want to know..."
+                        replyingTo ? `Balas ke ${replyingTo.role === 'user' ? 'pesan Anda' : 'AI'}...` :
+                        activeView === 'market' ? "Tanyakan tentang saham, kripto, atau perbandingan..." :
+                        activeView === 'reports' ? "Jelaskan laporan yang Anda butuhkan..." :
+                        activeView === 'visualization' ? "Paste data atau jelaskan chart yang diinginkan..." :
+                        "Apa yang ingin Anda ketahui..."
                       }
-                      className={`w-full px-6 py-4 pr-24 bg-[#18181b] border-2 ${
-                        replyingTo ? 'border-cyan-500/50' : 'border-cyan-500/30'
-                      } rounded-2xl focus:outline-none focus:border-cyan-500 text-white placeholder-cyan-400/50 transition-all`}
+                      className={`w-full px-6 py-5 pr-24 bg-[#18181b] rounded-2xl focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-white placeholder-cyan-400/50 transition-all text-lg`}
                       disabled={isLoading}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -1429,19 +1427,18 @@ export default function ChatInterface() {
                   </div>
                 </form>
 
-                {/* Options Bar */}
-                <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Settings</span>
+                <div className="flex items-center justify-center gap-4 mt-6 text-xs font-medium">
+                  <button className="text-cyan-400/80 hover:text-cyan-300 transition-all flex items-center gap-2 group border border-cyan-500/30 rounded-full px-6 py-2.5 bg-cyan-500/5 hover:bg-cyan-500/10 hover:border-cyan-400/60 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)] backdrop-blur-sm">
+                    <FileUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Unggah Dokumen</span>
                   </button>
-                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share</span>
+                  <button className="text-cyan-400/80 hover:text-cyan-300 transition-all flex items-center gap-2 group border border-cyan-500/30 rounded-full px-6 py-2.5 bg-cyan-500/5 hover:bg-cyan-500/10 hover:border-cyan-400/60 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)] backdrop-blur-sm">
+                    <Globe className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Pencarian Web</span>
                   </button>
-                  <button className="text-cyan-400/60 hover:text-cyan-400 transition-colors flex items-center gap-2">
-                    <Bell className="w-3.5 h-3.5" />
-                    <span>Notifications</span>
+                  <button className="text-cyan-400/80 hover:text-cyan-300 transition-all flex items-center gap-2 group border border-cyan-500/30 rounded-full px-6 py-2.5 bg-cyan-500/5 hover:bg-cyan-500/10 hover:border-cyan-400/60 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)] backdrop-blur-sm">
+                    <ImageIcon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    <span>Buat Gambar</span>
                   </button>
                 </div>
               </div>

@@ -12,22 +12,61 @@ interface ComparisonWidgetWrapperProps {
 
 export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: ComparisonWidgetWrapperProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentChart, setCurrentChart] = useState(chart);
+  const [persona, setPersona] = useState<'investor' | 'trader' | 'education'>('investor');
+  const [aiNarrative, setAiNarrative] = useState<string | undefined>(undefined);
+
+  const fetchAIAnalysis = async (symbols: string[], timeframe: string, userPersona: string) => {
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch('/api/market/analyze-comparison', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols, timeframe, persona: userPersona }),
+      });
+
+      if (!response.ok) throw new Error('AI Analysis failed');
+      const result = await response.json();
+      
+      if (result.success && result.response) {
+        setAiNarrative(result.response);
+      }
+    } catch (err) {
+      console.error('Error fetching AI analysis:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleTimeframeChange = useCallback(async (timeframe: string, symbols: string[]) => {
     if (!chart.comparisonAssets || !chart.asset_type) return;
     
     setIsLoading(true);
+    setAiNarrative(undefined); // Clear old narrative while loading
+    
     try {
       const days = timeframeToDays(timeframe);
       const assetType = chart.asset_type;
       
+      console.log(`📊 [TimeframeChange] Fetching ${symbols.length} ${assetType} symbols for ${timeframe} (${days} days)`);
+      
       // Fetch new data for all symbols
       const fetchPromises = symbols.map(async (symbol) => {
         try {
-          const endpoint = assetType === 'crypto' ? '/api/coingecko/ohlc' : '/api/market';
-          const payload: Record<string, any> = { symbol, days };
-          if (endpoint === '/api/market') payload.type = assetType;
+          let endpoint: string;
+          let payload: Record<string, any>;
+          
+          if (assetType === 'crypto') {
+            endpoint = '/api/coingecko/ohlc';
+            payload = { symbol, days };
+          } else {
+            // For stocks, use the /api/market endpoint
+            endpoint = '/api/market';
+            payload = { symbol, days, type: 'stock' };
+          }
+          
+          console.log(`📡 [TimeframeChange] Fetching ${symbol} from ${endpoint}...`);
 
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -36,32 +75,45 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
           });
 
           if (!response.ok) {
-            console.warn(`Failed to fetch data for ${symbol}`);
+            console.warn(`⚠️ Failed to fetch data for ${symbol}: ${response.status}`);
             return null;
           }
 
-          const data = await response.json();
-          if (!data.success || !data.data) {
-            console.warn(`Invalid data for ${symbol}`);
+          const result = await response.json();
+          
+          // Handle different API response structures
+          if (!result.success) {
+            console.warn(`⚠️ API returned error for ${symbol}:`, result.error);
+            return null;
+          }
+          
+          // The market data could be in result.data or result directly
+          const marketData = result.data || result;
+          if (!marketData || !marketData.data || !Array.isArray(marketData.data)) {
+            console.warn(`⚠️ Invalid data structure for ${symbol}:`, result);
             return null;
           }
 
+          console.log(`✅ [TimeframeChange] Got ${marketData.data.length} data points for ${symbol}`);
+          
           return {
             symbol,
-            data: data.data,
+            marketData: marketData, // Contains { data: [...], currentPrice, change24h, ... }
           };
         } catch (err) {
-          console.error(`Error fetching ${symbol}:`, err);
+          console.error(`❌ Error fetching ${symbol}:`, err);
           return null;
         }
       });
 
       const results = await Promise.all(fetchPromises);
-      const fetchedData = results.filter((item): item is { symbol: string; data: any } => item !== null);
+      const fetchedData = results.filter((item): item is { symbol: string; marketData: any } => item !== null);
 
       if (fetchedData.length === 0) {
         throw new Error('Gagal mengambil data untuk semua aset.');
       }
+      
+      console.log(`📊 [TimeframeChange] Successfully fetched ${fetchedData.length}/${symbols.length} symbols`);
       
       // Rebuild comparison data similar to market-analysis-handler
       const { calculateIndicators } = await import('@/lib/market/data-fetcher');
@@ -69,11 +121,12 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
       
       // Process each asset's data
       const processedAssets = await Promise.all(
-        fetchedData.map(async ({ symbol, data }) => {
-          const indicators = calculateIndicators(data.data);
-          const preprocessed = preprocessCandlestick(data, indicators);
+        fetchedData.map(async ({ symbol, marketData }) => {
+          const ohlcData = marketData.data; // Array of OHLC candles
+          const indicators = calculateIndicators(ohlcData);
+          const preprocessed = preprocessCandlestick(marketData, indicators);
           
-          const closes = data.data.map((d: any) => d.close);
+          const closes = ohlcData.map((d: any) => d.close);
           const first = closes[0] || 1;
           const last = closes[closes.length - 1] || first;
           const periodReturn = ((last - first) / first) * 100;
@@ -81,11 +134,13 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
           
           return {
             symbol,
-            marketData: data,
+            marketData,
+            ohlcData,
             indicators,
             preprocessed,
             periodReturn,
             change,
+            currentPrice: marketData.currentPrice ?? last,
           };
         })
       );
@@ -97,27 +152,29 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
         return points.map((p) => ({ time: p.time, value: (p.close / base) * 100 }));
       };
       
-      const seriesPoints = processedAssets.map(({ symbol, marketData }) => ({
+      const seriesPoints = processedAssets.map(({ symbol, ohlcData }) => ({
         symbol,
-        points: marketData.data.map((d: any) => ({ time: d.time, close: d.close })),
+        points: ohlcData.map((d: any) => ({ time: d.time, close: d.close })),
       }));
       
       // Find common timestamps
-      let commonTimes = new Set(seriesPoints[0].points.map((p) => p.time));
+      let commonTimes = new Set(seriesPoints[0].points.map((p: any) => p.time));
       for (const s of seriesPoints.slice(1)) {
-        const set = new Set(s.points.map((p) => p.time));
-        commonTimes = new Set([...commonTimes].filter((t) => set.has(t)));
+        const set = new Set(s.points.map((p: any) => p.time));
+        commonTimes = new Set(Array.from(commonTimes).filter((t: any) => set.has(t)));
       }
       
-      const sortedTimes = [...commonTimes].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+      const sortedTimes = Array.from(commonTimes).sort((a: any, b: any) => new Date(a).getTime() - new Date(b).getTime());
+      
+      console.log(`📊 [TimeframeChange] Found ${sortedTimes.length} common timestamps`);
       
       const valueBySymbolAndTime: Record<string, Record<string, number>> = {};
       for (const s of seriesPoints) {
-        const normalized = normalizeSeriesTo100(s.points.filter((p) => commonTimes.has(p.time)));
-        valueBySymbolAndTime[s.symbol] = Object.fromEntries(normalized.map((p) => [p.time, p.value]));
+        const normalized = normalizeSeriesTo100(s.points.filter((p: any) => commonTimes.has(p.time)));
+        valueBySymbolAndTime[s.symbol] = Object.fromEntries(normalized.map((p: any) => [p.time, p.value]));
       }
       
-      const newChartData = sortedTimes.map((t) => {
+      const newChartData = sortedTimes.map((t: any) => {
         const row: Record<string, any> = { time: new Date(t).toLocaleDateString('id-ID') };
         for (const sym of Object.keys(valueBySymbolAndTime)) {
           row[sym] = valueBySymbolAndTime[sym][t];
@@ -126,14 +183,14 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
       });
       
       // Update comparison assets with new prices
-      const updatedAssets = processedAssets.map(({ symbol, marketData, change, periodReturn }, index) => {
+      const updatedAssets = processedAssets.map(({ symbol, change, periodReturn, currentPrice }) => {
         const originalAsset = chart.comparisonAssets?.find(a => a.symbol === symbol);
         return {
           symbol,
           name: originalAsset?.name,
           logo: originalAsset?.logo,
           exchange: originalAsset?.exchange,
-          currentPrice: marketData.currentPrice ?? marketData.data[marketData.data.length - 1]?.close ?? 0,
+          currentPrice: currentPrice,
           change: change,
           changePercent: periodReturn,
           timestamp: new Date().toLocaleString('id-ID'),
@@ -148,15 +205,27 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
         comparisonAssets: updatedAssets,
       };
       
+      console.log(`✅ [TimeframeChange] Chart updated with ${newChartData.length} data points`);
+      
       setCurrentChart(updatedChart);
       onUpdateChart?.(updatedChart);
-    } catch (error) {
-      console.error('Error updating timeframe:', error);
-      alert('Gagal memperbarui data. Silakan coba lagi.');
+      
+      // Trigger AI re-analysis for new timeframe
+      await fetchAIAnalysis(symbols, timeframe, persona);
+    } catch (error: any) {
+      console.error('❌ Error updating timeframe:', error);
+      alert(`Gagal memperbarui data: ${error.message || 'Silakan coba lagi.'}`);
     } finally {
       setIsLoading(false);
     }
-  }, [chart, currentChart, onUpdateChart]);
+  }, [chart, currentChart, onUpdateChart, persona]);
+
+  const handlePersonaChange = async (newPersona: 'investor' | 'trader' | 'education') => {
+    setPersona(newPersona);
+    const symbols = currentChart.comparisonAssets?.map(a => a.symbol) || [];
+    const timeframe = currentChart.timeframe || '1D';
+    await fetchAIAnalysis(symbols, timeframe, newPersona);
+  };
 
   if (!currentChart.comparisonAssets || !Array.isArray(currentChart.yKey)) {
     return null;
@@ -177,6 +246,9 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
         assetType={currentChart.asset_type}
         timeframe={currentChart.timeframe || '1D'}
         onTimeframeChange={handleTimeframeChange}
+        onPersonaChange={handlePersonaChange}
+        narrative={aiNarrative}
+        isAnalyzing={isAnalyzing}
       />
     </div>
   );

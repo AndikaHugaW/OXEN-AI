@@ -33,7 +33,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import CandlestickChart from './CandlestickChart';
-import CoinGeckoCoinChart from './CoinGeckoCoinChart';
+import CoinGeckoWidgetChart from './CoinGeckoWidgetChart';
+import TradingViewWidget from './TradingViewWidget';
 import ComparisonWidgetWrapper from './ComparisonWidgetWrapper';
 
 export interface ChartData {
@@ -838,10 +839,20 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
 
       case 'comparison':
         // Comparison widget uses wrapper component for state management
-        if (!chart.comparisonAssets || !Array.isArray(chart.yKey)) {
+        if (!chart.comparisonAssets || !Array.isArray(chart.yKey) || chart.yKey.length === 0) {
+          console.error('❌ [ChartRenderer] Invalid comparison properties:', { 
+            hasComparisonAssets: !!chart.comparisonAssets,
+            comparisonAssetsCount: chart.comparisonAssets?.length,
+            yKeyType: typeof chart.yKey,
+            isArrayYKey: Array.isArray(chart.yKey),
+            yKey: chart.yKey,
+            fullChart: chart 
+          });
           return (
-            <div className="text-destructive text-center p-4">
-              Comparison chart requires comparisonAssets and multiple yKeys
+            <div className="text-destructive text-center p-6 border border-destructive/20 rounded-xl bg-destructive/5">
+              <p className="font-semibold mb-2">Gagal memuat grafik perbandingan</p>
+              <p className="text-xs opacity-80">Data aset atau sumbu grafik (yKeys) tidak valid atau kosong.</p>
+              <p className="text-[10px] mt-4 font-mono opacity-50">Debug: {chart.comparisonAssets ? 'Assets OK' : 'Missing Assets'} | {Array.isArray(chart.yKey) ? `yKey Array (${chart.yKey.length})` : `yKey ${typeof chart.yKey}`}</p>
             </div>
           );
         }
@@ -859,20 +870,34 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
   // Handle candlestick separately (uses external component)
   if (chart.type === 'candlestick') {
     const symbolUpper = (chart.symbol || '').toUpperCase();
-    const knownCrypto = new Set(['BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'MATIC', 'AVAX', 'DOGE', 'LTC', 'LINK', 'ATOM', 'TRX']);
+    const knownCrypto = new Set(['BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'XRP', 'DOT', 'MATIC', 'AVAX', 'DOGE', 'LTC', 'LINK', 'ATOM', 'TRX', 'NEAR', 'APT', 'ARB', 'OP']);
     const resolvedAssetType: 'crypto' | 'stock' =
       chart.asset_type || (knownCrypto.has(symbolUpper) ? 'crypto' : 'stock');
 
-    // For crypto, render CoinGecko-style per-coin chart (line + gradient + timeframe menu)
+    // For crypto, render CoinGecko embed widget chart (keeps original layout)
     if (resolvedAssetType === 'crypto' && chart.symbol) {
       return (
-        <CoinGeckoCoinChart
+        <CoinGeckoWidgetChart
           symbol={chart.symbol}
           className="my-0 max-w-4xl mx-auto"
         />
       );
     }
 
+    // For stocks, use TradingView for realtime data
+    if (resolvedAssetType === 'stock' && chart.symbol) {
+      return (
+        <TradingViewWidget
+          symbol={chart.symbol}
+          assetType="stock"
+          height={450}
+          showToolbar={true}
+          className="my-0 max-w-4xl mx-auto"
+        />
+      );
+    }
+
+    // Fallback to static candlestick if no symbol
     const candlestickData = chart.data.map((item: any) => ({
       time: item.time || item[chart.xKey],
       open: item.open,
@@ -897,8 +922,8 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
         currentPrice={chart.currentPrice}
         change24h={chart.change24h}
         assetType={resolvedAssetType}
-        logoUrl={chart.logoUrl} // Logo URL langsung dari API - bisa digunakan langsung di browser
-        companyName={chart.companyName} // Nama perusahaan dari API
+        logoUrl={chart.logoUrl}
+        companyName={chart.companyName}
         high={high}
         low={low}
         open={open}

@@ -296,8 +296,29 @@ RESPONSE FORMAT:
         }
       } else {
         // No symbols in current message - user is vague
-        // Don't try to guess, let the handler ask for clarification
-        console.log('⚠️ [Chat API] No symbols found in current message, will request clarification');
+        // Try to find the last 2 symbols from history if this is a comparison request
+        console.log('⚠️ [Chat API] No symbols found in current message, looking for last 2 symbols in history...');
+        const recentMessages = conversationHistory.slice(-5);
+        const historySymbols: Array<{ symbol: string; type: 'crypto' | 'stock' }> = [];
+        
+        for (const msg of [...recentMessages].reverse()) {
+          const content = msg.content || '';
+          let cleanContent = content.replace(/Pertanyaan Lanjutan[\s\S]*$/i, '');
+          const extracted = extractMultipleSymbols(cleanContent);
+          for (const sym of extracted) {
+            if (!historySymbols.some(s => s.symbol === sym.symbol) && historySymbols.length < 5) {
+              historySymbols.push(sym);
+            }
+          }
+        }
+
+        if (historySymbols.length >= 2) {
+          const symbolsList = historySymbols.slice(0, 2).map(s => s.symbol).join(', ');
+          enhancedMessage = `${message} (Symbols: ${symbolsList})`;
+          console.log('✅ [Chat API] Enhanced message with 2 symbols from history:', symbolsList);
+        } else {
+          console.log('⚠️ [Chat API] Could not find enough symbols in history for comparison');
+        }
       }
     }
 
@@ -320,6 +341,7 @@ RESPONSE FORMAT:
       message: enhancedMessage,
       conversationHistory,
       stream: false,
+      mode: mode, // Pass mode from request body to router
       ragContext: ragContextText || undefined, // Pass RAG context to router
     };
 
@@ -379,12 +401,16 @@ RESPONSE FORMAT:
          // This handles the Business Chart case from the handler
          console.log('📊 [Chat API] Constructing finalChart from StructuredOutput');
          finalChart = {
-            type: structuredOutput.chart_type || 'bar',
+            ...structuredOutput,
+            type: structuredOutput.chart_type || structuredOutput.type || 'bar',
             title: structuredOutput.title || 'Data Visualization',
             data: structuredOutput.data || [],
             xKey: structuredOutput.xKey || 'name',
             yKey: structuredOutput.yKey || 'value',
-            // series: if yKey is array, we might want to construct series, but ChartRenderer handles array yKey usually.
+            // Explicitly preserve comparison fields to avoid loss during reconstruction
+            comparisonAssets: structuredOutput.comparisonAssets || (routerResponse.chart?.comparisonAssets) || undefined,
+            timeframe: structuredOutput.timeframe || (routerResponse.chart?.timeframe) || undefined,
+            asset_type: structuredOutput.asset_type || (routerResponse.chart?.asset_type) || undefined,
          };
          
          // Use the message from structured output if response text is empty/placeholder

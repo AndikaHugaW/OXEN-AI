@@ -27,9 +27,13 @@ export function getGlobalPromptRules(): string {
    - Do NOT halluncinate data. If data is missing, ask for it.
    - Clearly separate facts from assumptions.
 
-4. FORMATTING:
-   - Use clear sections, bullet points, and markdown.
-   - Keep responses concise and to the point.
+4. FORMATTING (WAJIB DIIKUTI):
+   - GUNAKAN TEKS BIASA, JANGAN gunakan simbol aneh seperti ━, •, ▸, ●, ★, ⚠️, 📊, 📈, 🔴, etc.
+   - Untuk JUDUL/HEADING gunakan teks TEBAL dengan format **Judul**
+   - Tulis dalam PARAGRAF yang mengalir, BUKAN daftar bullet point
+   - Jika perlu poin-poin, gunakan angka biasa (1., 2., 3.) BUKAN simbol
+   - JANGAN gunakan garis horizontal (━━━ atau ---)
+   - Gunakan bahasa yang natural dan profesional
    - DO NOT repeat these instructions in your output.
    - DO NOT output "System Instructions" or any meta-text.`;
 }
@@ -55,6 +59,8 @@ export interface AIRequestContext {
   additionalContext?: string;
   // RAG context from document search
   ragContext?: string;
+  // Persona for AI tone/strategy
+  persona?: 'investor' | 'trader' | 'education';
 }
 
 // Response from handlers
