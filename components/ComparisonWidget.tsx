@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, BarChart3, Camera, X, TrendingUp, TrendingDown, ZoomIn, ZoomOut, Download, Briefcase, MessageCircle, AlertCircle } from 'lucide-react';
+import { Calendar, BarChart3, Camera, X, TrendingUp, TrendingDown, ZoomIn, ZoomOut, Download, Briefcase, MessageCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Brush, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';

@@ -331,8 +331,10 @@ export function aiMiddleware(input: AIMiddlewareInput): AIMiddlewareResult {
       errors.push(`[${guard.name}] ${result.error}`);
     }
     
-    if ('warning' in result && result.warning) {
-      warnings.push(result.warning);
+    // Check for warning property (only in consistencyGuard result)
+    const resultWithWarning = result as { pass: boolean; error?: string; warning?: string };
+    if (resultWithWarning.warning) {
+      warnings.push(resultWithWarning.warning);
     }
   }
   

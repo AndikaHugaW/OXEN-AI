@@ -5,7 +5,7 @@
 
 import { getLLMProvider } from '../providers';
 import { initializeVectorStore } from '../rag-service';
-import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules } from '../ai-request-router';
+import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules, detectLanguage } from '../ai-request-router';
 import { needsVisualization } from '../chart-generator';
 import { getBusinessDataPrompt, parseStructuredOutput } from '../structured-output';
 
@@ -95,19 +95,22 @@ async function analyzeContext(query: string): Promise<string> {
  * Generate Business-Focused Prompt for LLaMA
  */
 function getBusinessPrompt(context: string, userMessage?: string): string {
-  // Detect language from user message
-  const isIndonesian = userMessage ? /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif]/i.test(userMessage) : true;
-  const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
-  const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+  // Detect language using utility
+  const language = detectLanguage(userMessage || '');
+  const isID = language === 'id';
+  const detectedLanguageLabel = isID ? 'Bahasa Indonesia' : 'English';
   
-  return `PERAN: Asisten Bisnis Profesional & Cerdas (seperti ChatGPT).
+  const languageSpecificIntro = isID ? `PERAN: Asisten Bisnis Profesional & Cerdas (seperti ChatGPT).
   
-TUJUAN: Membantu user dengan strategi bisnis, analisis data, pembuatan dokumen, dan administrasi umum.
-
 INSTRUKSI BAHASA:
-- Bahasa: ${detectedLanguage}
-- GAYA BAHASA: Profesional tapi luwes, mudah dipahami, bersahabat, dan tidak kaku. Gunakan bahasa Indonesia yang baik dan enak dibaca (bukan terjemahan kaku).
+- Bahasa: ${detectedLanguageLabel}
+- JAWABLAH 100% DALAM BAHASA INDONESIA yang luwes dan profesional.` : `ROLE: Professional & Intelligent Business Assistant.
+  
+LANGUAGE INSTRUCTION:
+- Language: ${detectedLanguageLabel}
+- RESPOND 100% IN ENGLISH, professional and friendly.`;
 
+  const commonRules = `
 PANDUAN PENTING (JANGAN DILANGGAR):
 1. BERIKAN INSIGHT, BUKAN TABEL MENTAH:
    - JANGAN PERNAH membuat tabel menggunakan Markdown (seperti | Month | Revenue |).
@@ -115,11 +118,11 @@ PANDUAN PENTING (JANGAN DILANGGAR):
    - JANGAN gunakan placeholder seperti "[Grafik ditampilkan di sini]" atau "[Lihat chart di atas]".
    - Jika ada data angka, jelaskan maknanya dalam kalimat naratif (contoh: "Pendapatan bulan ini naik 20% menjadi Rp50 juta...").
 
-2. FORMAT TEKS BERSIH (CLEAN TEXT):
-   - JANGAN gunakan formatting tebal (**) atau miring (*).
-   - JANGAN gunakan heading markdown (###).
-   - Gunakan paragraf baru atau poin-poin (bullet points -) untuk memisahkan ide.
-   - Gunakan format 'Nama: Nilai' untuk highlight poin penting.
+2. FORMAT PENULISAN (PREMIUM):
+   - Gunakan **Teks Tebal** untuk Judul atau Poin Utama.
+   - JANGAN gunakan heading markdown (###) kecuali sangat diperlukan.
+   - Lebih utamakan narasi dalam paragraf yang mengalir daripada daftar poin (bullet points) yang terlalu panjang.
+   - Gunakan bahasa yang elegan, profesional, dan cerdas.
 
 3. INTERAKTIF & SOLUTIF:
    - Jawab langsung ke inti pertanyaan.
@@ -132,10 +135,13 @@ PANDUAN PENTING (JANGAN DILANGGAR):
 
 ${context ? `KONTEKS DATA & DOKUMEN:\n${context}\n\n` : ""}
 
+${languageSpecificIntro}
+
 FORMAT RESPON:
-- Langsung berikan jawaban/analisis (tanpa basa-basi "Berikut adalah jawaban saya").
-- Hindari penggunaan simbol markdown yang berlebihan.
-- Tutup dengan kalimat penutup yang profesional dan ramah.`;
+- Langsung berikan jawaban/analisis.
+- JAWAB SEPENUHNYA DALAM ${detectedLanguageLabel.toUpperCase()}.`;
+
+  return commonRules;
 }
 
 /**
@@ -164,6 +170,9 @@ export async function processBusinessAdmin(
     console.log('🤖 [Business Handler] Step 2: Requesting LLM response...');
     const llmProvider = getLLMProvider();
     
+    // Detect language using utility
+    const language = detectLanguage(query);
+    
     // DETECT: Does user want a visualization?
     // If YES -> Use Structured Prompt (JSON)
     // If NO  -> Use Narrative Prompt (Text)
@@ -175,13 +184,13 @@ export async function processBusinessAdmin(
 
     if (wantsChart) {
        console.log('📊 [Business Handler] Visualization detected. Using Structured JSON Prompt.');
-       businessPrompt = getBusinessDataPrompt(query);
+       businessPrompt = getBusinessDataPrompt(query, language);
        // Add context to the query so the AI has data to chart
-       systemPrompt = `${getGlobalPromptRules()}\n\n${businessPrompt}\n\nKONTEKS DATA:\n${businessContext}`;
+       systemPrompt = `${getGlobalPromptRules(language)}\n\n${businessPrompt}\n\nKONTEKS DATA:\n${businessContext}`;
        temperature = 0.1; // Low temp for JSON
     } else {
        businessPrompt = getBusinessPrompt(businessContext, query);
-       systemPrompt = `${getGlobalPromptRules()}\n\n${businessPrompt}`;
+       systemPrompt = `${getGlobalPromptRules(language)}\n\n${businessPrompt}`;
     }
     
     // Filter out system messages from history
@@ -222,58 +231,72 @@ export async function processBusinessAdmin(
           };
        } 
        
-       // Attempt 2: Hybrid Parse (Text + JSON mix)
-       // AI might have outputted: "Here is the chart: ```json {...} ``` explanation..."
-       // We want to extract valid JSON for the chart, and keep the text for the response.
-       console.warn('⚠️ [Business Handler] Strict parse failed. Attempting hybrid extraction...');
-       
-       const jsonBlockMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/) || 
-                              response.match(/```\s*(\{[\s\S]*?\})\s*```/) ||
-                              response.match(/(\{[\s\S]*?"action"[\s\S]*?\})/);
-                              
-       if (jsonBlockMatch) {
-          const jsonText = jsonBlockMatch[1] || jsonBlockMatch[0];
-          try {
-             // Try to clean potential trailing commas or errors
-             const cleanJsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
-             const parsedHybrid = JSON.parse(cleanJsonText);
-             
-             if (parsedHybrid && (parsedHybrid.action === 'show_chart' || parsedHybrid.data)) {
-                 console.log('✅ [Business Handler] Hybrid extraction successful');
-                 
-                 // Remove the JSON block from the original response to get the "Clean Text"
-                 let cleanText = response.replace(jsonBlockMatch[0], '').trim();
-                 // Clean up leftover markers
-                 cleanText = cleanText.replace(/```json/g, '').replace(/```/g, '').trim();
-                 
-                 // If clean text is empty, check if JSON has a message
-                 if (cleanText.length < 10 && parsedHybrid.message) {
-                    cleanText = parsedHybrid.message;
-                 }
-                 // If still empty, default text
-                 if (cleanText.length < 5) {
-                    cleanText = "Berikut visualisasi data yang Anda minta.";
-                 }
+        // Attempt 2: Hybrid Parse (Text + JSON mix)
+        // AI might have outputted narrative text + a JSON block.
+        // We want to extract valid JSON for the chart, and keep the text for the response.
+        console.warn('⚠️ [Business Handler] Strict parse failed. Attempting hybrid extraction...');
+        
+        // Find the absolute first { and absolute last } to capture the entire JSON block
+        const firstBrace = response.indexOf('{');
+        const lastBrace = response.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+           const potentialJson = response.substring(firstBrace, lastBrace + 1);
+           const jsonBlockFull = potentialJson;
+           
+           try {
+              // Try to clean potential trailing commas or errors
+              const cleanJsonText = jsonBlockFull.replace(/,(\s*[}\]])/g, '$1');
+              const parsedHybrid = JSON.parse(cleanJsonText);
+              
+              if (parsedHybrid && (parsedHybrid.action === 'show_chart' || parsedHybrid.data)) {
+                  console.log('✅ [Business Handler] Hybrid extraction successful');
+                  
+                  // Remove the entire block from { to } from the original response
+                  let cleanText = (response.substring(0, firstBrace) + response.substring(lastBrace + 1)).trim();
+                  
+                  // Clean up common AI prefixes that often precede JSON
+                  const noisePrefixes = [
+                    /json\s*output:?/i, 
+                    /berikut\s*data\s*json:?/i, 
+                    /output\s*json:?/i, 
+                    /konfigurasi\s*chart:?/i,
+                    /```json/i,
+                    /```/i
+                  ];
+                  
+                  noisePrefixes.forEach(pattern => {
+                    cleanText = cleanText.replace(pattern, '').trim();
+                  });
+                  
+                  // If clean text is too short or just leftover markers, use the 'message' from JSON
+                  if (cleanText.length < 20 && parsedHybrid.message) {
+                     cleanText = parsedHybrid.message;
+                  }
+                  
+                  if (cleanText.length < 5) {
+                     cleanText = "Berikut visualisasi data berdasarkan analisis tersebut.";
+                  }
 
-                 return {
-                    success: true,
-                    mode: RequestMode.BUSINESS_ADMIN,
-                    response: cleanText,
-                    structuredOutput: parsedHybrid
-                 };
-             }
-          } catch (e) {
-             console.warn('❌ [Business Handler] Hybrid JSON parse failed:', e);
-          }
-       }
-       
-       // Fallback: Return raw text, but let route.ts try to fix it via the "Optimization" step.
-       // But we should try to hide the raw JSON from the user if possible.
-       let sanitizedResponse = response;
-       if (jsonBlockMatch) {
-           // If we found a block but failed to parse it, at least hide it from the chat bubble
-           sanitizedResponse = response.replace(jsonBlockMatch[0], '[Memuat Visualisasi Data...]').trim();
-       }
+                  return {
+                     success: true,
+                     mode: RequestMode.BUSINESS_ADMIN,
+                     response: cleanText,
+                     structuredOutput: parsedHybrid
+                  };
+              }
+           } catch (e) {
+              console.warn('❌ [Business Handler] Hybrid JSON parse failed:', e);
+           }
+        }
+        
+        // Fallback: If we couldn't parse but found braces, at least hide the mess
+        let sanitizedResponse = response;
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            sanitizedResponse = (response.substring(0, firstBrace) + "\n[Memuat Visualisasi Data...]\n" + response.substring(lastBrace + 1)).trim();
+            // Clean noise from fallback too
+            sanitizedResponse = sanitizedResponse.replace(/json\s*output:?/i, '').replace(/```json/i, '').trim();
+        }
        
        return {
           success: true,

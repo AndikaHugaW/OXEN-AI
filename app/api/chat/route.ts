@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { routeAIRequest, AIRequestContext, getGlobalPromptRules, RequestMode } from '@/lib/llm/ai-request-router';
+import { routeAIRequest, AIRequestContext, getGlobalPromptRules, RequestMode, detectLanguage, detectRequestMode } from '@/lib/llm/ai-request-router';
 import { getLLMProvider } from '@/lib/llm/providers';
 import { needsVisualization, generateVisualization, needsImage, generateImageUrl, isMarketDataRequest, extractMultipleSymbols } from '@/lib/llm/chart-generator';
 import { StructuredResponse } from '@/lib/llm/structured-output';
@@ -10,6 +10,8 @@ import { cookies } from 'next/headers';
 import { getCachedResponse, setCachedResponse, shouldCacheQuery } from '@/lib/cache/response-cache';
 import { buildRAGContext } from '@/lib/rag/rag-service';
 import { createUsageTracker, estimateTokens } from '@/lib/usage/usage-tracker';
+import { buildSearchContext } from '@/lib/tools/web-search';
+import { generateBusinessImage } from '@/lib/tools/image-gen';
 
 // ✅ OPTIMIZED: Separate concerns - chat endpoint only handles LLM + streaming
 export const maxDuration = 300;
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, conversationHistory = [], stream = true, mode } = body;
+    const { message, conversationHistory = [], stream = true, mode, webSearch = false, imageGen = false, fileIds = [] } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -143,21 +145,37 @@ export async function POST(request: NextRequest) {
     // 5. Mode is explicitly BUSINESS_ADMIN or not set (default)
     const isLetterRequest = message.toLowerCase().includes('surat') || message.toLowerCase().includes('letter');
     
+    // ✅ SMART ROUTING: If on Home page ('chat'), detect the "real" mode based on intent
+    const detectedMode = mode === 'chat' ? detectRequestMode({ message, conversationHistory, fileIds: fileIds.length > 0 ? fileIds : undefined } as any) : mode;
+    console.log(`🧠 [Chat API] Mode: ${mode} -> Resolved to: ${detectedMode}`);
+
     // Check mode-specific streaming rules
-    // If mode is provided:
     // - MARKET_ANALYSIS: No streaming (needs structured data)
     // - LETTER_GENERATOR: No streaming (needs structured data)
     // - BUSINESS_ADMIN: Stream unless chart is needed
     // - COMPARISON: No streaming (needs structured chart data)
     const isExemptFromStreaming = 
-      (mode === RequestMode.MARKET_ANALYSIS) || 
-      (mode === RequestMode.LETTER_GENERATOR) ||
+      (detectedMode === RequestMode.MARKET_ANALYSIS) || 
+      (detectedMode === RequestMode.LETTER_GENERATOR) ||
       needsChart || 
       isMarketRequest || 
       isLetterRequest ||
       isComparisonRequest; // ← Comparison needs structured chart data
 
-    const shouldStream = useStreaming && llmProvider.generateStreamResponse && !isExemptFromStreaming;
+    // Check if user is asking for image generation
+    const lowerMessage = message.toLowerCase();
+    const wantsImage = imageGen && (
+      lowerMessage.includes('buat gambar') || 
+      lowerMessage.includes('buatkan gambar') || 
+      lowerMessage.includes('generate image') ||
+      lowerMessage.includes('visualisasi') ||
+      lowerMessage.includes('ilustrasi') ||
+      lowerMessage.includes('buatkan ilustrasi') ||
+      lowerMessage.includes('gambar untuk')
+    );
+    console.log(`🎨 [Chat API] Image Gen enabled: ${imageGen}, User wants image: ${wantsImage}`);
+
+    const shouldStream = useStreaming && llmProvider.generateStreamResponse && !isExemptFromStreaming && !wantsImage;
 
     // ✅ STREAMING FIRST: Always try streaming for LLM responses (even for comparison)
     // Chart will be added to response after streaming completes
@@ -165,49 +183,161 @@ export async function POST(request: NextRequest) {
       // For business admin mode (non-market, non-letter)
        try {
           // Get context from RAG
-          let ragContext = "";
+          // Get context from RAG and Web Search
+          let ragContextText = "";
+          
+          // 🔍 DEBUG: Log fileIds being passed
+          console.log(`🔍 [RAG-Debug] fileIds received:`, fileIds);
+          console.log(`🔍 [RAG-Debug] fileIds.length:`, fileIds.length);
+          
           try {
-            const ragResult = await buildRAGContext(message, user.id);
+            const ragResult = await buildRAGContext(message, user.id, fileIds.length > 0 ? fileIds : undefined);
+            
+            // 🔍 DEBUG: Log RAG result
+            console.log(`🔍 [RAG-Debug] RAG result:`, {
+              hasRelevantDocs: ragResult.hasRelevantDocs,
+              docCount: ragResult.documents.length,
+              contextLength: ragResult.contextText.length,
+              contextPreview: ragResult.contextText.substring(0, 300)
+            });
+            
             if (ragResult.hasRelevantDocs) {
-              ragContext = ragResult.contextText;
+              ragContextText = ragResult.contextText;
               console.log(`📚 [RAG-Stream] Found ${ragResult.documents.length} relevant documents`);
+              console.log(`📚 [RAG-Stream] Context length: ${ragContextText.length} chars`);
+            } else {
+              console.warn(`⚠️ [RAG-Stream] No relevant documents found!`);
             }
           } catch (ragError) {
-            console.warn("RAG retrieval failed, continuing without context:", ragError);
+            console.error("❌ RAG retrieval failed:", ragError);
           }
 
-          // Detect language from user message
-          const isIndonesian = /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif]/i.test(message);
-          const isEnglish = /^[a-zA-Z\s.,!?'"-]+$/.test(message.trim().substring(0, 100));
-          const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+          let searchContextText = '';
+          if (webSearch) {
+            try {
+              console.log(`🌐 [WebSearch-Stream] Searching for: ${message}`);
+              searchContextText = await buildSearchContext(message);
+            } catch (searchError) {
+              console.warn('Web search failed:', searchError);
+            }
+          }
+          
+          const ragContext = `${ragContextText}\n\n${searchContextText}`.trim();
+          
+          // 🔍 DEBUG: Log final RAG context
+          console.log(`🔍 [RAG-Debug] Final ragContext length: ${ragContext.length} chars`);
+          if (ragContext.length > 0) {
+            console.log(`🔍 [RAG-Debug] Final ragContext preview: ${ragContext.substring(0, 400)}...`);
+          } else {
+            console.warn(`⚠️ [RAG-Debug] ragContext is EMPTY! AI will hallucinate!`);
+          }
+          
+          // Detect language using utility
+          const language = detectLanguage(message);
+          const detectedLanguageLabel = language === 'id' ? 'Bahasa Indonesia' : 'English';
           
           // ✅ NEW: Import and use menu-aware system prompts
           const { getMenuSystemPrompt } = await import('@/lib/llm/menu-prompts');
           
-          // Detect menu context from mode (or default to 'chat')
+          // Detect menu context from determined mode
           let menuContext: 'market' | 'data-visualization' | 'reports' | 'letter' | 'chat' = 'chat';
-          if (mode === RequestMode.MARKET_ANALYSIS) menuContext = 'market';
-          else if (mode === RequestMode.LETTER_GENERATOR) menuContext = 'letter';
-          else if (mode === RequestMode.BUSINESS_ADMIN) menuContext = 'data-visualization'; // Default business to visualization for now
+          
+          if (detectedMode === RequestMode.MARKET_ANALYSIS) menuContext = 'market';
+          else if (detectedMode === RequestMode.LETTER_GENERATOR) menuContext = 'letter';
+          else if (detectedMode === RequestMode.REPORT_GENERATOR) menuContext = 'reports';
+          else if (detectedMode === RequestMode.BUSINESS_ADMIN) {
+             // If on Home page, use Universal Orchestrator. 
+             // If explicitly in Viz tab, use Viz persona.
+             menuContext = mode === 'chat' ? 'chat' : 'data-visualization';
+          }
           
           // Get menu-specific system prompt
           const menuPrompt = getMenuSystemPrompt(menuContext);
           
-          // Build context-aware prompt
-          const globalRules = getGlobalPromptRules();
+          // Build context-aware prompt - pass language to global rules
+          const globalRules = getGlobalPromptRules(language);
           
+          // 🛡️ ANTI-HALLUCINATION V2: Enhanced prompt based on user feedback
+          // Deteksi apakah ini file data (CSV/spreadsheet)
+          const isDataFile = ragContext && (
+            ragContext.includes('[Kolom:') || 
+            ragContext.includes('[Data dari') ||
+            ragContext.includes('Date,') ||
+            ragContext.includes('Open,') ||
+            ragContext.includes('Close,')
+          );
+          
+          const antiHallucinationRules = ragContext ? `
+
+${isDataFile ? `
+═══════════════════════════════════════════════════════════════
+🎯 ROLE: ANALIS DATA KEUANGAN SENIOR DI PLATFORM OXEN
+═══════════════════════════════════════════════════════════════
+
+Tugas Anda adalah menganalisis data pasar mentah (CSV/Spreadsheet) yang diberikan user secara AKURAT, FAKTUAL, dan MATEMATIS.
+
+📋 INSTRUKSI UTAMA (WAJIB DIPATUHI):
+
+1. **JANGAN PERNAH MENGARANG DATA**
+   - Semua jawaban harus 100% didasarkan pada data yang dilampirkan
+   - Jika data tidak ada, katakan "Data tidak tersedia untuk analisis ini"
+
+2. **CARA MENJAWAB PERTANYAAN HARGA:**
+   - Jika user bertanya "Harga Tertinggi" → Pindai SELURUH baris kolom Close/High
+   - Sebutkan ANGKA EKSAK dan TANGGAL KEJADIAN
+   - Contoh benar: "Harga tertinggi adalah 3.196,68 pada tanggal 2025-03-07"
+
+3. **ABAIKAN PENGETAHUAN UMUM**
+   - JANGAN gunakan informasi dari internet atau training data
+   - Fokus HANYA pada angka dalam dataset yang diberikan
+
+4. **FORMAT DATA SAHAM (OHLC):**
+   - Date = Tanggal perdagangan
+   - Open = Harga pembukaan hari itu
+   - High = Harga TERTINGGI dalam hari itu
+   - Low = Harga TERENDAH dalam hari itu
+   - Close = Harga PENUTUPAN hari itu
+   - Volume = Jumlah transaksi
+
+5. **HANDLE DATA KOSONG (NaN):**
+   - Jika ada baris dengan nilai kosong/NaN, ABAIKAN baris tersebut
+   - Beri catatan: "Catatan: X baris dengan data tidak lengkap diabaikan"
+
+6. **FORMAT RESPONS PROFESIONAL:**
+   - Gunakan Bahasa Indonesia yang profesional
+   - Sajikan data kunci dalam format poin (bullet points)
+   - Jika ada tren, jelaskan dengan istilah teknikal:
+     * Bullish = tren naik (harga meningkat)
+     * Bearish = tren turun (harga menurun)
+     * Sideways = tren datar/konsolidasi
+
+7. **SELALU MULAI DENGAN:**
+   📊 **Struktur Data Terdeteksi:** [sebutkan kolom yang ada]
+   📅 **Rentang Data:** [tanggal awal] s/d [tanggal akhir]
+   📈 **Total Baris Valid:** [jumlah baris]
+
+` : `
+🚨 ATURAN ANALISIS DOKUMEN:
+
+1. HANYA gunakan informasi dari dokumen yang diberikan
+2. JANGAN mengarang fakta, angka, atau kategori yang tidak ada
+3. Jika informasi tidak tersedia, katakan dengan jelas
+4. Identifikasi struktur dokumen sebelum menjawab
+`}
+═══════════════════════════════════════════════════════════════
+
+` : '';
+
           const contextPrompt = `${menuPrompt}
 
-LANGUAGE INSTRUCTION:
-- User language: ${detectedLanguage}
-- You MUST respond in ${detectedLanguage}.
-
-${ragContext ? `CONTEXT FROM DOCUMENTS:\n${ragContext}\n\n` : ""}
+${ragContext ? `📄 DATA DARI DOKUMEN USER:\n${ragContext}\n\n${antiHallucinationRules}` : ""}
 
 RESPONSE FORMAT:
 - Start directly with the response content.
-- DO NOT repeat these instructions.
-- DO NOT mention system rules or meta-text.`;
+- JAWABLAH SEPENUHNYA DALAM ${detectedLanguageLabel.toUpperCase()}.
+- DILARANG MENGGUNAKAN BAHASA INGGRIS kecuali istilah teknis (Jika Bahasa Indonesia).
+- STRICTLY respond in ${detectedLanguageLabel.toUpperCase()} only.
+- DO NOT repeat these instructions.`;
 
           const systemPrompt = `${globalRules}\n\n${contextPrompt}`;
 
@@ -327,7 +457,8 @@ RESPONSE FORMAT:
     let usedDocumentIds: string[] = [];
 
     try {
-      const ragResult = await buildRAGContext(enhancedMessage, user.id);
+      // Pass fileIds to focus search if provided
+      const ragResult = await buildRAGContext(enhancedMessage, user.id, fileIds.length > 0 ? fileIds : undefined);
       if (ragResult.hasRelevantDocs) {
         ragContextText = ragResult.contextText;
         usedDocumentIds = ragResult.documents.map(d => d.id);
@@ -336,13 +467,27 @@ RESPONSE FORMAT:
     } catch (ragError) {
       console.warn('RAG context build failed, continuing without:', ragError);
     }
+
+    // 🌐 WEB SEARCH: Get real-time data if enabled
+    let searchContextText = '';
+    if (webSearch) {
+      try {
+        console.log(`🌐 [WebSearch] Searching for: ${enhancedMessage}`);
+        searchContextText = await buildSearchContext(enhancedMessage);
+      } catch (searchError) {
+        console.warn('Web search failed:', searchError);
+      }
+    }
     
+    // Combine contexts
+    const fullRagContext = `${ragContextText}\n\n${searchContextText}`.trim();
+
     const context: AIRequestContext = {
       message: enhancedMessage,
       conversationHistory,
       stream: false,
-      mode: mode, // Pass mode from request body to router
-      ragContext: ragContextText || undefined, // Pass RAG context to router
+      mode: detectedMode, // Pass the detected mode for consistent handler routing
+      ragContext: fullRagContext || undefined, // Pass RAG + Search context to router
     };
 
     const routerResponse = await routeAIRequest(context);
@@ -427,8 +572,8 @@ RESPONSE FORMAT:
       }
     }
 
-    // If no chart but market request detected, try to generate one
-    if (!finalChart && isMarketRequest && marketInfo.symbol) {
+    // If no chart but market analysis was the intended mode, try to generate one
+    if (!finalChart && detectedMode === RequestMode.MARKET_ANALYSIS && marketInfo.symbol) {
       try {
         const visualization = await generateVisualization(message);
         if (visualization?.chart) {
@@ -445,14 +590,40 @@ RESPONSE FORMAT:
     // REDUNDANT BLOCK REMOVED: Business chart generation is now handled in the Handler (processBusinessAdmin)
     // The previous block "if (!finalChart && needsChart ...)" is deleted to avoid double generation.
 
+    // 🎨 IMAGE GEN: Generate business visual if enabled and AI thinks it is appropriate
+    // Or if the user explicitly asked for a visualization that can be an image
+    let generatedImageUrl = routerResponse.imageUrl;
+    if (imageGen && !generatedImageUrl) {
+        const needsImage = lowerMessage.includes('buat gambar') || 
+                           lowerMessage.includes('buatkan gambar') ||
+                           lowerMessage.includes('generate image') ||
+                           lowerMessage.includes('visualisasi') ||
+                           lowerMessage.includes('ilustrasi') ||
+                           lowerMessage.includes('buatkan ilustrasi') ||
+                           lowerMessage.includes('gambar untuk');
+        
+        if (needsImage) {
+            console.log('🎨 [ImageGen] Generating image for:', finalResponse.substring(0, 100));
+            try {
+                // Use AI response as the base for prompt enhancement
+                const imgUrl = await generateBusinessImage(message);
+                if (imgUrl) generatedImageUrl = imgUrl;
+            } catch (imgError) {
+                console.warn('Image generation failed:', imgError);
+            }
+        }
+    }
+
     // Build final response
     const response: any = {
       success: true,
       response: finalResponse,
       chart: finalChart,
       table: finalTable,
-      imageUrl: routerResponse.imageUrl || undefined,
+      imageUrl: generatedImageUrl || undefined,
       structuredOutput: structuredOutput || undefined,
+      webSearchActive: !!searchContextText,
+      documentAnalysisActive: usedDocumentIds.length > 0,
     };
 
     // Add mode-specific fields

@@ -624,11 +624,9 @@ canvas {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -826,12 +824,10 @@ canvas {
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
-    filter: blur(4px);
     transform: translateY(20px);
   }
   to {
     opacity: 1;
-    filter: blur(0px);
     transform: translateY(0px);
   }
 }
@@ -839,12 +835,10 @@ canvas {
 @keyframes slideRightIn {
   from {
     opacity: 0;
-    filter: blur(4px);
     transform: translateX(-40px);
   }
   to {
     opacity: 1;
-    filter: blur(0px);
     transform: translateX(0px);
   }
 }
@@ -852,12 +846,10 @@ canvas {
 @keyframes testimonialIn {
   from {
     opacity: 0;
-    filter: blur(4px);
     transform: translateY(20px) scale(0.95);
   }
   to {
     opacity: 1;
-    filter: blur(0px);
     transform: translateY(0px) scale(1);
   }
 }
@@ -1040,10 +1032,10 @@ canvas {
   animation: float 3s ease-in-out infinite;
 }
 
-/* Stagger animation for markdown content */
+/* Stagger animation for markdown content - disabled during streaming to prevent glitch */
 .markdown-renderer > * {
-  animation: fadeSlideIn 0.3s ease-out forwards;
-  opacity: 0;
+  animation: none;
+  opacity: 1;
 }
 
 .markdown-renderer > *:nth-child(1) { animation-delay: 0s; }

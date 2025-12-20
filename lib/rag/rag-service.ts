@@ -1,9 +1,7 @@
-/**
- * RAG (Retrieval Augmented Generation) Service
- * Enables AI to answer questions based on internal business documents
- */
-
 import { createClient } from '@/lib/supabase/client';
+import { getEmbedding } from '@/lib/llm/embeddings';
+import { cookies } from 'next/headers';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 interface Document {
   id: string;
@@ -19,32 +17,11 @@ interface RAGContext {
 }
 
 /**
- * Generate embedding for text using a simple approach
- * Note: In production, use OpenAI embeddings or similar service
+ * Generate embedding for text
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
-  try {
-    // Option 1: Use Supabase Edge Function for embeddings
-    // Option 2: Use OpenAI embeddings API
-    // For now, we'll create a placeholder that can be replaced
-    
-    const response = await fetch('/api/embeddings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    
-    if (!response.ok) {
-      console.warn('Embedding API not available, skipping RAG');
-      return null;
-    }
-    
-    const data = await response.json();
-    return data.embedding;
-  } catch (err) {
-    console.error('Embedding generation error:', err);
-    return null;
-  }
+  // Use the server-side utility
+  return await getEmbedding(text);
 }
 
 /**
@@ -57,10 +34,17 @@ export async function searchRelevantDocuments(
     matchThreshold?: number;
     matchCount?: number;
     docTypes?: string[];
+    ids?: string[];
   } = {}
 ): Promise<Document[]> {
   try {
-    const supabase = createClient();
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      supabase = createClient();
+    }
     
     // Generate embedding for the query
     const embedding = await generateEmbedding(query);
@@ -77,6 +61,13 @@ export async function searchRelevantDocuments(
       match_count: options.matchCount || 5,
       filter_user_id: options.userId || null
     });
+
+    if (options.ids && options.ids.length > 0) {
+      // Manual filter in code if rpc doesn't support it directly
+      // Or we can add it to rpc if we have access to database schema
+      const filtered = (data || []).filter((doc: any) => options.ids?.includes(doc.id));
+      return filtered;
+    }
     
     if (error) {
       console.error('Vector search error:', error);
@@ -102,7 +93,13 @@ async function textBasedSearch(
   } = {}
 ): Promise<Document[]> {
   try {
-    const supabase = createClient();
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      supabase = createClient();
+    }
     
     let queryBuilder = supabase
       .from('documents')
@@ -138,16 +135,63 @@ async function textBasedSearch(
 
 /**
  * Build RAG context from relevant documents
+ * 🔧 FIX: Increased content limit and added direct ID fetch
  */
 export async function buildRAGContext(
   query: string,
-  userId?: string
+  userId?: string,
+  ids?: string[]
 ): Promise<RAGContext> {
+  console.log('📚 [RAG] Building context...', { query: query.substring(0, 50), userId, ids });
+  
+  // 🔧 PRIORITY PATH: If specific document IDs are provided, fetch them DIRECTLY
+  // This bypasses vector search which may fail to match
+  if (ids && ids.length > 0) {
+    console.log('📚 [RAG] Fetching documents by ID:', ids);
+    const directDocs = await fetchDocumentsByIds(ids, userId);
+    
+    if (directDocs.length > 0) {
+      console.log(`✅ [RAG] Found ${directDocs.length} documents by direct ID fetch`);
+      
+      // Build context with MUCH MORE content for data files
+      const contextText = directDocs
+        .map((doc, index) => {
+          // For data files (CSV, spreadsheet), include up to 15000 chars
+          const isDataFile = /\.(csv|xlsx?|txt)$/i.test(doc.title) || 
+                            doc.content.includes('[Kolom:') ||
+                            doc.content.includes('[Data dari');
+          const maxLength = isDataFile ? 15000 : 4000;
+          const truncated = doc.content.length > maxLength;
+          const content = doc.content.substring(0, maxLength);
+          
+          return `[Document ${index + 1}: ${doc.title}]\n${content}${truncated ? '\n\n... [Konten dipotong karena terlalu panjang]' : ''}`;
+        })
+        .join('\n\n---\n\n');
+      
+      return {
+        documents: directDocs,
+        contextText: `
+📄 DATA DOKUMEN YANG DI-UPLOAD USER (GUNAKAN DATA INI UNTUK MENJAWAB):
+
+${contextText}
+
+---
+⚠️ PENTING: Jawab HANYA berdasarkan data di atas. JANGAN mengarang angka atau fakta.
+`,
+        hasRelevantDocs: true
+      };
+    }
+  }
+  
+  // Fallback: Vector/text search for general queries
   const documents = await searchRelevantDocuments(query, {
     userId,
-    matchThreshold: 0.65,
-    matchCount: 3
+    matchThreshold: 0.5, // 🔧 Lowered threshold for better recall
+    matchCount: 3,
+    ids
   });
+  
+  console.log(`📚 [RAG] Vector search found ${documents.length} documents`);
   
   if (documents.length === 0) {
     return {
@@ -157,10 +201,14 @@ export async function buildRAGContext(
     };
   }
   
-  // Build context text from documents
+  // Build context text from documents with increased limit
   const contextText = documents
     .map((doc, index) => {
-      return `[Document ${index + 1}: ${doc.title}]\n${doc.content.substring(0, 1000)}${doc.content.length > 1000 ? '...' : ''}`;
+      const isDataFile = /\.(csv|xlsx?|txt)$/i.test(doc.title) || 
+                        doc.content.includes('[Kolom:');
+      const maxLength = isDataFile ? 15000 : 4000;
+      const truncated = doc.content.length > maxLength;
+      return `[Document ${index + 1}: ${doc.title}]\n${doc.content.substring(0, maxLength)}${truncated ? '\n... [Truncated]' : ''}`;
     })
     .join('\n\n---\n\n');
   
@@ -179,6 +227,58 @@ Gunakan informasi di atas untuk menjawab pertanyaan user jika relevan.
 }
 
 /**
+ * Fetch documents directly by IDs (bypasses vector search)
+ */
+async function fetchDocumentsByIds(ids: string[], userId?: string): Promise<Document[]> {
+  console.log('🔍 [RAG] fetchDocumentsByIds called with:', { ids, userId });
+  
+  try {
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      supabase = createClient();
+    }
+    
+    // Simple query - just fetch by ID without user filter
+    // (RLS on Supabase should handle access control)
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, title, content, user_id')
+      .in('id', ids);
+    
+    if (error) {
+      console.error('❌ [RAG] Direct fetch error:', error);
+      return [];
+    }
+    
+    console.log(`📚 [RAG] Direct fetch returned ${data?.length || 0} documents`);
+    
+    // Log first 200 chars of each document content for debugging
+    if (data && data.length > 0) {
+      data.forEach((doc: any, i: number) => {
+        console.log(`📄 [RAG] Doc ${i + 1}: ${doc.title}`);
+        console.log(`   Content preview: ${(doc.content || '').substring(0, 200)}...`);
+        console.log(`   Content length: ${(doc.content || '').length} chars`);
+      });
+    } else {
+      console.warn('⚠️ [RAG] No documents found for IDs:', ids);
+    }
+    
+    return (data || []).map((doc: any) => ({
+      id: doc.id,
+      title: doc.title,
+      content: doc.content || '',
+      similarity: 1.0
+    }));
+  } catch (err) {
+    console.error('❌ [RAG] Direct fetch error:', err);
+    return [];
+  }
+}
+
+/**
  * Add document to RAG database
  */
 export async function addDocument(
@@ -192,20 +292,31 @@ export async function addDocument(
   } = {}
 ): Promise<string | null> {
   try {
-    const supabase = createClient();
+    // Use Server Client if possible (to respect RLS)
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      // Fallback for non-Next environment
+      supabase = createClient();
+    }
     
-    // Generate embedding for the content
+    // Generate embedding for the content (Gemini has a limit, getEmbedding handles truncation)
     const embedding = await generateEmbedding(content);
     
     // Chunk content for better retrieval
     const chunks = chunkContent(content, 500);
     
+    // Safety: Limit content size for database column (Postgres TEXT is large, but let's be sane)
+    const safeContent = content.length > 100000 ? content.substring(0, 100000) + "... [Truncated]" : content;
+
     const { data, error } = await supabase
       .from('documents')
       .insert({
         user_id: userId,
         title,
-        content,
+        content: safeContent,
         content_chunks: chunks,
         embedding: embedding,
         doc_type: options.docType || 'general',
@@ -284,7 +395,13 @@ export async function listDocuments(
   options: { includePublic?: boolean; docType?: string } = {}
 ): Promise<any[]> {
   try {
-    const supabase = createClient();
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      supabase = createClient();
+    }
     
     let queryBuilder = supabase
       .from('documents')

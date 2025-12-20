@@ -12,7 +12,7 @@ import { extractMultipleSymbols, isMarketDataRequest } from '../chart-generator'
 import { extractCandidateTokens, resolveCrypto, resolveStock } from '@/lib/market/asset-resolver';
 import { getStructuredPrompt } from '../structured-output';
 import { generateMarketVisualization } from '../chart-generator';
-import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules } from '../ai-request-router';
+import { AIRequestContext, AIRequestResponse, RequestMode, getGlobalPromptRules, detectLanguage } from '../ai-request-router';
 import { parseFunctionCall, formatFunctionsForPrompt, DISPLAY_COMPARISON_CHART_FUNCTION } from '../function-calling';
 
 /**
@@ -137,10 +137,10 @@ ${indicators.trend === 'bullish' ? 'Dapat dipertimbangkan untuk monitoring lebih
  * Generate Technical Analysis Prompt for LLaMA
  */
 function getTechPrompt(marketData: any, indicators: any, preprocessed: any, assetType: 'crypto' | 'stock' = 'crypto', userMessage?: string): string {
-  // Detect language from user message
-  const isIndonesian = userMessage ? /[aku|saya|kamu|gimana|bagaimana|tolong|bisa|mau|ingin|punya|dengan|untuk|biar|jelasin|jelaskan|dasar|teori|budget|juta|marketing|alokasi|efektif|tampilkan|chart|grafik|analisis]/i.test(userMessage) : true;
-  const isEnglish = userMessage ? /^[a-zA-Z\s.,!?'"-]+$/.test(userMessage.trim().substring(0, 100)) : false;
-  const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : (isEnglish ? 'English' : 'Bahasa Indonesia (default)');
+  // Detect language from user message using centralized utility
+  const languageCode = detectLanguage(userMessage || '');
+  const isIndonesian = languageCode === 'id';
+  const detectedLanguage = isIndonesian ? 'Bahasa Indonesia' : 'English';
   
   const langNote = `
 
@@ -1072,10 +1072,13 @@ export async function processMarketAnalysis(
     console.log('🤖 [Market Handler] Step 5: Requesting LLM analysis...');
     const llmProvider = getLLMProvider();
     
+    // Detect language using utility
+    const language = detectLanguage(context.message || '');
+    
     // Use structured prompt for chart generation if needed
     const structuredPrompt = getStructuredPrompt(true, symbol, type, marketInfo.chartType);
     const techPrompt = getTechPrompt(marketData, indicators, preprocessed, type, context.message);
-    const globalRules = getGlobalPromptRules();
+    const globalRules = getGlobalPromptRules(language);
 
     // Simplify prompt - prioritize tech analysis over structured output
     // Use tech prompt as primary, structured prompt only for JSON format guidance

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -31,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Download, Loader2 } from 'lucide-react';
 import CandlestickChart from './CandlestickChart';
 import CoinGeckoWidgetChart from './CoinGeckoWidgetChart';
 import TradingViewWidget from './TradingViewWidget';
@@ -157,7 +157,59 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
   }
   // 🎨 Chart type toggle (bar ↔ line)
   const [chartTypeOverride, setChartTypeOverride] = useState<'bar' | 'line' | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const effectiveChartType = chartTypeOverride || chart.type;
+
+  // 📥 Download chart as PNG
+  const handleDownloadChart = async () => {
+    if (!chartContainerRef.current || isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    // Small delay to allow UI to update
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    try {
+      // Dynamic import html2canvas to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Clone the element to modify without affecting the UI
+      const element = chartContainerRef.current;
+      
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#0a0a0b',
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        removeContainer: true,
+        // Ignore control buttons
+        ignoreElements: (el) => {
+          return el.hasAttribute('data-html2canvas-ignore') || 
+                 el.classList.contains('chart-controls');
+        },
+      });
+      
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `oxen-chart-${chart.title?.replace(/\s+/g, '-').toLowerCase() || 'chart'}-${Date.now()}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }
+        setIsDownloading(false);
+      }, 'image/png', 1.0);
+    } catch (error) {
+      console.error('Failed to download chart:', error);
+      setIsDownloading(false);
+    }
+  };
   
   // 📈 Trend detection for primary series
   const detectTrend = (dataKey: string): 'up' | 'down' | 'neutral' => {
@@ -939,7 +991,9 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
   }
 
   return (
-    <Card className={cn(
+    <div ref={chartContainerRef}>
+    <Card 
+      className={cn(
       "my-0 max-w-4xl mx-auto",
       "bg-gradient-to-br from-black/60 via-black/40 to-black/60",
       "backdrop-blur-xl border border-cyan-500/20",
@@ -948,74 +1002,102 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
       "transition-all duration-300",
       "relative overflow-hidden"
     )}>
-      {/* Animated gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+      {/* Animated gradient overlay - hidden in download */}
+      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" data-html2canvas-ignore="true" />
       
       {chart.title && (
         <CardHeader className="relative pb-4 pt-6 px-6 border-b border-cyan-500/20">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-subtitle text-cyan-400 font-semibold tracking-wide">
-                {chart.title}
-              </CardTitle>
-              {/* Trend Badge */}
-              {primaryChangePercent !== 0 && chart.type !== 'pie' && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "gap-1 font-mono text-xs",
-                    primaryTrend === 'up' && "text-green-500 bg-green-500/10 border-green-500/20",
-                    primaryTrend === 'down' && "text-red-500 bg-red-500/10 border-red-500/20",
-                    primaryTrend === 'neutral' && "text-gray-400 bg-gray-500/10 border-gray-500/20"
-                  )}
-                >
-                  {primaryTrend === 'up' && <TrendingUp className="h-3.5 w-3.5" />}
-                  {primaryTrend === 'down' && <TrendingDown className="h-3.5 w-3.5" />}
-                  {primaryTrend === 'neutral' && <Minus className="h-3.5 w-3.5" />}
-                  <span>{primaryTrend === 'up' ? '+' : ''}{primaryChangePercent.toFixed(1)}%</span>
-                </Badge>
-              )}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" data-html2canvas-ignore="true" />
+          
+          {/* Top row: Title, Badge, and Controls */}
+          <div className="flex items-start justify-between gap-4">
+            {/* Left side: Title and Badge */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-subtitle text-cyan-400 font-semibold tracking-wide">
+                  {chart.title}
+                </CardTitle>
+                {/* Trend Badge */}
+                {primaryChangePercent !== 0 && chart.type !== 'pie' && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "gap-1 font-mono text-xs",
+                      primaryTrend === 'up' && "text-green-500 bg-green-500/10 border-green-500/20",
+                      primaryTrend === 'down' && "text-red-500 bg-red-500/10 border-red-500/20",
+                      primaryTrend === 'neutral' && "text-gray-400 bg-gray-500/10 border-gray-500/20"
+                    )}
+                  >
+                    {primaryTrend === 'up' && <TrendingUp className="h-3.5 w-3.5" />}
+                    {primaryTrend === 'down' && <TrendingDown className="h-3.5 w-3.5" />}
+                    {primaryTrend === 'neutral' && <Minus className="h-3.5 w-3.5" />}
+                    <span>{primaryTrend === 'up' ? '+' : ''}{primaryChangePercent.toFixed(1)}%</span>
+                  </Badge>
+                )}
+              </div>
+              {/* Unit label - visible in download */}
+              <CardDescription className="text-xs text-gray-500">
+                Dalam Rupiah (IDR)
+              </CardDescription>
             </div>
             
-            {/* Chart Type Toggle */}
-            {(chart.type === 'bar' || chart.type === 'line') && (
-              <div className="flex items-center gap-1 bg-black/30 rounded-lg p-1 border border-cyan-500/20">
-                <button
-                  onClick={() => setChartTypeOverride('bar')}
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-md transition-all duration-200",
-                    effectiveChartType === 'bar' 
-                      ? "bg-cyan-500/20 text-cyan-400 font-medium" 
-                      : "text-gray-400 hover:text-gray-300"
-                  )}
-                >
-                  Bar
-                </button>
-                <button
-                  onClick={() => setChartTypeOverride('line')}
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-md transition-all duration-200",
-                    effectiveChartType === 'line' 
-                      ? "bg-cyan-500/20 text-cyan-400 font-medium" 
-                      : "text-gray-400 hover:text-gray-300"
-                  )}
-                >
-                  Line
-                </button>
-              </div>
-            )}
+            {/* Right side: Controls - hidden in download */}
+            <div className="flex items-center gap-2 chart-controls shrink-0" data-html2canvas-ignore="true">
+              {/* Chart Type Toggle */}
+              {(chart.type === 'bar' || chart.type === 'line') && (
+                <div className="flex items-center gap-1 bg-black/30 rounded-lg p-1 border border-cyan-500/20">
+                  <button
+                    onClick={() => setChartTypeOverride('bar')}
+                    className={cn(
+                      "px-3 py-1 text-xs rounded-md transition-all duration-200",
+                      effectiveChartType === 'bar' 
+                        ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                        : "text-gray-400 hover:text-gray-300"
+                    )}
+                  >
+                    Bar
+                  </button>
+                  <button
+                    onClick={() => setChartTypeOverride('line')}
+                    className={cn(
+                      "px-3 py-1 text-xs rounded-md transition-all duration-200",
+                      effectiveChartType === 'line' 
+                        ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                        : "text-gray-400 hover:text-gray-300"
+                    )}
+                  >
+                    Line
+                  </button>
+                </div>
+              )}
+              
+              {/* Download Button */}
+              <button
+                onClick={handleDownloadChart}
+                disabled={isDownloading}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200",
+                  "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400",
+                  "hover:bg-cyan-500/20 hover:border-cyan-500/50",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+                title="Unduh chart sebagai gambar PNG"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>{isDownloading ? 'Mengunduh...' : 'Unduh'}</span>
+              </button>
+            </div>
           </div>
-          
-          {/* Unit label */}
-          <CardDescription className="text-xs text-gray-500 mt-1">
-            Dalam Rupiah (IDR)
-          </CardDescription>
         </CardHeader>
       )}
       <CardContent className="relative px-6 pb-6 pt-6">
         {renderChart()}
       </CardContent>
     </Card>
+    </div>
   );
 }

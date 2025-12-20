@@ -758,10 +758,13 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
   };
   
   // Find all crypto mentions (case insensitive)
-  const cryptoSymbols = ['btc', 'eth', 'bnb', 'sol', 'ada', 'xrp', 'dot', 'matic', 'avax', 'doge', 'ltc', 'link', 'atom', 'trx'];
+  // 🔥 FIX: Removed 'ada', 'sol', 'dot' from short symbol detection
+  // These conflict with Indonesian words: "ada" (there is), "sol" (in solusi), "dot" (in dotcom)
+  // They will still be detected via full names: cardano, solana, polkadot
+  const cryptoSymbols = ['btc', 'eth', 'bnb', 'xrp', 'matic', 'avax', 'doge', 'ltc', 'link', 'atom', 'trx'];
   const foundSymbols = new Set<string>();
   
-  // Check for crypto symbols (improved detection)
+  // Check for crypto symbols (improved detection - excludes problematic short symbols)
   for (const sym of cryptoSymbols) {
     const regex = new RegExp(`\\b${sym}\\b`, 'i');
     const upperSym = sym.toUpperCase();
@@ -772,7 +775,8 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
   }
   
   // Also check for patterns like "BTC dan ETH", "BTC, ETH", "BTC vs ETH"
-  const cryptoPairPattern = /\b(btc|eth|sol|bnb|ada|xrp|dot|matic|avax|doge|ltc|link|atom|trx)\s*(?:,|dan|and|&|vs|versus)\s*(btc|eth|sol|bnb|ada|xrp|dot|matic|avax|doge|ltc|link|atom|trx)\b/gi;
+  // 🔥 FIX: Removed 'ada', 'sol', 'dot' from pattern - they cause false positives
+  const cryptoPairPattern = /\b(btc|eth|bnb|xrp|matic|avax|doge|ltc|link|atom|trx)\s*(?:,|dan|and|&|vs|versus)\s*(btc|eth|bnb|xrp|matic|avax|doge|ltc|link|atom|trx)\b/gi;
   let match;
   while ((match = cryptoPairPattern.exec(text)) !== null) {
     const sym1 = match[1].toUpperCase();
@@ -787,9 +791,13 @@ export function extractMultipleSymbols(text: string): Array<{ symbol: string; ty
     }
   }
   
-  // Check for crypto full names
+  // Check for crypto full names (this is the SAFE way to detect ada, sol, dot)
+  // Only detect these when explicitly mentioned by full name
   for (const [name, sym] of Object.entries(cryptoMap)) {
     const upperSym = sym.toUpperCase();
+    // Skip if it's just the short symbol (handle via explicit full name detection)
+    if (name === sym) continue;
+    
     if (textLower.includes(name) && !foundSymbols.has(upperSym)) {
       foundSymbols.add(upperSym);
       symbols.push({ symbol: upperSym, type: 'crypto' });

@@ -35,7 +35,9 @@ export interface StructuredResponse {
 /**
  * Generate prompt untuk memaksa AI return structured business chart JSON
  */
-export function getBusinessDataPrompt(query: string): string {
+export function getBusinessDataPrompt(query: string, language: 'id' | 'en' = 'en'): string {
+  const isID = language === 'id';
+  
   // Detect requested chart type from query for hints
   const isLine = /line|garis/i.test(query);
   const isPie = /pie|lingkaran/i.test(query);
@@ -49,60 +51,46 @@ export function getBusinessDataPrompt(query: string): string {
   
   // Custom instruction for comparison vs single data
   const comparisonInstruction = isComparison 
-    ? `MODE PERBANDINGAN TERDETEKSI:
-       - Gunakan "yKey" sebagai ARRAY string (contoh: ["Revenue", "Expense"] atau ["2024", "2025"]).
-       - "data" harus memiliki multiple value per kategori.
-       - "message" harus fokus pada ANALISIS GAP (selisih), Growth (pertumbuhan), dan Insight "Mengapa berbeda?".`
-    : `MODE SINGLE DATA: "yKey" cukup string tunggal.`;
+    ? (isID 
+        ? `MODE PERBANDINGAN TERDETEKSI:
+           - Gunakan "yKey" sebagai ARRAY string (contoh: ["Pendapatan", "Pengeluaran"]).
+           - "data" harus memiliki multiple value per kategori.
+           - "message" dalam Bahasa Indonesia, fokus pada analisis selisih.`
+        : `COMPARISON MODE DETECTED:
+           - Use "yKey" as an ARRAY of strings (e.g., ["Revenue", "Expense"]).
+           - "data" must have multiple values per category.
+           - "message" in English, focusing on gap analysis.`)
+    : `SINGLE DATA MODE: "yKey" is a single string.`;
 
-  return `KAMU ADALAH DATA VISUALIZATION EXPERT.
-TUGAS: Merubah data bisnis dan narasi menjadi konfigurasi JSON Chart yang siap render.
+  const role = isID ? 'KAMU ADALAH AHLI VISUALISASI DATA.' : 'YOU ARE A DATA VISUALIZATION EXPERT.';
+  const task = isID ? 'TUGAS: Merubah data bisnis menjadi konfigurasi JSON Chart.' : 'TASK: Convert business data into JSON Chart configuration.';
+  const langRule = isID ? 'JAWABAN (field "message" dan "title") HARUS 100% DALAM BAHASA INDONESIA.' : 'RESPONSE (field "message" and "title") MUST BE 100% IN ENGLISH.';
+
+  return `${role}
+${task}
+${langRule}
 
 KONTEKS USER QUERY: "${query}"
-PREFERENSI CHART: ${preferredType} (Prioritaskan ini jika cocok)
+PREFERENSI CHART: ${preferredType}
 ${comparisonInstruction}
 
 ATURAN MUTLAK (SYSTEM CRITICAL):
-1. Output WAJIB berupa JSON valid (dimulai { dan diakhiri }).
+1. Output WAJIB berupa JSON valid.
 2. JANGAN ada teks pengantar atau penutup di luar blok JSON.
-3. Pastikan angka adalah NUMBER (1000000), bukan string ("1 juta").
+3. Angka harus NUMBER (1000000), bukan string.
 
-FORMAT JSON TARGET (WAJIB IKUTI STRUKTUR INI):
+FORMAT JSON TARGET:
 {
   "action": "show_chart",
   "chart_type": "bar" | "line" | "pie" | "area", 
-  "title": "Judul Chart yang Singkat & Jelas",
-  "message": "Penjelasan/Insight naratif singkat (maks 2 paragraf) tentang data ini.",
-  "data": [
-    { "category": "Okt 2025", "Product A": 120, "Product B": 80 },
-    { "category": "Nov 2025", "Product A": 150, "Product B": 90 }
-  ],
+  "title": "Judul Chart",
+  "message": "Analisis/Insight naratif (${isID ? 'Bahasa Indonesia' : 'English'}).",
+  "data": [ ... ],
   "xKey": "category",
-  "yKey": ["Product A", "Product B"] 
+  "yKey": ["Series1", "Series2"] 
 }
 
-PENJELASAN FIELD:
-- "chart_type": Gunakan "bar" untuk perbandingan side-by-side, "line" untuk tren perbandingan.
-- "data": Array object. Kunci (keys) harus konsisten.
-- "xKey": Sumbu X (Kategori/Waktu).
-- "yKey": Sumbu Y. PENTING: Jika perbandingan, GUNAKAN ARRAY (["Series1", "Series2"]). Jika single, string biasa.
-- "message": JANGAN MENJELASKAN ULANG ANGKA. Jelaskan *Insight*: Tren naik/turun, Pemenang vs Pecundang, Anomali, dan Rekomendasi singkat.
-
-CONTOH VALID (PERBANDINGAN):
-{
-  "action": "show_chart",
-  "chart_type": "bar",
-  "title": "Pendapatan vs Pengeluaran Q4 2025",
-  "message": "Meskipun pendapatan meningkat di bulan Desember, pengeluaran juga melonjak tajam, mengakibatkan margin keuntungan menipis. Perlu efisiensi biaya operasional.",
-  "data": [
-    { "month": "Oct", "Revenue": 500, "Expense": 300 },
-    { "month": "Nov", "Revenue": 650, "Expense": 400 },
-    { "month": "Dec", "Revenue": 900, "Expense": 850 }
-  ],
-  "xKey": "month",
-  "yKey": ["Revenue", "Expense"]
-}
-`;
+PENTING: Field "message" JANGAN MENJELASKAN ULANG ANGKA. Jelaskan insight, tren, dan rekomendasi.`;
 }
 
 /**
