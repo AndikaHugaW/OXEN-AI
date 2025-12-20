@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, BarChart3, TrendingUp, FileText, ArrowUp, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell, Reply, MessageCircle, ChevronRight, ThumbsUp, ThumbsDown, FileUp, Search, Image as ImageIcon, Globe, CheckCircle2, AlertCircle, Loader2, RotateCcw, Copy, Download, ZoomIn, RefreshCw, Paintbrush } from 'lucide-react';
+import { Plus, BarChart3, TrendingUp, FileText, ArrowUp, Sparkles, X, Paperclip, Mic, Settings, Grid3x3, PieChart, Activity, Share2, Bell, Reply, MessageCircle, ChevronRight, ChevronDown, ThumbsUp, ThumbsDown, FileUp, Search, Image as ImageIcon, Globe, CheckCircle2, AlertCircle, Loader2, RotateCcw, Copy, Download, ZoomIn, RefreshCw, Paintbrush, Check } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChartRenderer, { ChartData } from './ChartRenderer';
 import DataTable, { TableData } from './DataTable';
@@ -22,6 +22,11 @@ interface Message {
   charts?: ChartData[]; // Support multiple charts
   table?: TableData;
   imageUrl?: string;
+  imageMeta?: {  // For image rating system
+    seed: number;
+    style: string;
+    originalPrompt: string;
+  };
   replyTo?: { // Reply reference
     id: string;
     content: string;
@@ -52,6 +57,8 @@ export default function ChatInterface() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isImageGenEnabled, setIsImageGenEnabled] = useState(false);
+  const [imageStyle, setImageStyle] = useState<'portrait' | 'product' | 'cinematic' | 'anime' | 'business' | 'minimalist' | 'infographic'>('portrait');
+  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{id: string, name: string, size?: number, ext?: string}[]>([]);
   const [storedDocuments, setStoredDocuments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -599,6 +606,90 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
       let messageToSend = messageContent;
       if (activeReplyTo) {
         messageToSend = `[Merespons pesan ${activeReplyTo.role === 'user' ? 'saya' : 'AI'}: "${activeReplyTo.content}"]\n\n${messageContent}`;
+      }
+
+      // 🎨 SHORTCUT: If image mode is enabled, directly call image-gen API
+      if (isImageGenEnabled) {
+        console.log('🎨 [Image Mode] Generating image directly...');
+        console.log('   Style:', imageStyle);
+        setIsLoading(true);
+        
+        try {
+          const imageResponse = await fetch('/api/image-gen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              prompt: messageContent,
+              style: imageStyle,
+              aspectRatio: '16:9' // Default landscape for presentations
+            }),
+          });
+          
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            if (imageData.success && imageData.imageUrl) {
+              console.log('✅ [Image Mode] Image generated:', imageData.imageUrl.substring(0, 100));
+              
+              // Get style label
+              const styleLabels: Record<string, string> = {
+                portrait: '👤 Portrait',
+                product: '📦 Produk',
+                cinematic: '🎬 Cinematic',
+                anime: '🎨 Anime',
+                business: '💼 Bisnis',
+                minimalist: '✨ Minimalis',
+                infographic: '📊 Infografis'
+              };
+              
+              // Generate seed for reproducibility
+              const seed = Math.floor(Math.random() * 999999999);
+              
+              // Create assistant message with image + rating system metadata
+              const imageMessage: Message = {
+                id: Date.now().toString(),
+                role: 'assistant',
+                content: `🎨 **Gambar Berhasil Dibuat!**\n\n**Deskripsi:** "${messageContent}"\n**Gaya:** ${styleLabels[imageStyle] || imageStyle}`,
+                timestamp: new Date(),
+                imageUrl: imageData.imageUrl,
+                imageMeta: {
+                  seed: seed,
+                  style: imageStyle,
+                  originalPrompt: messageContent
+                }
+              };
+              
+              setMessages(prev => [...prev, imageMessage]);
+              setIsLoading(false);
+              return; // Exit early - image is generated
+            }
+          }
+          
+          // If image generation failed, show error
+          const errorData = await imageResponse.json().catch(() => ({ error: 'Unknown error' }));
+          const errorMessage: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `⚠️ Maaf, terjadi kendala saat membuat gambar.\n\nError: ${errorData.error || 'Gagal terhubung ke image generator'}\n\nSilakan coba lagi dengan deskripsi yang berbeda.`,
+            timestamp: new Date(),
+          };
+          
+          setMessages(prev => [...prev, errorMessage]);
+          setIsLoading(false);
+          return;
+          
+        } catch (imgError: any) {
+          console.error('❌ [Image Mode] Error:', imgError);
+          const errorMessage: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `⚠️ Gagal membuat gambar: ${imgError.message || 'Error tidak diketahui'}\n\nSilakan coba lagi.`,
+            timestamp: new Date(),
+          };
+          
+          setMessages(prev => [...prev, errorMessage]);
+          setIsLoading(false);
+          return;
+        }
       }
 
       let response: Response;
@@ -1169,13 +1260,33 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
         // 🎨 IMAGE GENERATION: If user requested image AND isImageGenEnabled, generate it
         const lowerInput = input.toLowerCase();
         const wantsImage = isImageGenEnabled && (
+          // Common patterns
           lowerInput.includes('buat gambar') || 
           lowerInput.includes('buatkan gambar') || 
+          lowerInput.includes('buatkan saya gambar') ||
           lowerInput.includes('generate image') ||
-          lowerInput.includes('visualisasi') ||
+          lowerInput.includes('create image') ||
+          // Illustration patterns (with typo handling: illustrasi vs ilustrasi)
           lowerInput.includes('ilustrasi') ||
+          lowerInput.includes('illustrasi') ||
+          lowerInput.includes('buat ilustrasi') ||
+          lowerInput.includes('buat illustrasi') ||
           lowerInput.includes('buatkan ilustrasi') ||
-          lowerInput.includes('gambar untuk')
+          lowerInput.includes('buatkan illustrasi') ||
+          lowerInput.includes('buatkan saya ilustrasi') ||
+          lowerInput.includes('buatkan saya illustrasi') ||
+          // Visual/picture patterns
+          lowerInput.includes('gambar untuk') ||
+          lowerInput.includes('gambarkan') ||
+          lowerInput.includes('visualkan') ||
+          lowerInput.includes('buat visual') ||
+          // Simple triggers when in image mode
+          lowerInput.includes('gambar') ||
+          lowerInput.includes('foto') ||
+          lowerInput.includes('desain') ||
+          lowerInput.includes('logo') ||
+          lowerInput.includes('poster') ||
+          lowerInput.includes('banner')
         );
         
         if (wantsImage && !finalAssistantMessage.imageUrl) {
@@ -1541,101 +1652,6 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                             )}
                           </div>
                         )}
-
-                        {/* Generated Image Rendering with Action Buttons */}
-                        {message.imageUrl && (
-                          <div className="mb-4 rounded-xl overflow-hidden animate-fade-in group relative bg-gradient-to-b from-purple-500/5 to-transparent border border-purple-500/20">
-                            {/* Image Badge */}
-                            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full border border-purple-500/30">
-                              <Paintbrush className="w-3 h-3 text-purple-400" />
-                              <span className="text-[10px] font-medium text-purple-300 uppercase tracking-wider">AI Generated</span>
-                            </div>
-                            
-                            {/* Image Container */}
-                            <div className="relative">
-                              <img
-                                src={message.imageUrl}
-                                alt="AI Generated Image"
-                                className="w-full h-auto rounded-lg cursor-pointer hover:opacity-95 transition-opacity"
-                                onClick={() => setLightboxImage(message.imageUrl || null)}
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                              
-                              {/* Action Buttons Overlay - Appears on Hover */}
-                              <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <div className="flex items-center justify-center gap-2">
-                                  {/* Zoom Button */}
-                                  <button
-                                    onClick={() => setLightboxImage(message.imageUrl || null)}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg border border-white/20 text-white text-xs font-medium transition-all hover:scale-105"
-                                    title="Perbesar gambar"
-                                  >
-                                    <ZoomIn className="w-3.5 h-3.5" />
-                                    <span>Perbesar</span>
-                                  </button>
-                                  
-                                  {/* Download Button */}
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const imageUrl = message.imageUrl;
-                                        if (!imageUrl) return;
-                                        
-                                        // For data URLs, convert to blob
-                                        if (imageUrl.startsWith('data:')) {
-                                          const response = await fetch(imageUrl);
-                                          const blob = await response.blob();
-                                          const url = window.URL.createObjectURL(blob);
-                                          const link = document.createElement('a');
-                                          link.href = url;
-                                          link.download = `oxen-ai-image-${Date.now()}.png`;
-                                          document.body.appendChild(link);
-                                          link.click();
-                                          document.body.removeChild(link);
-                                          window.URL.revokeObjectURL(url);
-                                        } else {
-                                          // For external URLs, open in new tab (due to CORS)
-                                          window.open(imageUrl, '_blank');
-                                        }
-                                        setToast({ type: 'success', message: 'Gambar berhasil diunduh!' });
-                                      } catch (error) {
-                                        console.error('Download error:', error);
-                                        setToast({ type: 'error', message: 'Gagal mengunduh gambar' });
-                                      }
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 backdrop-blur-md rounded-lg border border-purple-500/30 text-purple-300 text-xs font-medium transition-all hover:scale-105"
-                                    title="Unduh gambar"
-                                  >
-                                    <Download className="w-3.5 h-3.5" />
-                                    <span>Unduh</span>
-                                  </button>
-                                  
-                                  {/* Regenerate Button */}
-                                  <button
-                                    onClick={() => {
-                                      // Find the user message before this assistant message and use it as prompt
-                                      const msgIndex = messages.findIndex(m => m.id === message.id);
-                                      if (msgIndex > 0) {
-                                        const userMsg = messages[msgIndex - 1];
-                                        if (userMsg && userMsg.role === 'user') {
-                                          setInput(userMsg.content);
-                                          setIsImageGenEnabled(true);
-                                        }
-                                      }
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg border border-white/20 text-white text-xs font-medium transition-all hover:scale-105"
-                                    title="Buat ulang dengan prompt yang sama"
-                                  >
-                                    <RefreshCw className="w-3.5 h-3.5" />
-                                    <span>Buat Ulang</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                         {message.chart ? (
                           <div className="mb-4 -mx-6 animate-fade-in">
                             <ChartRenderer chart={message.chart} />
@@ -1659,11 +1675,155 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                           </div>
                         )}
 
+                        {/* Generated Image with Rating System - Only for assistant messages */}
+                        {message.role === 'assistant' && message.imageUrl && (
+                          <div className="mb-4 animate-fade-in">
+                            {/* Image Container */}
+                            <div 
+                              className="relative group cursor-pointer rounded-xl overflow-hidden border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+                              onClick={() => setLightboxImage(message.imageUrl || null)}
+                            >
+                              <img 
+                                src={message.imageUrl} 
+                                alt="Generated image"
+                                className="w-full max-w-2xl rounded-xl shadow-lg"
+                                loading="lazy"
+                              />
+                              {/* Zoom overlay */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <ZoomIn className="w-8 h-8 text-white" />
+                              </div>
+                            </div>
+
+                            {/* Rating System UI */}
+                            {message.imageMeta && (
+                              <div className="mt-4 p-4 bg-[#1a1a24]/80 rounded-xl border border-cyan-500/20">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="text-sm text-cyan-300">⭐ Bagaimana hasilnya?</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {/* Good Button */}
+                                  <button
+                                    onClick={() => {
+                                      setToast({ type: 'success', message: '✨ Tersimpan! Prompt dan seed disimpan.' });
+                                      setTimeout(() => setToast(null), 3000);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg
+                                               bg-green-500/10 border border-green-500/30
+                                               text-green-400 text-sm font-medium
+                                               hover:bg-green-500/20 hover:border-green-500/50
+                                               transition-all"
+                                  >
+                                    <ThumbsUp className="w-4 h-4" />
+                                    <span>Good</span>
+                                  </button>
+
+                                  {/* Improve Button */}
+                                  <button
+                                    onClick={async () => {
+                                      if (!message.imageMeta) return;
+                                      setToast({ type: 'success', message: '✨ Meningkatkan kualitas gambar...' });
+                                      
+                                      // Call API with improve mode
+                                      const response = await fetch('/api/image-gen', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          prompt: message.imageMeta.originalPrompt,
+                                          style: message.imageMeta.style,
+                                          seed: message.imageMeta.seed,
+                                          improveMode: true
+                                        }),
+                                      });
+                                      
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        if (data.success && data.imageUrl) {
+                                          // Update message with improved image
+                                          setMessages(prev => prev.map(m => 
+                                            m.id === message.id 
+                                              ? { ...m, imageUrl: data.imageUrl, content: m.content + '\n\n✨ *Gambar ditingkatkan!*' }
+                                              : m
+                                          ));
+                                        }
+                                      }
+                                      setTimeout(() => setToast(null), 3000);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg
+                                               bg-blue-500/10 border border-blue-500/30
+                                               text-blue-400 text-sm font-medium
+                                               hover:bg-blue-500/20 hover:border-blue-500/50
+                                               transition-all"
+                                  >
+                                    <Sparkles className="w-4 h-4" />
+                                    <span>Improve</span>
+                                  </button>
+
+                                  {/* Regenerate Button */}
+                                  <button
+                                    onClick={async () => {
+                                      if (!message.imageMeta) return;
+                                      setToast({ type: 'success', message: '🔄 Membuat ulang gambar...' });
+                                      
+                                      // Call API with new seed
+                                      const response = await fetch('/api/image-gen', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          prompt: message.imageMeta.originalPrompt,
+                                          style: message.imageMeta.style,
+                                          // No seed = new random seed
+                                        }),
+                                      });
+                                      
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        if (data.success && data.imageUrl) {
+                                          // Update message with new image
+                                          setMessages(prev => prev.map(m => 
+                                            m.id === message.id 
+                                              ? { 
+                                                  ...m, 
+                                                  imageUrl: data.imageUrl, 
+                                                  content: m.content + '\n\n🔄 *Gambar dibuat ulang!*',
+                                                  imageMeta: { ...m.imageMeta!, seed: Math.floor(Math.random() * 999999999) }
+                                                }
+                                              : m
+                                          ));
+                                        }
+                                      }
+                                      setTimeout(() => setToast(null), 3000);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg
+                                               bg-cyan-500/10 border border-cyan-500/30
+                                               text-cyan-400 text-sm font-medium
+                                               hover:bg-cyan-500/20 hover:border-cyan-500/50
+                                               transition-all"
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                    <span>Regenerate</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {message.role === 'assistant' ? (
-                          <MarkdownRenderer 
-                            content={message.content} 
-                            className={`leading-relaxed ${(message.chart || (message.charts && message.charts.length > 0) || message.table) ? 'mt-6' : ''}`}
-                          />
+                          // Don't render content that duplicates image (avoid double image)
+                          message.imageUrl ? (
+                            <div className="text-sm text-gray-400 mt-2">
+                              {/* Just show the text description, not markdown that might contain image */}
+                              <p className="font-medium text-white mb-1">🎨 Gambar Berhasil Dibuat!</p>
+                              <p><span className="text-gray-500">Deskripsi:</span> {message.imageMeta?.originalPrompt || 'Image generated'}</p>
+                              <p><span className="text-gray-500">Gaya:</span> {message.imageMeta?.style || 'auto'}</p>
+                            </div>
+                          ) : (
+                            <MarkdownRenderer 
+                              content={message.content} 
+                              className={`leading-relaxed ${(message.chart || (message.charts && message.charts.length > 0) || message.table) ? 'mt-6' : ''}`}
+                            />
+                          )
                         ) : (
                           <p className="whitespace-pre-wrap leading-relaxed">
                             {message.content}
@@ -1898,7 +2058,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                       className={cn(
                         "w-full px-6 py-5 pr-24 bg-[#18181b] rounded-2xl focus:outline-none focus:ring-1 text-white transition-all text-lg",
                         isImageGenEnabled 
-                          ? "placeholder-purple-400/60 focus:ring-purple-500/40" 
+                          ? "placeholder-cyan-400/60 focus:ring-cyan-500/40" 
                           : "placeholder-cyan-400/50 focus:ring-cyan-500/30"
                       )}
                       disabled={isLoading}
@@ -1982,8 +2142,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       isImageGenEnabled 
-                        ? "bg-purple-500/20 border-purple-500/60 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.4)]" 
-                        : "bg-purple-500/5 border-purple-500/30 text-purple-400/80 hover:bg-purple-500/10 hover:border-purple-400/60"
+                        ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
+                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
                     )}
                     title={isImageGenEnabled ? "Klik untuk kembali ke mode chat" : "Aktifkan untuk membuat gambar AI"}
                   >
@@ -1994,6 +2154,103 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     )}
                     <span>{isImageGenEnabled ? 'Mode: Gambar' : 'Buat Gambar'}</span>
                   </button>
+
+                  {/* Style Selector - shows when image mode is enabled */}
+                  {isImageGenEnabled && (
+                    <div className="relative">
+                      {/* Trigger Button */}
+                      <button
+                        onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl
+                                   bg-cyan-500/10
+                                   border border-cyan-500/30 hover:border-cyan-400/60
+                                   text-cyan-300 text-sm font-medium
+                                   transition-all duration-200"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        <span>
+                          {imageStyle === 'portrait' && 'Portrait'}
+                          {imageStyle === 'product' && 'Produk'}
+                          {imageStyle === 'cinematic' && 'Cinematic'}
+                          {imageStyle === 'anime' && 'Anime'}
+                          {imageStyle === 'business' && 'Bisnis'}
+                          {imageStyle === 'minimalist' && 'Minimalis'}
+                          {imageStyle === 'infographic' && 'Infografis'}
+                        </span>
+                        <ChevronDown className={cn(
+                          "w-4 h-4 transition-transform duration-200",
+                          showStyleDropdown && "rotate-180"
+                        )} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {showStyleDropdown && (
+                        <>
+                          {/* Backdrop to close dropdown */}
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setShowStyleDropdown(false)}
+                          />
+                          
+                          {/* Dropdown Panel */}
+                          <div className="absolute bottom-full left-0 mb-2 z-50
+                                          bg-[#1a1a24]/95 backdrop-blur-xl rounded-xl
+                                          border border-cyan-500/20 shadow-xl
+                                          min-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            
+                            {/* Header */}
+                            <div className="px-4 py-2.5 border-b border-white/5">
+                              <p className="text-xs font-medium text-cyan-400/80 uppercase tracking-wider">
+                                Pilih Gaya Gambar
+                              </p>
+                            </div>
+
+                            {/* Options */}
+                            <div className="p-2 max-h-[300px] overflow-y-auto">
+                              {[
+                                { value: 'portrait', label: 'Portrait', desc: 'Foto orang/fashion' },
+                                { value: 'product', label: 'Produk', desc: 'Product photography' },
+                                { value: 'cinematic', label: 'Cinematic', desc: 'Movie/cyberpunk' },
+                                { value: 'anime', label: 'Anime', desc: 'Anime/illustration' },
+                                { value: 'business', label: 'Bisnis', desc: 'Corporate & pro' },
+                                { value: 'minimalist', label: 'Minimalis', desc: 'Clean & simple' },
+                                { value: 'infographic', label: 'Infografis', desc: 'Data & charts' },
+                              ].map((option) => (
+                                <button
+                                  key={option.value}
+                                  onClick={() => {
+                                    setImageStyle(option.value as typeof imageStyle);
+                                    setShowStyleDropdown(false);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
+                                    "transition-all duration-150",
+                                    imageStyle === option.value 
+                                      ? "bg-cyan-500/20 text-cyan-300" 
+                                      : "hover:bg-white/5 text-white/80"
+                                  )}
+                                >
+                                  <div className="flex-1 text-left">
+                                    <p className="text-sm font-medium">
+                                      {option.label}
+                                    </p>
+                                    <p className="text-xs text-white/40">{option.desc}</p>
+                                  </div>
+
+                                  {/* Check indicator */}
+                                  {imageStyle === option.value && (
+                                    <div className="w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center">
+                                      <Check className="w-2.5 h-2.5 text-white" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {uploadedFiles.length > 0 && (
                     <div className="flex items-center gap-3 px-4 py-2 bg-[#1c1c21] rounded-full border border-cyan-500/20 text-xs text-white/90 shadow-[0_4px_20px_-10px_rgba(6,182,212,0.3)] animate-fade-in group hover:border-cyan-500/50 transition-all">

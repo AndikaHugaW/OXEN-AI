@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Globe, Lock, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Globe, Lock, BookOpen, AlertCircle, Loader2, Home } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
+import Sidebar from '@/components/Sidebar';
+import Link from 'next/link';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -96,39 +98,52 @@ export default function DocumentsPage() {
   );
 
   return (
-    <div className="flex-1 h-screen overflow-hidden bg-[#09090b] text-white flex flex-col font-sans">
-      {/* Header */}
-      <header className="h-16 border-b border-[#27272a] bg-[#09090b]/80 backdrop-blur-md flex items-center justify-between px-6 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-              Knowledge Base
-            </h1>
-            <p className="text-xs text-gray-400">Manage documents for AI context</p>
-          </div>
-        </div>
-
-      </header>
+    <div className="flex h-screen overflow-hidden bg-black text-white font-sans">
+      {/* Sidebar */}
+      <Sidebar 
+        chatHistories={[]}
+        currentChatId={null}
+        onNewChat={() => {}}
+        onLoadChat={() => {}}
+        onDeleteChat={() => {}}
+        activeView="chat"
+        onViewChange={() => {}}
+      />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
-        <div className="max-w-6xl mx-auto space-y-12">
-          
-          {/* Hero Section */}
-          <section className="text-center space-y-4 animate-fade-in py-8">
-            <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
-              <BookOpen className="w-8 h-8 text-cyan-400" />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Header/Navbar */}
+        <header className="h-14 border-b border-white/5 bg-black flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/"
+              className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+              title="Kembali ke Chat"
+            >
+              <Home className="w-5 h-5" />
+            </Link>
+            <div className="w-px h-6 bg-white/10" />
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-cyan-400" />
+              <h1 className="text-lg font-semibold text-white">Knowledge Base</h1>
             </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
-              Enterprise <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Knowledge Base</span>
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
-              Upload and manage your business intelligence. This data powers the AI's understanding of your specific company policies, products, and operational procedures.
-            </p>
-          </section>
+          </div>
+          <p className="text-xs text-gray-500">Manage documents for AI context</p>
+        </header>
+
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="max-w-5xl mx-auto space-y-8">
+            
+            {/* Hero Section */}
+            <section className="text-center space-y-3 py-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                Enterprise <span className="text-cyan-400">Knowledge Base</span>
+              </h2>
+              <p className="text-gray-400 max-w-xl mx-auto text-sm">
+                Upload and manage your business intelligence. This data powers the AI's understanding of your company.
+              </p>
+            </section>
 
           {/* Search & Actions Area */}
           <div className="space-y-6">
@@ -145,9 +160,9 @@ export default function DocumentsPage() {
               </div>
               <button 
                 onClick={() => setIsUploadModalOpen(true)}
-                className="h-14 flex items-center justify-center gap-2 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-2xl shadow-lg shadow-cyan-500/20 transition-all shrink-0 active:scale-[0.98]"
+                className="h-12 flex items-center justify-center gap-2 px-6 bg-cyan-500 hover:bg-cyan-400 text-white font-medium rounded-xl transition-all shrink-0"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Add New Document
               </button>
             </div>
@@ -334,7 +349,7 @@ export default function DocumentsPage() {
               <button 
                 onClick={handleUpload}
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>
@@ -349,6 +364,7 @@ export default function DocumentsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

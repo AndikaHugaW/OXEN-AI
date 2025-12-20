@@ -236,6 +236,9 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           hr: () => (
             <hr className="my-6 border-t border-cyan-500/20" />
           ),
+          
+          // Hide images - they are rendered separately with rating system
+          img: () => null,
         }}
       >
         {cleanedContent}

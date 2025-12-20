@@ -165,13 +165,28 @@ export async function POST(request: NextRequest) {
     // Check if user is asking for image generation
     const lowerMessage = message.toLowerCase();
     const wantsImage = imageGen && (
+      // Common patterns
       lowerMessage.includes('buat gambar') || 
       lowerMessage.includes('buatkan gambar') || 
+      lowerMessage.includes('buatkan saya gambar') ||
       lowerMessage.includes('generate image') ||
-      lowerMessage.includes('visualisasi') ||
+      lowerMessage.includes('create image') ||
+      // Illustration (with typo: illustrasi vs ilustrasi)
       lowerMessage.includes('ilustrasi') ||
+      lowerMessage.includes('illustrasi') ||
       lowerMessage.includes('buatkan ilustrasi') ||
-      lowerMessage.includes('gambar untuk')
+      lowerMessage.includes('buatkan illustrasi') ||
+      lowerMessage.includes('buatkan saya ilustrasi') ||
+      lowerMessage.includes('buatkan saya illustrasi') ||
+      // Visual patterns
+      lowerMessage.includes('gambar untuk') ||
+      lowerMessage.includes('gambarkan') ||
+      // Simple triggers when image mode is on
+      lowerMessage.includes('gambar') ||
+      lowerMessage.includes('foto') ||
+      lowerMessage.includes('desain') ||
+      lowerMessage.includes('logo') ||
+      lowerMessage.includes('poster')
     );
     console.log(`🎨 [Chat API] Image Gen enabled: ${imageGen}, User wants image: ${wantsImage}`);
 
@@ -596,11 +611,21 @@ RESPONSE FORMAT:
     if (imageGen && !generatedImageUrl) {
         const needsImage = lowerMessage.includes('buat gambar') || 
                            lowerMessage.includes('buatkan gambar') ||
+                           lowerMessage.includes('buatkan saya gambar') ||
                            lowerMessage.includes('generate image') ||
-                           lowerMessage.includes('visualisasi') ||
+                           lowerMessage.includes('create image') ||
                            lowerMessage.includes('ilustrasi') ||
+                           lowerMessage.includes('illustrasi') ||
                            lowerMessage.includes('buatkan ilustrasi') ||
-                           lowerMessage.includes('gambar untuk');
+                           lowerMessage.includes('buatkan illustrasi') ||
+                           lowerMessage.includes('buatkan saya ilustrasi') ||
+                           lowerMessage.includes('buatkan saya illustrasi') ||
+                           lowerMessage.includes('gambar untuk') ||
+                           lowerMessage.includes('gambar') ||
+                           lowerMessage.includes('foto') ||
+                           lowerMessage.includes('desain') ||
+                           lowerMessage.includes('logo') ||
+                           lowerMessage.includes('poster');
         
         if (needsImage) {
             console.log('🎨 [ImageGen] Generating image for:', finalResponse.substring(0, 100));

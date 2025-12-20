@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disabled to prevent double-render in dev (causes duplicate images)
   // Use webpack instead of Turbopack to avoid ESM module issues
 
   webpack: (config, { isServer }) => {
