@@ -367,22 +367,32 @@ function chunkContent(content: string, chunkSize: number = 500): string[] {
  */
 export async function deleteDocument(userId: string, documentId: string): Promise<boolean> {
   try {
-    const supabase = createClient();
+    // Try server client first, fallback to client
+    let supabase;
+    try {
+      const cookieStore = await cookies();
+      supabase = createServerSupabaseClient(cookieStore);
+    } catch (e) {
+      supabase = createClient();
+    }
     
-    const { error } = await supabase
+    console.log(`🗑️ [RAG] Deleting document ${documentId} for user ${userId}`);
+    
+    const { error, count } = await supabase
       .from('documents')
       .delete()
       .eq('id', documentId)
       .eq('user_id', userId);
     
     if (error) {
-      console.error('Delete document error:', error);
+      console.error('❌ [RAG] Delete document error:', error);
       return false;
     }
     
+    console.log(`✅ [RAG] Document ${documentId} deleted successfully`);
     return true;
   } catch (err) {
-    console.error('Delete document error:', err);
+    console.error('❌ [RAG] Delete document error:', err);
     return false;
   }
 }
