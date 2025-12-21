@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus, MessageSquare, Clock, ChevronLeft, ChevronRight, Trash2, X, User as UserIcon, LogOut, Settings, Edit, Sparkles, Sliders, HelpCircle, PanelLeft, Bot, FileText, Activity, TrendingUp, PieChart, Sun, Moon, BookOpen, BarChart3, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ProfileEditModal from './ProfileEditModal';
+import Link from 'next/link';
 
 interface SidebarProps {
   onNewChat: () => void;
@@ -34,8 +35,16 @@ export default function Sidebar({
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
   const supabase = createClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    // Check light mode state after mount
+    setIsLightMode(document.documentElement.classList.contains('light'));
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -83,6 +92,8 @@ export default function Sidebar({
   const avatarUrl = profile?.avatar_url || 
                    user?.user_metadata?.avatar_url || 
                    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff&size=128`;
+
+  if (!mounted) return null;
 
   return (
     <>
@@ -222,27 +233,29 @@ export default function Sidebar({
             </button>
 
             {/* Knowledge Base (New) */}
-            <a
+            <Link
               href="/documents"
+              prefetch={true}
               className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
                 sidebarOpen ? 'justify-start' : 'justify-center'
               } text-cyan-200/70 hover:bg-cyan-500/10 hover:text-cyan-300`}
             >
               <BookOpen className="w-5 h-5" />
               {sidebarOpen && <span className="text-sm font-medium">Knowledge Base</span>}
-            </a>
+            </Link>
 
             {/* Admin Dashboard (Only for Admin) */}
             {isAdmin && (
-              <a
+              <Link
                 href="/admin/dashboard"
+                prefetch={true}
                 className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
                   sidebarOpen ? 'justify-start' : 'justify-center'
                 } text-orange-200/70 hover:bg-orange-500/10 hover:text-orange-300 mt-2`}
               >
                 <ShieldCheck className="w-5 h-5 text-orange-400" />
                 {sidebarOpen && <span className="text-sm font-medium text-orange-100">Admin Panel</span>}
-              </a>
+              </Link>
             )}
 
             {/* History Section Header (Visual only currently) */}
@@ -400,7 +413,7 @@ export default function Sidebar({
                           window.location.reload();
                         }}
                         className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                          document.documentElement.classList.contains('light') 
+                          isLightMode 
                             ? 'bg-cyan-500 text-black font-medium' 
                             : 'text-gray-400 hover:text-white hover:bg-[#27272a]'
                         }`}

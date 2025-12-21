@@ -12,6 +12,200 @@ import OnboardCard from './ui/onboard-card';
 import { extractDataFromUserInput, datasetToChartData } from '@/lib/llm/data-parser';
 import MarkdownRenderer from './MarkdownRenderer';
 import { cn } from '@/lib/utils';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+
+// --- Helper Components for Hero Sections ---
+
+function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+      <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
+         <Activity className="w-10 h-10 text-cyan-400" />
+      </div>
+      <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+         Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Intelligence</span>
+      </h1>
+      <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+         Real-time data analysis for stocks and crypto. 
+         Get deep insights, technical indicators, and market sentiment in seconds.
+      </p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+         {[
+           { title: "Analisis Saham", desc: "Analisis fundamental & teknikal", prompt: "Analisis saham BBCA secara lengkap" },
+           { title: "Crypto Trends", desc: "Momentum pasar & prediksi", prompt: "Tren harga Bitcoin minggu ini" },
+           { title: "Market Comparison", desc: "Bandingkan performa aset", prompt: "Bandingkan performa ETH vs SOL" }
+         ].map((item, i) => (
+           <button key={i} onClick={() => setInput(item.prompt)} 
+              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-cyan-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+              <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-center gap-3 mb-3 relative z-10">
+                 <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                    <TrendingUp className="w-4 h-4 text-cyan-400" />
+                 </div>
+                 <h3 className="font-semibold text-white">{item.title}</h3>
+              </div>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+           </button>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportGeneratorHero({ setInput, documents = [] }: { setInput: (s: string) => void, documents?: any[] }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-full py-12 text-center px-4 animate-fade-in overflow-y-auto">
+      <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mb-6 border border-indigo-500/20 shadow-[0_0_30px_-10px_rgba(99,102,241,0.3)]">
+         <FileText className="w-10 h-10 text-indigo-400" />
+      </div>
+      <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+         Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">Reports</span>
+      </h1>
+      <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+         Generate comprehensive business reports, proposals, and analysis documents tailored to your needs.
+      </p>
+
+      {documents.length > 0 && (
+        <div className="w-full max-w-5xl mb-12 text-left">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <h3 className="text-md font-semibold text-white uppercase tracking-wider">Stored Knowledge</h3>
+            </div>
+            <span className="text-xs text-gray-500">{documents.length} Dokumen Tersimpan</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {documents.slice(0, 4).map((doc, i) => (
+              <div key={i} className="group p-4 bg-[#111114] border border-white/5 rounded-xl hover:border-indigo-500/30 transition-all cursor-pointer relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Plus className="w-4 h-4 text-indigo-400" onClick={() => setInput(`Analisis mendalam terhadap dokumen "${doc.title}"`)} />
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/5 flex items-center justify-center mb-3 group-hover:bg-indigo-500/10 transition-colors">
+                  <FileText className="w-5 h-5 text-indigo-400" />
+                </div>
+                <p className="text-sm font-medium text-white line-clamp-1 mb-1">{doc.title}</p>
+                <p className="text-[10px] text-gray-500 uppercase">{doc.doc_type || 'General'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+         {[
+           { title: "Startup Analysis", desc: "Evaluate market fit & growth", prompt: "Buat laporan analisis pasar untuk startup teknologi" },
+           { title: "Monthly Report", desc: "Track KPIs and performance", prompt: "Buat laporan performa bulanan untuk klien" },
+           { title: "Business Proposal", desc: "Win new clients with data", prompt: "Buat proposal bisnis untuk proyek baru" }
+         ].map((item, i) => (
+           <button key={i} onClick={() => setInput(item.prompt)} 
+              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-indigo-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+              <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-center gap-3 mb-3 relative z-10">
+                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                    <FileText className="w-4 h-4 text-indigo-400" />
+                 </div>
+                 <h3 className="font-semibold text-white">{item.title}</h3>
+              </div>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+           </button>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function VisualizationHero({ setInput }: { setInput: (s: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+      <div className="w-20 h-20 bg-pink-500/10 rounded-3xl flex items-center justify-center mb-6 border border-pink-500/20 shadow-[0_0_30px_-10px_rgba(236,72,153,0.3)]">
+         <PieChart className="w-10 h-10 text-pink-400" />
+      </div>
+      <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+         Data <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">Visualization</span>
+      </h1>
+      <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
+         Transform raw numbers into beautiful, interactive charts. 
+         Paste your data or describe what you want to see.
+      </p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+         {[
+           { title: "Sales Overview", desc: "Visualise revenue trends", prompt: "Tampilkan grafik tren penjualan tahun ini", icon: <TrendingUp className="w-4 h-4 text-pink-400" /> },
+           { title: "Budget Allocation", desc: "Pie charts for distribution", prompt: "Buat pie chart alokasi budget marketing", icon: <PieChart className="w-4 h-4 text-pink-400" /> },
+           { title: "Comparative Data", desc: "Bar charts for comparison", prompt: "Bandingkan performa penjualan Q1 vs Q2", icon: <BarChart3 className="w-4 h-4 text-pink-400" /> }
+         ].map((item, i) => (
+           <button key={i} onClick={() => setInput(item.prompt)} 
+              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-pink-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+              <div className="absolute inset-0 bg-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-center gap-3 mb-3 relative z-10">
+                 <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
+                    {item.icon}
+                 </div>
+                 <h3 className="font-semibold text-white">{item.title}</h3>
+              </div>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+           </button>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function DefaultHero({ setInput, setActiveView }: { setInput: (s: string) => void, setActiveView: (v: any) => void }) {
+  return (
+    <div className="max-w-4xl w-full mx-auto text-center px-6 animate-fade-in">
+        <div className="mb-10 mt-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-6">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">AI Business Copilot</span>
+            </div>
+            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">
+                    Oxen
+                </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600"> AI</span>
+            </h2>
+            <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto leading-relaxed font-light">
+                Intelijen bisnis yang menggabungkan analisis dokumen, data pasar real-time, dan pelaporan otomatis dalam satu alur kerja cerdas.
+            </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-8">
+            <button onClick={() => setActiveView('market')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-cyan-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                <Activity className="w-5 h-5 text-cyan-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Market Trends</h3>
+            <p className="text-sm text-gray-500">Real-time market insights</p>
+            </button>
+
+            <button onClick={() => setActiveView('reports')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-indigo-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                <TrendingUp className="w-5 h-5 text-indigo-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Generate Reports</h3>
+            <p className="text-sm text-gray-500">Automated business reports</p>
+            </button>
+
+            <button onClick={() => setActiveView('visualization')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-pink-500/30 hover:bg-white/[0.02] transition-all text-left">
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
+                <PieChart className="w-5 h-5 text-pink-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">Data Viz</h3>
+            <p className="text-sm text-gray-500">Interactive charts</p>
+            </button>
+        </div>
+    </div>
+  );
+}
 
 interface Message {
   id?: string; // Unique ID for each message
@@ -54,6 +248,14 @@ export default function ChatInterface() {
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeView, setActiveView] = useState<'chat' | 'letter' | 'market' | 'reports' | 'visualization'>('chat');
+  
+  // Initialize view from URL if present (must be in useEffect to avoid hydration mismatch)
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view && ['chat', 'letter', 'market', 'reports', 'visualization'].includes(view)) {
+      setActiveView(view as any);
+    }
+  }, []); // Only run once on mount
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isImageGenEnabled, setIsImageGenEnabled] = useState(false);
@@ -66,9 +268,16 @@ export default function ChatInterface() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null); // For image zoom modal
+  const [mounted, setMounted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check authentication status
   useEffect(() => {
@@ -125,6 +334,23 @@ export default function ChatInterface() {
       }
     }
   }, []);
+
+  // Reactive view management from URL (for back/forward navigation)
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view && ['chat', 'letter', 'market', 'reports', 'visualization'].includes(view)) {
+      if (view !== activeView) {
+        setMessages([]);
+        setCurrentChatId(null);
+        setActiveView(view as any);
+      }
+    } else if (mounted && !view && activeView !== 'chat') {
+       // Only reset to chat if URL is explicitly empty and we have already mounted
+       setMessages([]);
+       setCurrentChatId(null);
+       setActiveView('chat');
+    }
+  }, [searchParams, mounted]); 
 
   // Handle keyboard events for lightbox
   useEffect(() => {
@@ -218,10 +444,29 @@ export default function ChatInterface() {
     }
   }, [activeView]);
 
-  // Create new chat
+  // Create new chat (internal helper)
   const createNewChat = () => {
     setMessages([]);
     setCurrentChatId(null);
+  };
+
+  // Specifically for the "New Chat" button action
+  const handleNewChatAction = () => {
+    setMessages([]);
+    setCurrentChatId(null);
+    setActiveView('chat');
+    router.push('/', { scroll: false });
+  };
+
+  // Handle view change - update state IMMEDIATELY then sync URL
+  const handleViewChange = (view: 'chat' | 'letter' | 'market' | 'reports' | 'visualization') => {
+    setMessages([]);
+    setCurrentChatId(null);
+    setActiveView(view);
+    
+    // Sync URL without triggering a full page reload or scrolling
+    const url = view === 'chat' ? '/' : `/?view=${view}`;
+    router.push(url, { scroll: false });
   };
 
   // Load chat from history
@@ -494,12 +739,12 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
   setTimeout(() => setToast(null), 4000);
 };
 
-  // Handle view change to reset chat or set initial context
+  // Handle view change to reset chat
   useEffect(() => {
     if (activeView !== 'chat' && activeView !== 'letter') {
-      createNewChat();
-      
-      // Pesan awal disesuaikan dengan fitur baru
+      // Just clear messages and chatId, but KEEP the activeView
+      setMessages([]);
+      setCurrentChatId(null);
     }
   }, [activeView]);
 
@@ -1547,6 +1792,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
     setInput(e.target.value);
   };
 
+  if (!mounted) return null;
+
   return (
     <>
       <LoginAlert 
@@ -1555,30 +1802,24 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
         onLogin={handleLoginClick}
       />
       <div className="flex h-screen overflow-hidden bg-[#09090b]">
+        {/* State Debug Indicator (Remove in production) */}
+        <div className="fixed top-0 right-0 p-1 text-[8px] text-white/5 pointer-events-none z-[1000]">
+          v:{activeView} m:{messages.length}
+        </div>
         <Sidebar
-          onNewChat={createNewChat}
+          onNewChat={handleNewChatAction}
           chatHistories={chatHistories}
           currentChatId={currentChatId}
           onLoadChat={loadChat}
           onDeleteChat={deleteChat}
           activeView={activeView}
-          onViewChange={setActiveView}
+          onViewChange={handleViewChange}
         />
         
         {activeView === 'letter' ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#09090b] relative">
-            {/* Header for Letter Generator */}
-             <div className="border-b border-[#27272a] bg-[#09090b]/80 backdrop-blur-md p-4 flex items-center justify-between z-10 sticky top-0">
-               <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-cyan-400" />
-                  <h2 className="text-lg font-semibold text-white">Letter Generator</h2>
-               </div>
-             </div>
-             
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-black relative">
              <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                <div className="max-w-5xl mx-auto">
-                  <LetterGenerator />
-                </div>
+               <LetterGenerator />
              </div>
           </div>
         ) : (
@@ -1590,7 +1831,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                   {activeView === 'market' && <MarketTrendsHero setInput={setInput} />}
                   {activeView === 'reports' && <ReportGeneratorHero setInput={setInput} documents={storedDocuments} />}
                   {activeView === 'visualization' && <VisualizationHero setInput={setInput} />}
-                  {activeView === 'chat' && <DefaultHero setInput={setInput} setActiveView={setActiveView} />}
+                  {activeView === 'chat' && <DefaultHero setInput={setInput} setActiveView={handleViewChange} />}
                 </>
               ) : (
                 <div className="max-w-5xl mx-auto px-6 space-y-6 py-6">
@@ -2390,187 +2631,3 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
 
 
-// --- Helper Components for Hero Sections ---
-
-const MarketTrendsHero = ({ setInput }: { setInput: (s: string) => void }) => (
-  <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
-    <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
-       <Activity className="w-10 h-10 text-cyan-400" />
-    </div>
-    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-       Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Intelligence</span>
-    </h1>
-    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
-       Real-time data analysis for stocks and crypto. 
-       Get deep insights, technical indicators, and market sentiment in seconds.
-    </p>
-    
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
-       {[
-         { title: "Analisis Saham", desc: "Analisis fundamental & teknikal", prompt: "Analisis saham BBCA secara lengkap" },
-         { title: "Crypto Trends", desc: "Momentum pasar & prediksi", prompt: "Tren harga Bitcoin minggu ini" },
-         { title: "Market Comparison", desc: "Bandingkan performa aset", prompt: "Bandingkan performa ETH vs SOL" }
-       ].map((item, i) => (
-         <button key={i} onClick={() => setInput(item.prompt)} 
-            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-cyan-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-            <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="flex items-center gap-3 mb-3 relative z-10">
-               <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-                  <TrendingUp className="w-4 h-4 text-cyan-400" />
-               </div>
-               <h3 className="font-semibold text-white">{item.title}</h3>
-            </div>
-            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
-         </button>
-       ))}
-    </div>
-  </div>
-);
-
-const ReportGeneratorHero = ({ setInput, documents = [] }: { setInput: (s: string) => void, documents?: any[] }) => (
-  <div className="flex flex-col items-center justify-center min-h-full py-12 text-center px-4 animate-fade-in overflow-y-auto">
-    <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mb-6 border border-indigo-500/20 shadow-[0_0_30px_-10px_rgba(99,102,241,0.3)]">
-       <FileText className="w-10 h-10 text-indigo-400" />
-    </div>
-    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-       Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">Reports</span>
-    </h1>
-    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
-       Generate comprehensive business reports, proposals, and analysis documents tailored to your needs.
-    </p>
-
-    {/* Knowledge Base Persistence - NEW Section */}
-    {documents.length > 0 && (
-      <div className="w-full max-w-5xl mb-12 text-left">
-        <div className="flex items-center justify-between mb-4 px-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <h3 className="text-md font-semibold text-white uppercase tracking-wider">Stored Knowledge</h3>
-          </div>
-          <span className="text-xs text-gray-500">{documents.length} Dokumen Tersimpan</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {documents.slice(0, 4).map((doc, i) => (
-            <div key={i} className="group p-4 bg-[#111114] border border-white/5 rounded-xl hover:border-indigo-500/30 transition-all cursor-pointer relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Plus className="w-4 h-4 text-indigo-400" onClick={() => setInput(`Analisis mendalam terhadap dokumen "${doc.title}"`)} />
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-indigo-500/5 flex items-center justify-center mb-3 group-hover:bg-indigo-500/10 transition-colors">
-                <FileText className="w-5 h-5 text-indigo-400" />
-              </div>
-              <p className="text-sm font-medium text-white line-clamp-1 mb-1">{doc.title}</p>
-              <p className="text-[10px] text-gray-500 uppercase">{doc.doc_type || 'General'}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-    
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
-       {[
-         { title: "Startup Analysis", desc: "Evaluate market fit & growth", prompt: "Buat laporan analisis pasar untuk startup teknologi" },
-         { title: "Monthly Report", desc: "Track KPIs and performance", prompt: "Buat laporan performa bulanan untuk klien" },
-         { title: "Business Proposal", desc: "Win new clients with data", prompt: "Buat proposal bisnis untuk proyek baru" }
-       ].map((item, i) => (
-         <button key={i} onClick={() => setInput(item.prompt)} 
-            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-indigo-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-            <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="flex items-center gap-3 mb-3 relative z-10">
-               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                  <FileText className="w-4 h-4 text-indigo-400" />
-               </div>
-               <h3 className="font-semibold text-white">{item.title}</h3>
-            </div>
-            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
-         </button>
-       ))}
-    </div>
-  </div>
-);
-
-const VisualizationHero = ({ setInput }: { setInput: (s: string) => void }) => (
-  <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
-    <div className="w-20 h-20 bg-pink-500/10 rounded-3xl flex items-center justify-center mb-6 border border-pink-500/20 shadow-[0_0_30px_-10px_rgba(236,72,153,0.3)]">
-       <PieChart className="w-10 h-10 text-pink-400" />
-    </div>
-    <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-       Data <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">Visualization</span>
-    </h1>
-    <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
-       Transform raw numbers into beautiful, interactive charts. 
-       Paste your data or describe what you want to see.
-    </p>
-    
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
-       {[
-         { title: "Sales Overview", desc: "Visualise revenue trends", prompt: "Tampilkan grafik tren penjualan tahun ini", icon: <TrendingUp className="w-4 h-4 text-pink-400" /> },
-         { title: "Budget Allocation", desc: "Pie charts for distribution", prompt: "Buat pie chart alokasi budget marketing", icon: <PieChart className="w-4 h-4 text-pink-400" /> },
-         { title: "Comparative Data", desc: "Bar charts for comparison", prompt: "Bandingkan performa penjualan Q1 vs Q2", icon: <BarChart3 className="w-4 h-4 text-pink-400" /> }
-       ].map((item, i) => (
-         <button key={i} onClick={() => setInput(item.prompt)} 
-            className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-pink-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-            <div className="absolute inset-0 bg-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="flex items-center gap-3 mb-3 relative z-10">
-               <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
-                  {item.icon}
-               </div>
-               <h3 className="font-semibold text-white">{item.title}</h3>
-            </div>
-            <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
-         </button>
-       ))}
-    </div>
-  </div>
-);
-
-const DefaultHero = ({ setInput, setActiveView }: { setInput: (s: string) => void, setActiveView: (v: any) => void }) => (
-    <div className="max-w-4xl w-full mx-auto text-center px-6 animate-fade-in">
-        <div className="mb-10 mt-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-6">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">AI Business Copilot</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">
-                    Oxen
-                </span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600"> AI</span>
-            </h2>
-            <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto leading-relaxed font-light">
-                Intelijen bisnis yang menggabungkan analisis dokumen, data pasar real-time, dan pelaporan otomatis dalam satu alur kerja cerdas.
-            </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-8">
-            <button onClick={() => setActiveView('market')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-cyan-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-                <Activity className="w-5 h-5 text-cyan-400" />
-                </div>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">Market Trends</h3>
-            <p className="text-sm text-gray-500">Real-time market insights</p>
-            </button>
-
-            <button onClick={() => setActiveView('reports')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-indigo-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                <TrendingUp className="w-5 h-5 text-indigo-400" />
-                </div>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">Generate Reports</h3>
-            <p className="text-sm text-gray-500">Automated business reports</p>
-            </button>
-
-            <button onClick={() => setActiveView('visualization')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-pink-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
-                <PieChart className="w-5 h-5 text-pink-400" />
-                </div>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">Data Viz</h3>
-            <p className="text-sm text-gray-500">Interactive charts</p>
-            </button>
-        </div>
-    </div>
-);

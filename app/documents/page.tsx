@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -23,6 +24,7 @@ export default function DocumentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     fetchDocuments();
@@ -97,40 +99,26 @@ export default function DocumentsPage() {
     doc.doc_type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Handle navigation from sidebar menu items
+  const handleViewChange = (view: 'chat' | 'letter' | 'market' | 'reports' | 'visualization') => {
+    router.push(`/?view=${view}`);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-black text-white font-sans">
       {/* Sidebar */}
       <Sidebar 
         chatHistories={[]}
         currentChatId={null}
-        onNewChat={() => {}}
+        onNewChat={() => { window.location.href = '/'; }}
         onLoadChat={() => {}}
         onDeleteChat={() => {}}
         activeView="chat"
-        onViewChange={() => {}}
+        onViewChange={handleViewChange as any}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Header/Navbar */}
-        <header className="h-14 border-b border-white/5 bg-black flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/"
-              className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
-              title="Kembali ke Chat"
-            >
-              <Home className="w-5 h-5" />
-            </Link>
-            <div className="w-px h-6 bg-white/10" />
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-cyan-400" />
-              <h1 className="text-lg font-semibold text-white">Knowledge Base</h1>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">Manage documents for AI context</p>
-        </header>
-
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="max-w-5xl mx-auto space-y-8">

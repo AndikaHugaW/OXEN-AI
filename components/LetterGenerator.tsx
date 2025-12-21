@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Copy, Download } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Copy, Download, Sparkles, RotateCcw, Upload, FileText } from 'lucide-react';
 import LoginAlert from './LoginAlert';
 import { createClient } from '@/lib/supabase/client';
 
@@ -11,11 +11,12 @@ export default function LetterGenerator() {
     recipient: '',
     subject: '',
     content: '',
-    additionalContext: '',
   });
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [generatedLetter, setGeneratedLetter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   const handleChange = (
@@ -27,10 +28,29 @@ export default function LetterGenerator() {
     });
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🔒 Check authentication before submitting (only if Supabase is configured)
+    // Check authentication
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co') {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -53,7 +73,6 @@ export default function LetterGenerator() {
         body: JSON.stringify(formData),
       });
 
-      // Handle 401 Unauthorized - show login alert
       if (response.status === 401) {
         setShowLoginAlert(true);
         setIsLoading(false);
@@ -74,18 +93,11 @@ export default function LetterGenerator() {
     } catch (error: any) {
       let errorMessage = error.message || 'Terjadi kesalahan saat menghasilkan surat';
       
-      // Provide helpful messages for common errors
       if (errorMessage.includes('tidak dikonfigurasi') || errorMessage.includes('not configured')) {
-        errorMessage = `⚠️ API Key tidak dikonfigurasi!\n\n` +
-          `Silakan setup API key di file .env.local:\n` +
-          `- Untuk Groq (gratis): LLM_PROVIDER=groq dan GROQ_API_KEY=your_key\n` +
-          `- Lihat panduan di ALTERNATIF_API_GRATIS.md`;
-      } else if (errorMessage.includes('Ollama') || errorMessage.includes('tidak dapat terhubung')) {
-        // Error message sudah informatif dari provider, langsung gunakan
-        errorMessage = errorMessage;
+        errorMessage = `API Key tidak dikonfigurasi. Silakan setup API key di file .env.local`;
       }
       
-      setGeneratedLetter(`❌ Error: ${errorMessage}`);
+      setGeneratedLetter(`Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +112,6 @@ export default function LetterGenerator() {
     if (!generatedLetter) return;
 
     try {
-      // Dynamic import untuk jsPDF (client-side only)
       const { jsPDF } = await import('jspdf');
       
       const doc = new jsPDF();
@@ -110,34 +121,28 @@ export default function LetterGenerator() {
       const maxWidth = pageWidth - 2 * margin;
       let yPosition = margin;
 
-      // Set font
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
 
-      // Split text into lines that fit the page width
       const lines = doc.splitTextToSize(generatedLetter, maxWidth);
 
-      // Add lines to PDF
       lines.forEach((line: string) => {
-        // Check if we need a new page
         if (yPosition > pageHeight - margin - 10) {
           doc.addPage();
           yPosition = margin;
         }
         doc.text(line, margin, yPosition);
-        yPosition += 7; // Line height
+        yPosition += 7;
       });
 
-      // Generate filename
-      const filename = `Surat_${formData.letterType || 'Surat'}_${formData.subject || 'Document'}_${new Date().toISOString().split('T')[0]}.pdf`
+      const filename = `Letter_${formData.letterType || 'Document'}_${new Date().toISOString().split('T')[0]}.pdf`
         .replace(/[^a-z0-9]/gi, '_')
         .toLowerCase();
 
-      // Save PDF
       doc.save(filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Terjadi kesalahan saat membuat PDF. Silakan coba lagi.');
+      alert('Terjadi kesalahan saat membuat PDF.');
     }
   };
 
@@ -147,14 +152,13 @@ export default function LetterGenerator() {
       recipient: '',
       subject: '',
       content: '',
-      additionalContext: '',
     });
+    setUploadedFile(null);
     setGeneratedLetter('');
   };
 
   const handleLoginClick = () => {
     setShowLoginAlert(false);
-    // Scroll to Sign In/Sign Up buttons in navbar
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -165,139 +169,207 @@ export default function LetterGenerator() {
         onClose={() => setShowLoginAlert(false)}
         onLogin={handleLoginClick}
       />
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 rounded-lg bg-[hsl(var(--card))]/50 backdrop-blur-md border border-[hsl(var(--border))]/50">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
-            Jenis Surat <span className="text-[hsl(var(--destructive))]">*</span>
-          </label>
-          <select
-            name="letterType"
-            value={formData.letterType}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
-          >
-            <option value="">Pilih jenis surat...</option>
-            <option value="resmi">Surat Resmi</option>
-            <option value="undangan">Surat Undangan</option>
-            <option value="pengantar">Surat Pengantar</option>
-            <option value="permohonan">Surat Permohonan</option>
-            <option value="keterangan">Surat Keterangan</option>
-            <option value="pernyataan">Surat Pernyataan</option>
-          </select>
-        </div>
+      
+      <div className="min-h-full flex flex-col items-center justify-start pt-12 md:pt-20 px-4">
+        <div className="w-full max-w-2xl">
+          {/* Header */}
+          <div className="mb-10 text-center">
+            <h1 className="text-3xl md:text-4xl font-bold italic text-cyan-400 mb-3">
+              Letter Generator
+            </h1>
+            <p className="text-sm text-gray-500">
+              <span className="text-cyan-500 hover:underline cursor-pointer">Feature</span>
+              <span className="mx-2">/</span>
+              <span>Create Letter</span>
+            </p>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
-            Penerima / Tujuan <span className="text-[hsl(var(--destructive))]">*</span>
-          </label>
-          <input
-            type="text"
-            name="recipient"
-            value={formData.recipient}
-            onChange={handleChange}
-            required
-            placeholder="Contoh: Kepala Dinas..."
-            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
-          />
-        </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Letter Type */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">
+                Letter Type
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="letterType"
+                  value={formData.letterType}
+                  onChange={handleChange}
+                  placeholder="e.g. Business Letter, Formal Request, Invitation"
+                  className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
+                           text-white placeholder-gray-500
+                           focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50
+                           transition-all"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 text-gray-500">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
-            Perihal <span className="text-[hsl(var(--destructive))]">*</span>
-          </label>
-          <input
-            type="text"
-            name="subject"
-            value={formData.subject}
-            onChange={handleChange}
-            required
-            placeholder="Contoh: Permohonan Izin..."
-            className="w-full px-4 py-2.5 border border-[hsl(var(--border))]/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))]/50 backdrop-blur-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] transition-all hover:bg-[hsl(var(--input))]/70 focus:bg-[hsl(var(--input))]/70"
-          />
-        </div>
+            {/* Recipient & Subject - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Recipient
+                </label>
+                <input
+                  type="text"
+                  name="recipient"
+                  value={formData.recipient}
+                  onChange={handleChange}
+                  placeholder="Enter the recipient's name or organization"
+                  className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
+                           text-white placeholder-gray-500
+                           focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50
+                           transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  placeholder="e.g. Partnership Proposal"
+                  className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
+                           text-white placeholder-gray-500
+                           focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50
+                           transition-all"
+                />
+              </div>
+            </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
-            Isi Surat <span className="text-[hsl(var(--destructive))]">*</span>
-          </label>
-          <textarea
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            required
-            rows={4}
-            placeholder="Jelaskan isi surat yang ingin dibuat..."
-            className="w-full px-4 py-2.5 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))] text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none transition-colors"
-          />
-        </div>
+            {/* Letter Content */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">
+                Letter Content
+              </label>
+              <textarea
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                rows={5}
+                placeholder="Describe what you want to say in this letter"
+                className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
+                         text-white placeholder-gray-500 resize-none
+                         focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50
+                         transition-all"
+              />
+            </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-[hsl(var(--card-foreground))] mb-2">
-            <span>Konteks Tambahan</span> <span className="text-[hsl(var(--muted-foreground))] text-xs">(Opsional)</span>
-          </label>
-          <textarea
-            name="additionalContext"
-            value={formData.additionalContext}
-            onChange={handleChange}
-            rows={2}
-            placeholder="Informasi tambahan yang mungkin diperlukan..."
-            className="w-full px-4 py-2.5 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] bg-[hsl(var(--input))] text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--muted-foreground))] resize-none transition-colors"
-          />
-        </div>
-
-        <div className="md:col-span-2 flex gap-3">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm"
-          >
-            {isLoading ? 'Membuat Surat...' : 'Generate Surat'}
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-6 py-3 bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] rounded-lg hover:bg-[hsl(var(--secondary))]/80 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all font-medium"
-          >
-            Reset
-          </button>
-        </div>
-      </form>
-
-      {/* Generated Letter Display */}
-      {generatedLetter && (
-        <div className="mt-6 p-6 bg-[hsl(var(--card))]/50 backdrop-blur-md border border-[hsl(var(--border))]/50 rounded-lg shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-[hsl(var(--card-foreground))]">
-              Surat yang Dihasilkan
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={handleCopy}
-                className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
+            {/* Upload File */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">
+                Upload File
+              </label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                className="border-2 border-dashed border-cyan-500/30 rounded-lg p-8
+                         flex flex-col items-center justify-center gap-3
+                         cursor-pointer hover:border-cyan-500/50 transition-colors
+                         bg-transparent"
               >
-                <Copy className="w-4 h-4" />
-                <span>Salin</span>
+                <Upload className="w-8 h-8 text-gray-500" />
+                <p className="text-xs text-cyan-400">
+                  Max 120mb, PNG, JPEG, MP3, MP4
+                </p>
+                <button
+                  type="button"
+                  className="px-4 py-1.5 text-xs bg-cyan-500/20 text-cyan-400 rounded-md
+                           border border-cyan-500/30 hover:bg-cyan-500/30 transition-colors"
+                >
+                  Browse File
+                </button>
+                {uploadedFile && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
+                    <FileText className="w-4 h-4" />
+                    <span>{uploadedFile.name}</span>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileChange}
+                accept=".png,.jpg,.jpeg,.mp3,.mp4,.pdf,.doc,.docx"
+                className="hidden"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 pt-4">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 px-8 py-3
+                         bg-cyan-500 hover:bg-cyan-400 text-black font-medium
+                         rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="w-4 h-4" />
+                {isLoading ? 'Generating...' : 'Generate Letter'}
               </button>
               <button
-                onClick={handleDownloadPDF}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))] transition-all text-sm font-medium flex items-center gap-2"
+                type="button"
+                onClick={handleReset}
+                className="flex items-center justify-center gap-2 px-8 py-3
+                         bg-transparent border border-cyan-500/50 text-cyan-400
+                         rounded-full hover:bg-cyan-500/10 transition-all"
               >
-                <Download className="w-4 h-4" />
-                <span>Download PDF</span>
+                <RotateCcw className="w-4 h-4" />
+                Reset Form
               </button>
             </div>
-          </div>
-          <div className="prose dark:prose-invert max-w-none">
-            <pre className="whitespace-pre-wrap text-sm text-[hsl(var(--card-foreground))] font-mono bg-[hsl(var(--input))]/50 backdrop-blur-sm p-4 rounded-lg border border-[hsl(var(--border))]/50">
-              {generatedLetter}
-            </pre>
-          </div>
+          </form>
+
+          {/* Generated Letter Display */}
+          {generatedLetter && (
+            <div className="mt-8 p-6 bg-[#1a1a1f] border border-gray-800 rounded-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-white">
+                  Generated Letter
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-2 px-4 py-2 
+                             bg-cyan-500/10 border border-cyan-500/30 text-cyan-400
+                             rounded-lg hover:bg-cyan-500/20 transition-all text-sm"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="flex items-center gap-2 px-4 py-2 
+                             bg-cyan-500 text-black font-medium
+                             rounded-lg hover:bg-cyan-400 transition-all text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download PDF
+                  </button>
+                </div>
+              </div>
+              <pre className="whitespace-pre-wrap text-sm text-gray-300 font-mono 
+                            bg-black/50 p-4 rounded-lg border border-gray-800">
+                {generatedLetter}
+              </pre>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
     </>
   );
 }
-
