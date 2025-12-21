@@ -43,19 +43,19 @@ function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-3xl">
          {[
            { 
-             icon: BarChart3,
+             iconSrc: "/icon/stock-analysis.svg",
              title: "Stock Analysis", 
              desc: "Fundamental and technical analysis", 
              prompt: "Analyze AAPL stock with technical indicators" 
            },
            { 
-             icon: TrendingUp,
+             iconSrc: "/icon/crypto-trends.svg",
              title: "Crypto Trends", 
              desc: "Crypto market trends and forecasts", 
              prompt: "What's the current trend for Bitcoin?" 
            },
            { 
-             icon: Activity,
+             iconSrc: "/icon/market-comparison.svg",
              title: "Market Comparison", 
              desc: "Compare asset performance", 
              prompt: "Compare ETH vs SOL performance" 
@@ -68,7 +68,12 @@ function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
            >
               <div className="flex items-center gap-3 mb-2">
                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors border border-blue-500/20">
-                    <item.icon className="w-4 h-4 text-blue-400" />
+                    <img 
+                      src={item.iconSrc} 
+                      alt={item.title} 
+                      className="w-4 h-4" 
+                      style={{ filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.5))' }} 
+                    />
                  </div>
                  <h3 className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">{item.title}</h3>
               </div>
