@@ -317,7 +317,7 @@ export default function LetterGenerator() {
                 className="group flex items-center justify-center gap-2.5 px-8 py-3.5
                          bg-gradient-to-r from-cyan-500 via-cyan-400 to-blue-500 
                          hover:from-cyan-400 hover:via-cyan-300 hover:to-blue-400 
-                         text-black font-semibold rounded-full transition-all duration-300
+                         text-white font-semibold rounded-full transition-all duration-300
                          disabled:opacity-50 disabled:cursor-not-allowed
                          shadow-[0_0_25px_rgba(6,182,212,0.5),0_0_50px_rgba(6,182,212,0.2)]
                          hover:shadow-[0_0_30px_rgba(6,182,212,0.7),0_0_60px_rgba(6,182,212,0.3)]
