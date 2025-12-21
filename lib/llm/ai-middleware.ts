@@ -225,9 +225,80 @@ function schemaGuard(aiResponse: any): { pass: boolean; error?: string } {
 }
 
 /**
- * Guard 5: Input-Output Consistency Guard
- * Ensure AI didn't invent data
+ * Guard 5: Input-Output Consistency Guard (Optimized)
+ * Ensure AI didn't invent data, while allowing valid aggregation
+ * 
+ * Rules:
+ * 1. AI output MORE data than input = HALLUCINATION (Block)
+ * 2. AI output LESS data than input = possible aggregation (Warning, unless explicit)
+ * 3. Labels must match (with fuzzy tolerance)
  */
+
+// Keywords that indicate user wants aggregation/summary
+const AGGREGATION_KEYWORDS = [
+  'total', 'jumlah', 'sum', 'rata', 'rata-rata', 'avg', 'average', 'mean',
+  'summary', 'ringkas', 'rangkum', 'per bulan', 'per tahun', 'per quarter',
+  'group', 'kelompok', 'gabung', 'merge', 'combine', 'aggregate'
+];
+
+/**
+ * Normalize string for fuzzy comparison
+ * "Januari 2024" -> "januari2024", "Jan-24" -> "jan24"
+ */
+function normalizeLabel(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '') // Remove all non-alphanumeric
+    .replace(/bulan|month|tahun|year|quarter|q/gi, '') // Remove common time words
+    .trim();
+}
+
+/**
+ * Check if two labels are similar enough (fuzzy match)
+ */
+function labelsMatch(userLabel: string, aiLabel: string): boolean {
+  const normUser = normalizeLabel(userLabel);
+  const normAi = normalizeLabel(aiLabel);
+  
+  // Exact match after normalization
+  if (normUser === normAi) return true;
+  
+  // One contains the other
+  if (normUser.includes(normAi) || normAi.includes(normUser)) return true;
+  
+  // Month abbreviation matching (Jan <-> Januari, Feb <-> Februari, etc.)
+  const monthMap: Record<string, string[]> = {
+    jan: ['januari', 'january', 'jan'],
+    feb: ['februari', 'february', 'feb'],
+    mar: ['maret', 'march', 'mar'],
+    apr: ['april', 'apr'],
+    mei: ['mei', 'may'],
+    jun: ['juni', 'june', 'jun'],
+    jul: ['juli', 'july', 'jul'],
+    agu: ['agustus', 'august', 'aug', 'agu'],
+    sep: ['september', 'sept', 'sep'],
+    okt: ['oktober', 'october', 'oct', 'okt'],
+    nov: ['november', 'nov'],
+    des: ['desember', 'december', 'dec', 'des'],
+  };
+  
+  for (const [key, variants] of Object.entries(monthMap)) {
+    const userHasMonth = variants.some(v => normUser.includes(v) || normUser.includes(key));
+    const aiHasMonth = variants.some(v => normAi.includes(v) || normAi.includes(key));
+    if (userHasMonth && aiHasMonth) {
+      // Extract year if present
+      const userYear = normUser.match(/(\d{4}|\d{2})/)?.[0];
+      const aiYear = normAi.match(/(\d{4}|\d{2})/)?.[0];
+      if (!userYear || !aiYear || userYear === aiYear || 
+          userYear.slice(-2) === aiYear.slice(-2)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 function consistencyGuard(
   userInput: string,
   aiResponse: any,
@@ -244,41 +315,82 @@ function consistencyGuard(
   
   const aiDataCount = aiResponse.data.length;
   const userDataCount = extractedUserData.dataPoints;
+  const inputLower = userInput.toLowerCase();
   
-  // Check data count mismatch (AI invented or removed data)
-  if (aiDataCount !== userDataCount) {
+  // ===============================================
+  // RULE 1: AI invented MORE data = HALLUCINATION
+  // ===============================================
+  if (aiDataCount > userDataCount) {
     return { 
       pass: false, 
-      error: `Data count mismatch: user provided ${userDataCount} points, AI returned ${aiDataCount}` 
+      error: `🚨 AI Hallucination: User provided ${userDataCount} data points, but AI invented ${aiDataCount}. Blocking invalid response.` 
     };
   }
   
-  // Check label consistency
-  const xKey = aiResponse.xKey || Object.keys(aiResponse.data[0])[0];
-  const aiLabels = aiResponse.data.map((d: any) => String(d[xKey]).toLowerCase());
+  // ===============================================
+  // RULE 2: AI returned LESS data = possible aggregation
+  // ===============================================
+  if (aiDataCount < userDataCount) {
+    // Check if user explicitly asked for aggregation
+    const isExplicitAggregation = AGGREGATION_KEYWORDS.some(kw => inputLower.includes(kw));
+    
+    if (isExplicitAggregation) {
+      // User asked for aggregation - this is expected behavior
+      console.log(`📊 [ConsistencyGuard] Aggregation detected: ${userDataCount} → ${aiDataCount} (User requested)`);
+      return { pass: true };
+    }
+    
+    // User didn't ask for aggregation but AI reduced data
+    // Allow it through with a warning (not blocking)
+    console.warn(`⚠️ [ConsistencyGuard] Data reduction: User provided ${userDataCount}, AI returned ${aiDataCount}`);
+    return { 
+      pass: true, 
+      warning: `⚠️ Menampilkan ${aiDataCount} dari ${userDataCount} data input (beberapa data mungkin diagregasi atau diringkas)` 
+    };
+  }
   
+  // ===============================================
+  // RULE 3: Data count matches - check labels
+  // ===============================================
+  const xKey = aiResponse.xKey || Object.keys(aiResponse.data[0] || {})[0];
+  const aiLabels = aiResponse.data.map((d: any) => String(d[xKey] || '').toLowerCase());
+  
+  // Check each user label can be found in AI output (with fuzzy matching)
+  let unmatchedLabels: string[] = [];
   for (const userLabel of extractedUserData.labels) {
-    const found = aiLabels.some((aiLabel: string) => 
-      aiLabel.includes(userLabel.toLowerCase()) || 
-      userLabel.toLowerCase().includes(aiLabel)
-    );
+    const found = aiLabels.some((aiLabel: string) => labelsMatch(userLabel, aiLabel));
     
     if (!found) {
-      return { 
-        pass: false, 
-        error: `User label "${userLabel}" not found in AI output` 
-      };
+      unmatchedLabels.push(userLabel);
     }
   }
   
-  // Check for invented categories (extra keys in data)
+  // If more than 30% of labels unmatched, flag as error
+  const unmatchedRatio = unmatchedLabels.length / extractedUserData.labels.length;
+  if (unmatchedRatio > 0.3) {
+    return { 
+      pass: false, 
+      error: `Label mismatch: ${unmatchedLabels.length} labels tidak ditemukan di output AI (${unmatchedLabels.slice(0, 3).join(', ')}${unmatchedLabels.length > 3 ? '...' : ''})` 
+    };
+  } else if (unmatchedLabels.length > 0) {
+    // Minor mismatch - just warn
+    return { 
+      pass: true, 
+      warning: `Beberapa label mungkin telah diformat ulang oleh AI` 
+    };
+  }
+  
+  // ===============================================
+  // RULE 4: Check for invented categories
+  // ===============================================
   if (aiResponse.yKey) {
     const yKeys = Array.isArray(aiResponse.yKey) ? aiResponse.yKey : [aiResponse.yKey];
     
     // If user only provided single values but AI created multiple series
-    if (yKeys.length > 1 && !userInput.toLowerCase().includes(' vs ') && 
-        !userInput.toLowerCase().includes('banding') &&
-        !userInput.toLowerCase().includes('kategori')) {
+    const comparisonKeywords = [' vs ', 'banding', 'kategori', 'comparison', 'perbandingan', 'compare'];
+    const userWantsComparison = comparisonKeywords.some(kw => inputLower.includes(kw));
+    
+    if (yKeys.length > 1 && !userWantsComparison) {
       return { 
         pass: false, 
         error: `AI invented ${yKeys.length} categories but user only provided single values` 
