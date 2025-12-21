@@ -82,59 +82,60 @@ function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
 
 function ReportGeneratorHero({ setInput, documents = [] }: { setInput: (s: string) => void, documents?: any[] }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-full py-12 text-center px-4 animate-fade-in overflow-y-auto">
-      <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mb-6 border border-indigo-500/20 shadow-[0_0_30px_-10px_rgba(99,102,241,0.3)]">
-         <FileText className="w-10 h-10 text-indigo-400" />
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+      {/* Top Document Icon with Glow */}
+      <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/20 shadow-[0_0_40px_-5px_rgba(59,130,246,0.4)]">
+         <FileText className="w-8 h-8 text-blue-400" />
       </div>
-      <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-         Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">Reports</span>
-      </h1>
-      <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
-         Generate comprehensive business reports, proposals, and analysis documents tailored to your needs.
-      </p>
-
-      {documents.length > 0 && (
-        <div className="w-full max-w-5xl mb-12 text-left">
-          <div className="flex items-center justify-between mb-4 px-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-              <h3 className="text-md font-semibold text-white uppercase tracking-wider">Stored Knowledge</h3>
-            </div>
-            <span className="text-xs text-gray-500">{documents.length} Dokumen Tersimpan</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {documents.slice(0, 4).map((doc, i) => (
-              <div key={i} className="group p-4 bg-[#111114] border border-white/5 rounded-xl hover:border-indigo-500/30 transition-all cursor-pointer relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Plus className="w-4 h-4 text-indigo-400" onClick={() => setInput(`Analisis mendalam terhadap dokumen "${doc.title}"`)} />
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/5 flex items-center justify-center mb-3 group-hover:bg-indigo-500/10 transition-colors">
-                  <FileText className="w-5 h-5 text-indigo-400" />
-                </div>
-                <p className="text-sm font-medium text-white line-clamp-1 mb-1">{doc.title}</p>
-                <p className="text-[10px] text-gray-500 uppercase">{doc.doc_type || 'General'}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+      {/* Logo + Title */}
+      <div className="flex items-center gap-4 mb-4">
+         <img src="/logos/oxen-3.svg" alt="Oxen Logo" className="w-12 h-12 object-contain" />
+         <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
+            <span className="text-white">Professional </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400" style={{textShadow: '0 0 30px rgba(59, 130, 246, 0.3)'}}>Reports</span>
+         </h1>
+      </div>
+      
+      {/* Subtitle */}
+      <p className="text-base text-gray-400/80 mb-12 max-w-xl leading-relaxed">
+         Generate comprehensive business reports, proposals, and analysis document tailored to your needs
+      </p>
+      
+      {/* Feature Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-3xl">
          {[
-           { title: "Startup Analysis", desc: "Evaluate market fit & growth", prompt: "Buat laporan analisis pasar untuk startup teknologi" },
-           { title: "Monthly Report", desc: "Track KPIs and performance", prompt: "Buat laporan performa bulanan untuk klien" },
-           { title: "Business Proposal", desc: "Win new clients with data", prompt: "Buat proposal bisnis untuk proyek baru" }
+           { 
+             icon: TrendingUp,
+             title: "Startup Analysis", 
+             desc: "Evaluate market fit & growth", 
+             prompt: "Create a startup market analysis report" 
+           },
+           { 
+             icon: BarChart3,
+             title: "Monthly Report", 
+             desc: "Track KPIs and performance", 
+             prompt: "Generate a monthly performance report" 
+           },
+           { 
+             icon: FileText,
+             title: "Business Proposal", 
+             desc: "Win new client with data", 
+             prompt: "Create a business proposal document" 
+           }
          ].map((item, i) => (
-           <button key={i} onClick={() => setInput(item.prompt)} 
-              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-indigo-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-3 mb-3 relative z-10">
-                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                    <FileText className="w-4 h-4 text-indigo-400" />
+           <button 
+             key={i} 
+             onClick={() => setInput(item.prompt)} 
+             className="group p-5 bg-[#18181b]/80 border border-white/5 rounded-2xl hover:border-blue-500/40 hover:bg-[#1a1a1f] transition-all text-left backdrop-blur-sm"
+           >
+              <div className="flex items-center gap-3 mb-2">
+                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors border border-blue-500/20">
+                    <item.icon className="w-4 h-4 text-blue-400" />
                  </div>
-                 <h3 className="font-semibold text-white">{item.title}</h3>
+                 <h3 className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">{item.title}</h3>
               </div>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+              <p className="text-sm text-gray-500 group-hover:text-gray-400 transition-colors pl-11">{item.desc}</p>
            </button>
          ))}
       </div>
