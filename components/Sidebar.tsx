@@ -5,6 +5,7 @@ import { Plus, MessageSquare, Clock, ChevronLeft, ChevronRight, Trash2, X, User 
 import { createClient } from '@/lib/supabase/client';
 import ProfileEditModal from './ProfileEditModal';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface SidebarProps {
   onNewChat: () => void;
@@ -39,6 +40,8 @@ export default function Sidebar({
   const [isLightMode, setIsLightMode] = useState(false);
   const supabase = createClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const isDocumentsPage = pathname === '/documents';
 
   useEffect(() => {
     setMounted(true);
@@ -238,7 +241,11 @@ export default function Sidebar({
               prefetch={true}
               className={`w-full p-3 rounded-xl transition-all flex items-center gap-3 ${
                 sidebarOpen ? 'justify-start' : 'justify-center'
-              } text-cyan-200/70 hover:bg-cyan-500/10 hover:text-cyan-300`}
+              } ${
+                isDocumentsPage
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-cyan-200/70 hover:bg-cyan-500/10 hover:text-cyan-300'
+              }`}
             >
               <BookOpen className="w-5 h-5" />
               {sidebarOpen && <span className="text-sm font-medium">Knowledge Base</span>}

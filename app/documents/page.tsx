@@ -137,20 +137,26 @@ export default function DocumentsPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-cyan-400 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search your business intelligence..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-14 pl-12 pr-4 bg-[#18181b]/50 backdrop-blur-sm border border-[#27272a] rounded-2xl text-gray-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all font-sans"
+                  className="w-full h-14 pl-12 pr-4 bg-[#18181b]/50 backdrop-blur-sm border border-[#27272a] rounded-2xl text-gray-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all font-sans"
                 />
               </div>
               <button 
                 onClick={() => setIsUploadModalOpen(true)}
-                className="h-12 flex items-center justify-center gap-2 px-6 bg-blue-500 hover:bg-blue-400 text-white font-medium rounded-xl transition-all shrink-0"
+                className="group h-14 flex items-center justify-center gap-2.5 px-8 
+                         bg-gradient-to-r from-cyan-500 via-cyan-400 to-blue-500 
+                         hover:from-cyan-400 hover:via-cyan-300 hover:to-blue-400 
+                         text-white font-semibold rounded-2xl transition-all duration-300 shrink-0
+                         shadow-[0_0_25px_rgba(6,182,212,0.4)]
+                         hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]
+                         hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                 Add New Document
               </button>
             </div>
@@ -159,7 +165,7 @@ export default function DocumentsPage() {
           {/* Doc List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-24">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+              <Loader2 className="w-10 h-10 text-cyan-500 animate-spin" />
             </div>
           ) : (
             <div className="space-y-6">
@@ -168,30 +174,79 @@ export default function DocumentsPage() {
                   <FileText className="w-4 h-4" />
                   Documentation Repository ({filteredDocs.length})
                 </h3>
+                {/* Filter/Sort Controls */}
+                <div className="flex items-center gap-2">
+                  <select className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-gray-400 focus:outline-none focus:border-cyan-500/50">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="a-z">A-Z</option>
+                    <option value="z-a">Z-A</option>
+                  </select>
+                  <select className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-gray-400 focus:outline-none focus:border-cyan-500/50">
+                    <option value="all">All Types</option>
+                    <option value="general">General</option>
+                    <option value="policy">Policy/SOP</option>
+                    <option value="report">Report</option>
+                    <option value="product">Product</option>
+                    <option value="faq">FAQ</option>
+                  </select>
+                </div>
               </div>
               {filteredDocs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 px-4 text-center border-2 border-dashed border-[#27272a] rounded-3xl bg-[#09090b]/50 backdrop-blur-sm">
-                  <div className="w-20 h-20 rounded-full bg-[#18181b] flex items-center justify-center mb-6 border border-white/5">
-                    <FileText className="w-10 h-10 text-gray-600" />
+                <div className="flex flex-col items-center justify-center py-24 px-4 text-center border-2 border-dashed border-cyan-500/20 rounded-3xl bg-[#09090b]/50 backdrop-blur-sm hover:border-cyan-500/40 transition-colors">
+                  <div className="w-20 h-20 rounded-2xl bg-cyan-500/10 flex items-center justify-center mb-6 border border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+                    <FileText className="w-10 h-10 text-cyan-400" />
                   </div>
-              <h3 className="text-lg font-medium text-white mb-1">No documents found</h3>
-              <p className="text-sm text-gray-400 max-w-sm">
-                Upload business documents (Policies, SOPs, Reports) to help AI understand your context.
+              <h3 className="text-xl font-semibold text-white mb-2">No documents yet</h3>
+              <p className="text-sm text-gray-400 max-w-md leading-relaxed">
+                Upload business documents (Policies, SOPs, Reports) to help AI understand your company context and provide more relevant insights.
               </p>
               <button 
                 onClick={() => setIsUploadModalOpen(true)}
-                className="mt-6 text-blue-400 hover:text-blue-300 text-sm font-medium"
+                className="mt-8 px-6 py-3 bg-gradient-to-r from-cyan-500 via-cyan-400 to-blue-500 
+                         hover:from-cyan-400 hover:via-cyan-300 hover:to-blue-400 
+                         text-white font-semibold rounded-xl transition-all duration-300
+                         shadow-[0_0_25px_rgba(6,182,212,0.4)]
+                         hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]
+                         hover:scale-[1.02] flex items-center gap-2"
               >
+                <Plus className="w-4 h-4" />
                 Upload your first document
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredDocs.map((doc) => (
-                <Card key={doc.id} className="bg-[#18181b] border border-[#27272a] hover:border-blue-500/30 transition-all group overflow-hidden">
+              {filteredDocs.map((doc) => {
+                // Calculate estimated file size from content length
+                const estimatedSize = doc.content ? 
+                  (doc.content.length > 1000000 ? `${(doc.content.length / 1000000).toFixed(1)} MB` :
+                   doc.content.length > 1000 ? `${(doc.content.length / 1000).toFixed(1)} KB` :
+                   `${doc.content.length} B`) : 'N/A';
+                
+                // Format upload date
+                const uploadDate = doc.created_at ? 
+                  new Date(doc.created_at).toLocaleDateString('en-US', { 
+                    month: 'short', day: 'numeric', year: 'numeric' 
+                  }) : 'Unknown';
+                
+                // Time ago helper
+                const getTimeAgo = (dateStr: string) => {
+                  const now = new Date();
+                  const date = new Date(dateStr);
+                  const diffMs = now.getTime() - date.getTime();
+                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                  const diffDays = Math.floor(diffHours / 24);
+                  if (diffHours < 1) return 'Just now';
+                  if (diffHours < 24) return `${diffHours}h ago`;
+                  if (diffDays < 7) return `${diffDays}d ago`;
+                  return uploadDate;
+                };
+
+                return (
+                <Card key={doc.id} className="bg-[#18181b] border border-[#27272a] hover:border-cyan-500/40 transition-all group overflow-hidden cursor-pointer">
                   <div className="p-5 flex flex-col h-full">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="flex items-center gap-2">
@@ -207,16 +262,26 @@ export default function DocumentsPage() {
                       </div>
                     </div>
                     
-                    <h3 className="text-base font-semibold text-white mb-2 line-clamp-1 group-hover:text-blue-400 transition-colors">
+                    <h3 className="text-base font-semibold text-white mb-2 line-clamp-1 group-hover:text-cyan-400 transition-colors">
                       {doc.title}
                     </h3>
                     
+                    {/* Metadata Row */}
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="w-3 h-3" />
+                        {estimatedSize}
+                      </span>
+                      <span>•</span>
+                      <span>{doc.created_at ? getTimeAgo(doc.created_at) : 'Unknown'}</span>
+                    </div>
+                    
                     <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
-                      <span className="text-xs text-gray-500 capitalize">
+                      <span className="text-xs text-gray-500 capitalize px-2 py-0.5 bg-[#27272a] rounded">
                         {doc.doc_type.replace('_', ' ')}
                       </span>
                       <button 
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
                         className="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -224,7 +289,7 @@ export default function DocumentsPage() {
                     </div>
                   </div>
                 </Card>
-              ))}
+              )})}
               </div>
             )}
           </div>
