@@ -20,33 +20,59 @@ import { Suspense } from 'react';
 function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
-      <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-[0_0_30px_-10px_rgba(37,99,235,0.3)]">
-         <Activity className="w-10 h-10 text-blue-400" />
+      {/* Top Chart Icon with Glow */}
+      <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/20 shadow-[0_0_40px_-5px_rgba(59,130,246,0.4)]">
+         <BarChart3 className="w-8 h-8 text-blue-400" />
       </div>
-      <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-         Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-500">Intelligence</span>
-      </h1>
-      <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
-         Real-time data analysis for stocks and crypto. 
-         Get deep insights, technical indicators, and market sentiment in seconds.
+      
+      {/* Logo + Title */}
+      <div className="flex items-center gap-4 mb-4">
+         <img src="/logos/oxen-3.svg" alt="Oxen Logo" className="w-12 h-12 object-contain" />
+         <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
+            <span className="text-white">Market </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400" style={{textShadow: '0 0 30px rgba(59, 130, 246, 0.3)'}}>Intelligence</span>
+         </h1>
+      </div>
+      
+      {/* Subtitle */}
+      <p className="text-base text-gray-400/80 mb-12 max-w-xl leading-relaxed">
+         Real-time data analysis for stocks and crypto. Get deep insights, technical indicator, and market sentiment in seconds.
       </p>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+      {/* Feature Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-3xl">
          {[
-           { title: "Analisis Saham", desc: "Analisis fundamental & teknikal", prompt: "Analisis saham BBCA secara lengkap" },
-           { title: "Crypto Trends", desc: "Momentum pasar & prediksi", prompt: "Tren harga Bitcoin minggu ini" },
-           { title: "Market Comparison", desc: "Bandingkan performa aset", prompt: "Bandingkan performa ETH vs SOL" }
+           { 
+             icon: BarChart3,
+             title: "Stock Analysis", 
+             desc: "Fundamental and technical analysis", 
+             prompt: "Analyze AAPL stock with technical indicators" 
+           },
+           { 
+             icon: TrendingUp,
+             title: "Crypto Trends", 
+             desc: "Crypto market trends and forecasts", 
+             prompt: "What's the current trend for Bitcoin?" 
+           },
+           { 
+             icon: Activity,
+             title: "Market Comparison", 
+             desc: "Compare asset performance", 
+             prompt: "Compare ETH vs SOL performance" 
+           }
          ].map((item, i) => (
-           <button key={i} onClick={() => setInput(item.prompt)} 
-              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-blue-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-3 mb-3 relative z-10">
-                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
-                    <TrendingUp className="w-4 h-4 text-blue-400" />
+           <button 
+             key={i} 
+             onClick={() => setInput(item.prompt)} 
+             className="group p-5 bg-[#18181b]/80 border border-white/5 rounded-2xl hover:border-blue-500/40 hover:bg-[#1a1a1f] transition-all text-left backdrop-blur-sm"
+           >
+              <div className="flex items-center gap-3 mb-2">
+                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors border border-blue-500/20">
+                    <item.icon className="w-4 h-4 text-blue-400" />
                  </div>
-                 <h3 className="font-semibold text-white">{item.title}</h3>
+                 <h3 className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">{item.title}</h3>
               </div>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 relative z-10">{item.desc}</p>
+              <p className="text-sm text-gray-500 group-hover:text-gray-400 transition-colors pl-11">{item.desc}</p>
            </button>
          ))}
       </div>
