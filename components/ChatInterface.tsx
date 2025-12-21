@@ -22,7 +22,12 @@ function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
     <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
       {/* Top Chart Icon with Glow */}
       <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/20 shadow-[0_0_40px_-5px_rgba(59,130,246,0.4)]">
-         <BarChart3 className="w-8 h-8 text-blue-400" />
+         <img 
+           src="/icon/market-intelligence.svg" 
+           alt="Market Intelligence" 
+           className="w-8 h-8" 
+           style={{ filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))' }} 
+         />
       </div>
       
       {/* Logo + Title */}
