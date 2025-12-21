@@ -49,17 +49,41 @@ export function getBusinessDataPrompt(query: string, language: 'id' | 'en' = 'en
   
   const preferredType = isLine ? "line" : (isPie ? "pie" : (isArea ? "area" : (isComparison ? "bar" : "bar")));
   
-  // Custom instruction for comparison vs single data
+  // Custom instruction for comparison vs single data - clearer flat object structure
   const comparisonInstruction = isComparison 
     ? (isID 
         ? `MODE PERBANDINGAN TERDETEKSI:
-           - Gunakan "yKey" sebagai ARRAY string (contoh: ["Pendapatan", "Pengeluaran"]).
-           - "data" harus memiliki multiple value per kategori.
-           - "message" dalam Bahasa Indonesia, fokus pada analisis selisih.`
+           - Struktur Data HARUS Flat Object, BUKAN Nested.
+           - "yKey" adalah ARRAY string key.
+           
+           CONTOH BENAR (Flat Object):
+           "data": [
+             { "bulan": "Jan", "Revenue": 100, "Expense": 80 },
+             { "bulan": "Feb", "Revenue": 120, "Expense": 90 }
+           ],
+           "xKey": "bulan",
+           "yKey": ["Revenue", "Expense"]
+           
+           CONTOH SALAH (Jangan gunakan nested):
+           "data": [
+             { "bulan": "Jan", "values": { "Revenue": 100, "Expense": 80 } }
+           ]`
         : `COMPARISON MODE DETECTED:
-           - Use "yKey" as an ARRAY of strings (e.g., ["Revenue", "Expense"]).
-           - "data" must have multiple values per category.
-           - "message" in English, focusing on gap analysis.`)
+           - Data Structure MUST be Flat Objects, NOT Nested.
+           - "yKey" is an ARRAY of string keys.
+           
+           CORRECT EXAMPLE (Flat Object):
+           "data": [
+             { "month": "Jan", "Revenue": 100, "Expense": 80 },
+             { "month": "Feb", "Revenue": 120, "Expense": 90 }
+           ],
+           "xKey": "month",
+           "yKey": ["Revenue", "Expense"]
+           
+           WRONG EXAMPLE (Do not use nested):
+           "data": [
+             { "month": "Jan", "values": { "Revenue": 100, "Expense": 80 } }
+           ]`)
     : `SINGLE DATA MODE: "yKey" is a single string.`;
 
   const role = isID ? 'KAMU ADALAH AHLI VISUALISASI DATA.' : 'YOU ARE A DATA VISUALIZATION EXPERT.';
@@ -74,20 +98,34 @@ KONTEKS USER QUERY: "${query}"
 PREFERENSI CHART: ${preferredType}
 ${comparisonInstruction}
 
-ATURAN MUTLAK (SYSTEM CRITICAL):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ ATURAN FORMAT JSON (SUPER PENTING):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. Output WAJIB berupa JSON valid.
 2. JANGAN ada teks pengantar atau penutup di luar blok JSON.
 3. Angka harus NUMBER (1000000), bukan string.
+4. Field "message" adalah string TUNGGAL.
+5. GUNAKAN \\n untuk ganti baris di dalam "message". CONTOH: "Poin 1\\nPoin 2".
+6. DILARANG menekan tombol ENTER asli di dalam nilai string JSON.
+7. Escape tanda kutip ganda (") dengan backslash (\\").
+8. JANGAN gunakan trailing comma sebelum } atau ].
+
+CONTOH "message" YANG BENAR:
+✅ "message": "1. Revenue naik 20%\\n2. Expense turun 5%\\n3. Profit margin meningkat."
+
+CONTOH "message" YANG SALAH:
+❌ "message": "1. Revenue naik 20%
+2. Expense turun 5%"  (ada ENTER asli = JSON rusak!)
 
 FORMAT JSON TARGET:
 {
   "action": "show_chart",
   "chart_type": "bar" | "line" | "pie" | "area", 
   "title": "Judul Chart",
-  "message": "Analisis/Insight naratif (${isID ? 'Bahasa Indonesia' : 'English'}).",
-  "data": [ ... ],
+  "message": "Analisis insight dalam SATU BARIS menggunakan \\n untuk line breaks",
+  "data": [ { "xKey": "Label", "yKey": nilai } ],
   "xKey": "category",
-  "yKey": ["Series1", "Series2"] 
+  "yKey": "value" atau ["Series1", "Series2"]
 }
 
 PENTING: Field "message" JANGAN MENJELASKAN ULANG ANGKA. Jelaskan insight, tren, dan rekomendasi.`;
@@ -97,41 +135,114 @@ PENTING: Field "message" JANGAN MENJELASKAN ULANG ANGKA. Jelaskan insight, tren,
  * Parse structured output dari AI response
  * Mencari JSON di response dan extract action
  */
+
+/**
+ * Sanitize JSON string to fix common LLM output issues:
+ * 1. Unescaped newlines inside strings
+ * 2. Control characters
+ * 3. Trailing commas
+ * 4. Single quotes instead of double quotes
+ */
+function sanitizeJsonString(jsonStr: string): string {
+  let result = jsonStr;
+  
+  // Step 1: Remove dangerous control characters (keep \n, \r, \t)
+  result = result.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  
+  // Step 2: Fix unescaped newlines inside string values
+  // This is tricky - we need to find strings and escape their newlines
+  // Strategy: Find content between quotes and escape newlines there
+  result = result.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
+    // Replace actual newlines with \n, but don't double-escape already escaped ones
+    return match
+      .replace(/\r\n/g, '\\n')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\n')
+      .replace(/\t/g, '\\t');
+  });
+  
+  // Step 3: Remove trailing commas before } or ]
+  result = result.replace(/,(\s*[}\]])/g, '$1');
+  
+  // Step 4: Fix single quotes (be careful not to break contractions)
+  // Only replace single quotes that are clearly meant to be JSON delimiters
+  // Pattern: 'key': or : 'value' or ['item']
+  result = result.replace(/^(\s*)'([^']+)'(\s*:)/gm, '$1"$2"$3'); // 'key':
+  result = result.replace(/:(\s*)'([^']*)'(\s*[,}\]])/g, ':$1"$2"$3'); // : 'value'
+  
+  return result;
+}
+
+/**
+ * Attempt to fix severely broken JSON
+ * Used as last resort when standard parsing fails
+ */
+function attemptAggressiveJsonFix(jsonStr: string): string {
+  let result = jsonStr;
+  
+  // Replace all types of quotes with standard double quotes
+  result = result.replace(/['']/g, "'");
+  result = result.replace(/[""]/g, '"');
+  
+  // Fix common LLM mistakes
+  result = result.replace(/:\s*undefined/g, ': null');
+  result = result.replace(/:\s*NaN/g, ': null');
+  result = result.replace(/:\s*Infinity/g, ': null');
+  
+  // Remove BOM and other invisible characters
+  result = result.replace(/^\uFEFF/, '');
+  
+  return result;
+}
+
 export function parseStructuredOutput(response: string): StructuredResponse | null {
   if (!response || typeof response !== 'string') {
     return null;
   }
 
+  // PRE-PROCESSING: Remove control characters that break JSON
+  let cleanResponse = response.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
   try {
     // Strategy 1: Response sudah pure JSON (ideal case)
-    const trimmed = response.trim();
+    const trimmed = cleanResponse.trim();
     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       try {
+        // Try direct parse first
         const parsed = JSON.parse(trimmed);
         if (parsed && typeof parsed === 'object' && parsed.action) {
           return parsed as StructuredResponse;
         }
       } catch (e) {
-        // Continue to next strategy
+        // Try with sanitization
+        try {
+          const sanitized = sanitizeJsonString(trimmed);
+          const parsed = JSON.parse(sanitized);
+          if (parsed && typeof parsed === 'object' && parsed.action) {
+            return parsed as StructuredResponse;
+          }
+        } catch (e2) {
+          // Continue to next strategy
+        }
       }
     }
 
     // Strategy 2: JSON dalam markdown code block
-    let jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    let jsonMatch = cleanResponse.match(/```json\s*(\{[\s\S]*?\})\s*```/);
     if (!jsonMatch) {
       // Try without json tag
-      jsonMatch = response.match(/```\s*(\{[\s\S]*?\})\s*```/);
+      jsonMatch = cleanResponse.match(/```\s*(\{[\s\S]*?\})\s*```/);
     }
     
     // Strategy 3: Find JSON object dengan action field
     if (!jsonMatch) {
-      jsonMatch = response.match(/\{[\s\S]*?"action"[\s\S]*?\}/);
+      jsonMatch = cleanResponse.match(/\{[\s\S]*?"action"[\s\S]*?\}/);
     }
     
     // Strategy 4: Find JSON with "data" array (for business charts without action)
     if (!jsonMatch) {
       // Look for pattern like { "data": [...], "xKey": "...", "yKey": ... }
-      const dataMatch = response.match(/\{[^{}]*"data"\s*:\s*\[[\s\S]*?\][^{}]*\}/);
+      const dataMatch = cleanResponse.match(/\{[^{}]*"data"\s*:\s*\[[\s\S]*?\][^{}]*\}/);
       if (dataMatch) {
         jsonMatch = [dataMatch[0]];
       }
@@ -139,10 +250,10 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
     
     // Strategy 5: Extract dari first { sampai last } (aggressive)
     if (!jsonMatch) {
-      const jsonStart = response.indexOf('{');
-      const jsonEnd = response.lastIndexOf('}');
+      const jsonStart = cleanResponse.indexOf('{');
+      const jsonEnd = cleanResponse.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        const potentialJson = response.substring(jsonStart, jsonEnd + 1);
+        const potentialJson = cleanResponse.substring(jsonStart, jsonEnd + 1);
         // Validate it's likely JSON by checking for action or data field
         if (potentialJson.includes('"action"') || potentialJson.includes("'action'") || 
             potentialJson.includes('"data"') || potentialJson.includes('"xKey"')) {
@@ -154,11 +265,11 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
     // Strategy 6: Detect formatted data display like "[Memuat Visualisasi Data...]"
     // and try to reconstruct from structured text patterns
     if (!jsonMatch) {
-      const dataArrayMatch = response.match(/\[\s*\{[^{}]+\}(?:\s*,\s*\{[^{}]+\})*\s*\]/);
+      const dataArrayMatch = cleanResponse.match(/\[\s*\{[^{}]+\}(?:\s*,\s*\{[^{}]+\})*\s*\]/);
       if (dataArrayMatch) {
         // Found a data array, try to construct chart object
-        const xKeyMatch = response.match(/"xKey"\s*:\s*"([^"]+)"/);
-        const yKeyMatch = response.match(/"yKey"\s*:\s*(\[[^\]]+\]|"[^"]+")/);
+        const xKeyMatch = cleanResponse.match(/"xKey"\s*:\s*"([^"]+)"/);
+        const yKeyMatch = cleanResponse.match(/"yKey"\s*:\s*(\[[^\]]+\]|"[^"]+")/);
         
         if (xKeyMatch || yKeyMatch) {
           try {
@@ -190,10 +301,10 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
 
     if (jsonMatch) {
       const jsonStr = jsonMatch[1] || jsonMatch[0];
+      
+      // Attempt 1: Direct parse
       try {
         const parsed = JSON.parse(jsonStr);
-        
-        // If parsed has data but no action, add show_chart action
         if (parsed && typeof parsed === 'object') {
           if (!parsed.action && parsed.data && Array.isArray(parsed.data)) {
             parsed.action = 'show_chart';
@@ -203,23 +314,36 @@ export function parseStructuredOutput(response: string): StructuredResponse | nu
           }
         }
       } catch (parseError) {
-        // Try to fix common JSON issues
+        // Attempt 2: Parse with sanitization
         try {
-          // Remove trailing commas
-          let fixed = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-          // Fix single quotes to double quotes
-          fixed = fixed.replace(/'/g, '"');
-          const parsed = JSON.parse(fixed);
+          const sanitized = sanitizeJsonString(jsonStr);
+          const parsed = JSON.parse(sanitized);
           if (parsed && typeof parsed === 'object') {
             if (!parsed.action && parsed.data && Array.isArray(parsed.data)) {
               parsed.action = 'show_chart';
             }
             if (parsed.action) {
+              console.log('✅ JSON parsed after sanitization');
               return parsed as StructuredResponse;
             }
           }
-        } catch (e) {
-          console.warn('Failed to parse JSON even after fixing:', e);
+        } catch (e2) {
+          // Attempt 3: Aggressive fix
+          try {
+            const aggressiveFixed = attemptAggressiveJsonFix(sanitizeJsonString(jsonStr));
+            const parsed = JSON.parse(aggressiveFixed);
+            if (parsed && typeof parsed === 'object') {
+              if (!parsed.action && parsed.data && Array.isArray(parsed.data)) {
+                parsed.action = 'show_chart';
+              }
+              if (parsed.action) {
+                console.log('✅ JSON parsed after aggressive fix');
+                return parsed as StructuredResponse;
+              }
+            }
+          } catch (e3) {
+            console.warn('❌ Failed to parse JSON even after aggressive fix:', e3);
+          }
         }
       }
     }
@@ -255,13 +379,22 @@ ATURAN MUTLAK - TIDAK BOLEH DILANGGAR:
 4. TIDAK BOLEH ada komentar di luar JSON
 5. TIDAK BOLEH menulis "Here's the chart", "Berikut grafik", dll
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ ATURAN FORMAT JSON STRING (KRITIS):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Field "message" adalah STRING TUNGGAL
+- GUNAKAN \\n untuk ganti baris. CONTOH: "Analisis:\\n1. Point A\\n2. Point B"
+- DILARANG menekan ENTER asli di dalam string JSON
+- Escape tanda kutip (") dengan backslash (\\")
+- JANGAN gunakan trailing comma sebelum } atau ]
+
 CONTOH YANG SALAH - JANGAN LAKUKAN:
 ❌ "Here's the line chart for GOTO: { ... }"
 ❌ "Berikut grafik saham GOTO { ... }"
 ❌ \`\`\`json\n{ ... }\n\`\`\`
 
 CONTOH YANG BENAR - LAKUKAN INI:
-✅ { "action": "show_chart", "message": "Penjelasan analisis...", ... }
+✅ { "action": "show_chart", "message": "1. Trend bullish\\n2. RSI 65\\n3. Support di $100", ... }
 
 FORMAT WAJIB:
 {
@@ -271,7 +404,7 @@ FORMAT WAJIB:
   "timeframe": "7d",
   "chart_type": "${detectedChartType}",
   "indicators": [],
-  "message": "ANALISIS LENGKAP DISINI - WAJIB DIISI DENGAN BAIK"
+  "message": "Analisis lengkap dengan \\n untuk line breaks"
 }
 
 PENTING: FIELD "message" HARUS BERISI ANALISIS TEKNIKAL LENGKAP DAN NYATA!
