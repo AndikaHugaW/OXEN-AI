@@ -235,7 +235,7 @@ export default function ComparisonWidgetWrapper({ chart, onUpdateChart }: Compar
     <div className="relative">
       {isLoading && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl">
-          <div className="text-cyan-400 text-sm font-medium">Memuat data...</div>
+          <div className="text-blue-400 text-sm font-medium">Memuat data...</div>
         </div>
       )}
       <ComparisonWidget

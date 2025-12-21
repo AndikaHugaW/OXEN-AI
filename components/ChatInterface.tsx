@@ -20,11 +20,11 @@ import { Suspense } from 'react';
 function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
-      <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mb-6 border border-cyan-500/20 shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
-         <Activity className="w-10 h-10 text-cyan-400" />
+      <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-[0_0_30px_-10px_rgba(37,99,235,0.3)]">
+         <Activity className="w-10 h-10 text-blue-400" />
       </div>
       <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-         Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Intelligence</span>
+         Market <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-500">Intelligence</span>
       </h1>
       <p className="text-lg text-gray-400 mb-12 max-w-2xl leading-relaxed">
          Real-time data analysis for stocks and crypto. 
@@ -38,11 +38,11 @@ function MarketTrendsHero({ setInput }: { setInput: (s: string) => void }) {
            { title: "Market Comparison", desc: "Bandingkan performa aset", prompt: "Bandingkan performa ETH vs SOL" }
          ].map((item, i) => (
            <button key={i} onClick={() => setInput(item.prompt)} 
-              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-cyan-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              className="p-6 bg-[#18181b] border border-white/5 rounded-2xl hover:border-blue-500/50 hover:bg-white/5 transition-all text-left group relative overflow-hidden">
+              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center gap-3 mb-3 relative z-10">
-                 <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-                    <TrendingUp className="w-4 h-4 text-cyan-400" />
+                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                    <TrendingUp className="w-4 h-4 text-blue-400" />
                  </div>
                  <h3 className="font-semibold text-white">{item.title}</h3>
               </div>
@@ -153,54 +153,118 @@ function VisualizationHero({ setInput }: { setInput: (s: string) => void }) {
   );
 }
 
-function DefaultHero({ setInput, setActiveView }: { setInput: (s: string) => void, setActiveView: (v: any) => void }) {
+function DefaultHero({ 
+  setInput, 
+  setActiveView, 
+  userName, 
+  onSubmit, 
+  inputValue, 
+  onInputChange,
+  onUploadClick,
+  isWebSearchEnabled,
+  setIsWebSearchEnabled,
+  isImageGenEnabled,
+  setIsImageGenEnabled
+}: { 
+  setInput: (s: string) => void, 
+  setActiveView: (v: any) => void,
+  userName?: string,
+  onSubmit: (e: React.FormEvent) => void,
+  inputValue: string,
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
+  onUploadClick: () => void,
+  isWebSearchEnabled: boolean,
+  setIsWebSearchEnabled: (b: boolean) => void,
+  isImageGenEnabled: boolean,
+  setIsImageGenEnabled: (b: boolean) => void
+}) {
   return (
-    <div className="max-w-4xl w-full mx-auto text-center px-6 animate-fade-in">
-        <div className="mb-10 mt-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-6">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">AI Business Copilot</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">
-                    Oxen
-                </span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600"> AI</span>
-            </h2>
-            <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto leading-relaxed font-light">
-                Intelijen bisnis yang menggabungkan analisis dokumen, data pasar real-time, dan pelaporan otomatis dalam satu alur kerja cerdas.
-            </p>
+    <div className="max-w-4xl w-full mx-auto flex flex-col items-center justify-center px-6 animate-fade-in py-12">
+        {/* Top Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-cyan-950/30 border border-cyan-500/20 rounded-full mb-10 backdrop-blur-sm">
+            <span className="text-[11px] font-medium text-cyan-400">Free plan</span>
+            <span className="w-1 h-1 rounded-full bg-cyan-400/20" />
+            <button className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 transition-colors">Upgrade</button>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-8">
-            <button onClick={() => setActiveView('market')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-cyan-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-                <Activity className="w-5 h-5 text-cyan-400" />
-                </div>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">Market Trends</h3>
-            <p className="text-sm text-gray-500">Real-time market insights</p>
-            </button>
 
-            <button onClick={() => setActiveView('reports')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-indigo-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                <TrendingUp className="w-5 h-5 text-indigo-400" />
-                </div>
+        {/* Welcome Section */}
+        <div className="flex items-center gap-5 mb-12">
+            <div className="w-16 h-16 flex items-center justify-center">
+                <img src="/logos/oxen-3.svg" alt="Oxen Logo" className="w-full h-full object-contain" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-1">Generate Reports</h3>
-            <p className="text-sm text-gray-500">Automated business reports</p>
-            </button>
+            <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
+                Hey there, <span className="text-white/90 font-bold">{userName || 'Minju'}</span>
+            </h1>
+        </div>
 
-            <button onClick={() => setActiveView('visualization')} className="group p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:border-pink-500/30 hover:bg-white/[0.02] transition-all text-left">
-            <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center group-hover:bg-pink-500/20 transition-colors">
-                <PieChart className="w-5 h-5 text-pink-400" />
+        {/* Main Search Bar */}
+        <div className="w-full max-w-3xl mb-8 relative group">
+            <form onSubmit={onSubmit} className="relative">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={onInputChange}
+                    placeholder="How can I help you today"
+                    className="w-full h-16 pl-6 pr-24 bg-[#18181b] border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all shadow-2xl"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button type="button" className="p-2.5 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-xl transition-all">
+                        <img 
+                          src="/icon/microphone.svg" 
+                          alt="Mic" 
+                          className="w-[22px] h-[22px]" 
+                          style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 12px rgba(6, 182, 212, 1)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.6))' }} 
+                        />
+                    </button>
+                    <button 
+                        type="submit" 
+                        disabled={!inputValue.trim()}
+                        className="p-2.5 transition-all group disabled:cursor-not-allowed"
+                    >
+                        <img 
+                          src="/icon/send.svg" 
+                          alt="Send" 
+                          className="w-[22px] h-[22px] transition-all group-hover:scale-110" 
+                          style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 12px rgba(6, 182, 212, 1)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.6))' }} 
+                        />
+                    </button>
                 </div>
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">Data Viz</h3>
-            <p className="text-sm text-gray-500">Interactive charts</p>
+            </form>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+            <button 
+                type="button"
+                onClick={onUploadClick}
+                className="flex items-center gap-2.5 px-6 py-3 bg-cyan-500/5 border border-cyan-500/20 rounded-full text-[13px] font-semibold text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/40 transition-all backdrop-blur-md shadow-lg"
+            >
+                <FileUp className="w-4 h-4 shadow-sm" />
+                <span>Unggah Dokumen</span>
+            </button>
+            <button 
+                type="button"
+                onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                className={`flex items-center gap-2.5 px-6 py-3 border rounded-full text-[13px] font-semibold transition-all backdrop-blur-md shadow-lg ${
+                    isWebSearchEnabled 
+                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' 
+                    : 'bg-cyan-500/5 border-cyan-500/20 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-500/40 hover:text-cyan-400'
+                }`}
+            >
+                <Globe className="w-4 h-4" />
+                <span>Pencarian Web</span>
+            </button>
+            <button 
+                type="button"
+                onClick={() => setIsImageGenEnabled(!isImageGenEnabled)}
+                className={`flex items-center gap-2.5 px-6 py-3 border rounded-full text-[13px] font-semibold transition-all backdrop-blur-md shadow-lg ${
+                    isImageGenEnabled 
+                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' 
+                    : 'bg-cyan-500/5 border-cyan-500/20 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-500/40 hover:text-cyan-400'
+                }`}
+            >
+                <ImageIcon className="w-4 h-4" />
+                <span>Buat Gambar AI</span>
             </button>
         </div>
     </div>
@@ -247,6 +311,8 @@ export default function ChatInterface() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [activeView, setActiveView] = useState<'chat' | 'letter' | 'market' | 'reports' | 'visualization'>('chat');
   
   // Initialize view from URL if present (must be in useEffect to avoid hydration mismatch)
@@ -291,6 +357,16 @@ export default function ChatInterface() {
         }
 
         const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+
+        if (user) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          setProfile(data);
+        }
         setIsCheckingAuth(false);
       } catch (error) {
         console.error('Error checking auth:', error);
@@ -1831,7 +1907,21 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                   {activeView === 'market' && <MarketTrendsHero setInput={setInput} />}
                   {activeView === 'reports' && <ReportGeneratorHero setInput={setInput} documents={storedDocuments} />}
                   {activeView === 'visualization' && <VisualizationHero setInput={setInput} />}
-                  {activeView === 'chat' && <DefaultHero setInput={setInput} setActiveView={handleViewChange} />}
+                  {activeView === 'chat' && (
+                    <DefaultHero 
+                      setInput={setInput} 
+                      setActiveView={handleViewChange}
+                      userName={profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
+                      onSubmit={(e) => handleSubmit(e)}
+                      inputValue={input}
+                      onInputChange={handleInputChange}
+                      onUploadClick={() => fileInputRef.current?.click()}
+                      isWebSearchEnabled={isWebSearchEnabled}
+                      setIsWebSearchEnabled={setIsWebSearchEnabled}
+                      isImageGenEnabled={isImageGenEnabled}
+                      setIsImageGenEnabled={setIsImageGenEnabled}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="max-w-5xl mx-auto px-6 space-y-6 py-6">
@@ -1845,8 +1935,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     >
                       {/* AI Avatar */}
                       {message.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                          <Sparkles className="w-4 h-4 text-cyan-400" />
+                        <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Sparkles className="w-4 h-4 text-blue-400" />
                         </div>
                       )}
                       
@@ -1862,11 +1952,11 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                           <div className={`mb-3 p-2.5 rounded-lg border-l-2 ${
                             message.role === 'user' 
                               ? 'bg-black/20 border-black/40' 
-                              : 'bg-cyan-500/10 border-cyan-500/40'
+                              : 'bg-blue-500/10 border-blue-500/40'
                           }`}>
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Reply className={`w-3 h-3 ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`} />
-                              <span className={`text-xs font-medium ${message.role === 'user' ? 'text-black/70' : 'text-cyan-400'}`}>
+                              <Reply className={`w-3 h-3 ${message.role === 'user' ? 'text-black/70' : 'text-blue-400'}`} />
+                              <span className={`text-xs font-medium ${message.role === 'user' ? 'text-black/70' : 'text-blue-400'}`}>
                                 Membalas {message.replyTo.role === 'user' ? 'Anda' : 'AI'}
                               </span>
                             </div>
@@ -1880,9 +1970,9 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         {message.role === 'assistant' && (message.webSearchActive || message.documentAnalysisActive) && (
                           <div className="flex gap-2 mb-3">
                             {message.documentAnalysisActive && (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full">
-                                <FileText className="w-3 h-3 text-cyan-400" />
-                                <span className="text-[10px] font-medium text-cyan-400 uppercase tracking-wider">Document Intelligence</span>
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full">
+                                <FileText className="w-3 h-3 text-blue-400" />
+                                <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wider">Document Intelligence</span>
                               </div>
                             )}
                             {message.webSearchActive && (
@@ -1921,7 +2011,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                           <div className="mb-4 animate-fade-in">
                             {/* Image Container */}
                             <div 
-                              className="relative group cursor-pointer rounded-xl overflow-hidden border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+                              className="relative group cursor-pointer rounded-xl overflow-hidden border border-blue-500/20 hover:border-blue-500/40 transition-all"
                               onClick={() => setLightboxImage(message.imageUrl || null)}
                             >
                               <img 
@@ -1938,9 +2028,9 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
                             {/* Rating System UI */}
                             {message.imageMeta && (
-                              <div className="mt-4 p-4 bg-[#1a1a24]/80 rounded-xl border border-cyan-500/20">
+                              <div className="mt-4 p-4 bg-[#1a1a24]/80 rounded-xl border border-blue-500/20">
                                 <div className="flex items-center gap-2 mb-3">
-                                  <span className="text-sm text-cyan-300">⭐ Bagaimana hasilnya?</span>
+                                  <span className="text-sm text-blue-300">⭐ Bagaimana hasilnya?</span>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   {/* Good Button */}
@@ -2036,9 +2126,9 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                                       setTimeout(() => setToast(null), 3000);
                                     }}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg
-                                               bg-cyan-500/10 border border-cyan-500/30
-                                               text-cyan-400 text-sm font-medium
-                                               hover:bg-cyan-500/20 hover:border-cyan-500/50
+                                               bg-blue-500/10 border border-blue-500/30
+                                               text-blue-400 text-sm font-medium
+                                               hover:bg-blue-500/20 hover:border-blue-500/50
                                                transition-all"
                                   >
                                     <RefreshCw className="w-4 h-4" />
@@ -2073,17 +2163,17 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         
                         {/* Recommendations Section for AI messages */}
                         {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
-                          <div className="mt-5 pt-4 border-t border-cyan-500/20">
+                          <div className="mt-5 pt-4 border-t border-blue-500/20">
                             <div className="flex items-center gap-2 mb-3">
-                              <MessageCircle className="w-4 h-4 text-cyan-400" />
-                              <span className="text-sm font-medium text-cyan-400">Pertanyaan Lanjutan</span>
+                              <MessageCircle className="w-4 h-4 text-blue-400" />
+                              <span className="text-sm font-medium text-blue-400">Pertanyaan Lanjutan</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {message.recommendations.map((rec, recIdx) => (
                                 <button
                                   key={recIdx}
                                   onClick={() => setInput(rec)}
-                                  className="group px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full text-cyan-400 hover:text-cyan-300 transition-all flex items-center gap-1.5"
+                                  className="group px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-full text-blue-400 hover:text-blue-300 transition-all flex items-center gap-1.5"
                                 >
                                   {rec}
                                   <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -2095,7 +2185,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         
                         {/* Reply & Feedback Actions */}
                         <div className={`mt-4 pt-3 border-t flex items-center justify-between ${
-                          message.role === 'user' ? 'border-black/10' : 'border-cyan-500/10'
+                          message.role === 'user' ? 'border-black/10' : 'border-blue-500/10'
                         }`}>
                           <div className="flex items-center gap-3">
                             <button
@@ -2106,7 +2196,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                               className={`flex items-center gap-1.5 text-[11px] transition-colors ${
                                 message.role === 'user' 
                                   ? 'text-black/50 hover:text-black/80' 
-                                  : 'text-gray-500 hover:text-cyan-400'
+                                  : 'text-gray-500 hover:text-blue-400'
                               }`}
                               title="Balas pesan ini"
                             >
@@ -2116,10 +2206,10 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
                             {/* Assistant-only Actions: Regenerate, Thumbs, Copy, Share */}
                             {message.role === 'assistant' && (
-                              <div className="flex items-center gap-1 border-l border-cyan-500/10 pl-3 ml-1">
+                              <div className="flex items-center gap-1 border-l border-blue-500/10 pl-3 ml-1">
                                 <button 
                                   onClick={() => handleRegenerate(index)}
-                                  className="p-1.5 rounded hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-colors"
+                                  className="p-1.5 rounded hover:bg-blue-500/10 text-gray-500 hover:text-blue-400 transition-colors"
                                   title="Regenerate"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />
@@ -2127,8 +2217,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                                 
                                 <button 
                                   onClick={() => handleFeedback(message.id || '', 1)}
-                                  className={`p-1.5 rounded hover:bg-cyan-500/10 transition-colors ${
-                                    (message.id && feedbackState[message.id] === 1) ? 'text-cyan-400' : 'text-gray-500 hover:text-cyan-400'
+                                  className={`p-1.5 rounded hover:bg-blue-500/10 transition-colors ${
+                                    (message.id && feedbackState[message.id] === 1) ? 'text-blue-400' : 'text-gray-500 hover:text-blue-400'
                                   }`}
                                   title="Membantu"
                                 >
@@ -2147,7 +2237,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
                                 <button 
                                   onClick={() => handleCopy(message.content)}
-                                  className="p-1.5 rounded hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-colors"
+                                  className="p-1.5 rounded hover:bg-blue-500/10 text-gray-500 hover:text-blue-400 transition-colors"
                                   title="Salin"
                                 >
                                   <Copy className="w-3.5 h-3.5" />
@@ -2155,7 +2245,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
                                 <button 
                                   onClick={() => handleShare(message)}
-                                  className="p-1.5 rounded hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-colors"
+                                  className="p-1.5 rounded hover:bg-blue-500/10 text-gray-500 hover:text-blue-400 transition-colors"
                                   title="Bagikan"
                                 >
                                   <Share2 className="w-3.5 h-3.5" />
@@ -2180,8 +2270,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                   ))}
                   {isLoading && (
                     <div className="flex items-start gap-4 justify-start animate-fade-in pl-1 mb-6">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-2">
-                        <Sparkles className="w-4 h-4 text-cyan-400" />
+                      <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-2">
+                        <Sparkles className="w-4 h-4 text-blue-400" />
                       </div>
                       <OnboardCard 
                           duration={2500}
@@ -2198,15 +2288,15 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
             </div>
 
             {/* Input Area - Sticky */}
-            <div className="sticky bottom-0 bg-black/95 backdrop-blur-xl z-10" style={{ padding: '24px' }}>
+            <div className={`sticky bottom-0 bg-black/95 backdrop-blur-xl z-10 transition-all duration-300 ${messages.length === 0 && activeView === 'chat' ? 'opacity-0 pointer-events-none translate-y-10 h-0 overflow-hidden' : 'opacity-100 p-6 h-auto'}`}>
               <div className="max-w-5xl mx-auto">
                 {/* Reply Indicator */}
                 {replyingTo && (
-                  <div className="mb-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start justify-between gap-3 animate-fade-in">
+                  <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-start justify-between gap-3 animate-fade-in">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Reply className="w-4 h-4 text-cyan-400" />
-                        <span className="text-sm font-medium text-cyan-400">
+                        <Reply className="w-4 h-4 text-blue-400" />
+                        <span className="text-sm font-medium text-blue-400">
                           Membalas {replyingTo.role === 'user' ? 'pesan Anda' : 'AI'}
                         </span>
                       </div>
@@ -2227,19 +2317,19 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                 {uploadStatus !== 'idle' && (
                   <div className={cn(
                     "mb-3 px-4 py-3 rounded-2xl border flex flex-col gap-2 animate-fade-in backdrop-blur-xl relative overflow-hidden",
-                    uploadStatus === 'uploading' ? "bg-cyan-500/[0.03] border-cyan-500/20 shadow-[0_4px_20px_-10px_rgba(6,182,212,0.2)]" :
+                    uploadStatus === 'uploading' ? "bg-blue-500/[0.03] border-blue-500/20 shadow-[0_4px_20px_-10px_rgba(37,99,235,0.2)]" :
                     uploadStatus === 'success' ? "bg-green-500/[0.03] border-green-500/20 shadow-[0_4px_20px_-10px_rgba(34,197,94,0.2)]" :
                     "bg-red-500/[0.03] border-red-500/20 shadow-[0_4px_20px_-10px_rgba(239,68,68,0.2)]"
                   )}>
                     {/* Simulated Progress Bar Background */}
                     {uploadStatus === 'uploading' && (
-                      <div className="absolute bottom-0 left-0 h-[2px] bg-cyan-500 transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                      <div className="absolute bottom-0 left-0 h-[2px] bg-blue-500 transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                     )}
                     
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 text-[13px] font-medium">
                         {uploadStatus === 'uploading' ? (
-                          <div className="w-5 h-5 rounded-full border-2 border-cyan-500/20 border-t-cyan-500 animate-spin" />
+                          <div className="w-5 h-5 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
                         ) : uploadStatus === 'success' ? (
                           <div className="w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center">
                             <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
@@ -2252,7 +2342,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         <div className="flex flex-col">
                           <span className={cn(
                             "leading-tight",
-                            uploadStatus === 'uploading' ? "text-cyan-400" :
+                            uploadStatus === 'uploading' ? "text-blue-400" :
                             uploadStatus === 'success' ? "text-green-400" :
                             "text-red-400"
                           )}>
@@ -2299,24 +2389,34 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                       className={cn(
                         "w-full px-6 py-5 pr-24 bg-[#18181b] rounded-2xl focus:outline-none focus:ring-1 text-white transition-all text-lg",
                         isImageGenEnabled 
-                          ? "placeholder-cyan-400/60 focus:ring-cyan-500/40" 
-                          : "placeholder-cyan-400/50 focus:ring-cyan-500/30"
+                          ? "placeholder-blue-400/60 focus:ring-blue-500/40" 
+                          : "placeholder-blue-400/50 focus:ring-blue-500/30"
                       )}
                       disabled={isLoading}
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
                       <button
                         type="button"
-                        className="p-2 text-cyan-400/60 hover:text-cyan-400 transition-colors"
+                        className="p-2 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/5 rounded-lg transition-all"
                       >
-                        <Mic className="w-5 h-5" />
+                        <img 
+                          src="/icon/microphone.svg" 
+                          alt="Mic" 
+                          className="w-[22px] h-[22px]" 
+                          style={{ filter: 'invert(48%) sepia(100%) saturate(8000%) hue-rotate(195deg) brightness(1.6) contrast(1.2) drop-shadow(0 0 12px rgba(37, 99, 235, 1))' }} 
+                        />
                       </button>
                       <button
                         type="submit"
                         disabled={isLoading || !input.trim()}
-                        className="p-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="p-2 transition-all group disabled:cursor-not-allowed"
                       >
-                        <ArrowUp className="w-5 h-5" />
+                        <img 
+                          src="/icon/send.svg" 
+                          alt="Send" 
+                          className="w-[22px] h-[22px] transition-all group-hover:scale-110" 
+                          style={{ filter: 'invert(48%) sepia(100%) saturate(8000%) hue-rotate(195deg) brightness(1.6) contrast(1.2) drop-shadow(0 0 12px rgba(37, 99, 235, 1))' }} 
+                        />
                       </button>
                     </div>
                   </div>
@@ -2339,12 +2439,12 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       uploadStatus === 'uploading' 
-                        ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 cursor-wait" 
+                        ? "bg-blue-500/20 border-blue-500/40 text-blue-300 cursor-wait" 
                         : uploadStatus === 'success'
                         ? "bg-green-500/20 border-green-500/40 text-green-400"
                         : uploadStatus === 'error'
                         ? "bg-red-500/20 border-red-500/40 text-red-400"
-                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)]"
+                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60 shadow-[0_0_15px_-5px_rgba(59,130,246,0.3)]"
                     )}
                     title="Upload documents (PDF, Word, Excel, CSV) to analyze instantly"
                   >
@@ -2370,8 +2470,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       isWebSearchEnabled 
-                        ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
-                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
+                        ? "bg-blue-500/20 border-blue-500/60 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
+                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60"
                     )}
                   >
                     <Globe className={cn("w-3.5 h-3.5 group-hover:scale-110 transition-transform", isWebSearchEnabled && "animate-pulse")} />
@@ -2383,8 +2483,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       isImageGenEnabled 
-                        ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
-                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
+                        ? "bg-blue-500/20 border-blue-500/60 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
+                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60"
                     )}
                     title={isImageGenEnabled ? "Klik untuk kembali ke mode chat" : "Aktifkan untuk membuat gambar AI"}
                   >
@@ -2403,9 +2503,9 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                       <button
                         onClick={() => setShowStyleDropdown(!showStyleDropdown)}
                         className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl
-                                   bg-cyan-500/10
-                                   border border-cyan-500/30 hover:border-cyan-400/60
-                                   text-cyan-300 text-sm font-medium
+                                   bg-blue-500/10
+                                   border border-blue-500/30 hover:border-blue-400/60
+                                   text-blue-300 text-sm font-medium
                                    transition-all duration-200"
                       >
                         <ImageIcon className="w-4 h-4" />
@@ -2436,12 +2536,12 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                           {/* Dropdown Panel */}
                           <div className="absolute bottom-full left-0 mb-2 z-50
                                           bg-[#1a1a24]/95 backdrop-blur-xl rounded-xl
-                                          border border-cyan-500/20 shadow-xl
+                                          border border-blue-500/20 shadow-xl
                                           min-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
                             
                             {/* Header */}
                             <div className="px-4 py-2.5 border-b border-white/5">
-                              <p className="text-xs font-medium text-cyan-400/80 uppercase tracking-wider">
+                              <p className="text-xs font-medium text-blue-400/80 uppercase tracking-wider">
                                 Pilih Gaya Gambar
                               </p>
                             </div>
@@ -2467,7 +2567,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
                                     "transition-all duration-150",
                                     imageStyle === option.value 
-                                      ? "bg-cyan-500/20 text-cyan-300" 
+                                      ? "bg-blue-500/20 text-blue-300" 
                                       : "hover:bg-white/5 text-white/80"
                                   )}
                                 >
@@ -2480,7 +2580,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
 
                                   {/* Check indicator */}
                                   {imageStyle === option.value && (
-                                    <div className="w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center">
+                                    <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
                                       <Check className="w-2.5 h-2.5 text-white" />
                                     </div>
                                   )}
@@ -2494,7 +2594,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                   )}
 
                   {uploadedFiles.length > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-2 bg-[#1c1c21] rounded-full border border-cyan-500/20 text-xs text-white/90 shadow-[0_4px_20px_-10px_rgba(6,182,212,0.3)] animate-fade-in group hover:border-cyan-500/50 transition-all">
+                    <div className="flex items-center gap-3 px-4 py-2 bg-[#1c1c21] rounded-full border border-blue-500/20 text-xs text-white/90 shadow-[0_4px_20px_-10px_rgba(37,99,235,0.3)] animate-fade-in group hover:border-blue-500/50 transition-all">
                       <div className="flex items-center gap-2">
                          <div className="w-6 h-6 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20">
                             <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />

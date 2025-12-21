@@ -151,7 +151,7 @@ export function HatchedChartTooltipContent({
 
     if (labelFormatter) {
       return (
-        <div className={cn("font-medium text-cyan-400", labelClassName)}>
+        <div className={cn("font-medium text-blue-400", labelClassName)}>
           {labelFormatter(value as any, payload)}
         </div>
       );
@@ -161,7 +161,7 @@ export function HatchedChartTooltipContent({
       return null;
     }
 
-    return <div className={cn("font-medium text-cyan-400", labelClassName)}>{value}</div>;
+    return <div className={cn("font-medium text-blue-400", labelClassName)}>{value}</div>;
   }, [label, labelFormatter, payload, hideLabel, labelClassName, config, labelKey]);
 
   if (!active || !payload?.length) {
@@ -173,7 +173,7 @@ export function HatchedChartTooltipContent({
   return (
     <div
       className={cn(
-        "border-cyan-500/30 bg-black/90 backdrop-blur-xl grid min-w-[8rem] items-start gap-1.5 rounded-xl border px-3 py-2 text-xs shadow-[0_8px_32px_rgba(6,182,212,0.25)]",
+        "border-blue-500/30 bg-black/90 backdrop-blur-xl grid min-w-[8rem] items-start gap-1.5 rounded-xl border px-3 py-2 text-xs shadow-[0_8px_32px_rgba(37, 99, 235, 0.25)]",
         className
       )}
     >
@@ -354,7 +354,7 @@ export function CustomHatchedBar(
         height={height}
         stroke="none"
         fill={`url(#${patternId})`}
-        className="drop-shadow-[0_4px_12px_rgba(6,182,212,0.3)]"
+        className="drop-shadow-[0_4px_12px_rgba(37, 99, 235, 0.3)]"
       />
       <defs>
         <pattern
@@ -387,7 +387,7 @@ export function DottedBackgroundPattern() {
       patternUnits="userSpaceOnUse"
     >
       <circle
-        className="text-cyan-500/20"
+        className="text-blue-500/20"
         cx="2"
         cy="2"
         r="1"

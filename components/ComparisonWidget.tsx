@@ -50,10 +50,10 @@ const TIMEFRAMES = ['1D', '1M', '6M', 'YTD', '1Y', '5Y', 'MAX'];
 // Default colors for assets
 const ASSET_COLORS = [
   '#f97316', // orange
-  '#06b6d4', // cyan
+  '#3b82f6', // cyan
   '#a855f7', // purple
   '#ec4899', // pink
-  '#22d3ee', // light cyan
+  '#60a5fa', // light cyan
   '#8b5cf6', // violet
 ];
 
@@ -381,14 +381,14 @@ export default function ComparisonWidget({
     <Card className={cn(
       "my-0 w-full max-w-7xl mx-auto animate-in fade-in-0 slide-in-from-bottom-4 duration-500",
       "bg-gradient-to-br from-black/70 via-black/50 to-black/70",
-      "border-cyan-500/20 shadow-2xl overflow-hidden rounded-2xl backdrop-blur-3xl",
-      "hover:border-cyan-500/30 transition-all duration-300"
+      "border-blue-500/20 shadow-2xl overflow-hidden rounded-2xl backdrop-blur-3xl",
+      "hover:border-blue-500/30 transition-all duration-300"
     )}>
-      <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-cyan-500/10 bg-black/40 px-6 py-5 gap-4">
+      <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-blue-500/10 bg-black/40 px-6 py-5 gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 p-[1px]">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 p-[1px]">
             <div className="w-full h-full rounded-xl bg-black flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-cyan-400" />
+              <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
           </div>
           <div>
@@ -416,7 +416,7 @@ export default function ComparisonWidget({
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all",
                   userPersona === p.id 
-                    ? "bg-cyan-500 text-black" 
+                    ? "bg-blue-500 text-black" 
                     : "text-gray-400 hover:text-white"
                 )}
               >
@@ -435,7 +435,7 @@ export default function ComparisonWidget({
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-bold transition-all tabular-nums",
                   selectedTimeframe === tf
-                    ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                    ? "bg-blue-500 text-black shadow-[0_0_15px_rgba(37,99,235,0.4)]"
                     : "text-gray-400 hover:text-white hover:bg-white/5",
                   isLoadingTimeframe && "opacity-50 cursor-not-allowed"
                 )}
@@ -448,10 +448,10 @@ export default function ComparisonWidget({
       </CardHeader>
 
       {/* Animated gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
 
       {/* Header with Asset Info */}
-      <CardHeader className="relative pb-4 pt-6 px-6 border-b border-cyan-500/20">
+      <CardHeader className="relative pb-4 pt-6 px-6 border-b border-blue-500/20">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {assets.map((asset, index) => (
             <div
@@ -459,13 +459,13 @@ export default function ComparisonWidget({
               className={cn(
                 "flex items-center gap-4 p-4 rounded-xl",
                 "bg-black/20",
-                "border border-cyan-500/10",
-                "hover:border-cyan-500/30 hover:bg-black/30 transition-all duration-300"
+                "border border-blue-500/10",
+                "hover:border-blue-500/30 hover:bg-black/30 transition-all duration-300"
               )}
             >
               {/* Logo */}
               <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden border-2 border-cyan-500/30 shadow-lg"
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden border-2 border-blue-500/30 shadow-lg"
                 style={{ backgroundColor: assetLogos[asset.symbol] ? 'transparent' : getAssetColor(index) }}
               >
                 {assetLogos[asset.symbol] ? (
@@ -606,7 +606,7 @@ export default function ComparisonWidget({
                     <span className="text-gray-400 text-xs font-medium">({asset.exchange})</span>
                   )}
                 </div>
-                <div className="text-cyan-400 font-mono text-sm font-semibold">
+                <div className="text-blue-400 font-mono text-sm font-semibold">
                   {asset.symbol}
                 </div>
               </div>
@@ -644,7 +644,7 @@ export default function ComparisonWidget({
                       asset.rsi < 20 ? "bg-red-500/20 text-red-400 border-red-500/50 animate-pulse" :
                       asset.rsi < 30 ? "bg-green-500/10 text-green-400 border-green-500/30" :
                       asset.rsi > 70 ? "bg-red-500/10 text-red-400 border-red-500/30" :
-                      "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                      "bg-blue-500/10 text-blue-400 border-blue-500/20"
                     )}>
                       RSI: {asset.rsi.toFixed(1)} {asset.rsi < 20 ? '🔥 EXTREME' : ''}
                     </div>
@@ -683,7 +683,7 @@ export default function ComparisonWidget({
       </CardHeader>
 
       {/* Navigation Bar */}
-      <div className="relative px-6 py-4 border-b border-cyan-500/20">
+      <div className="relative px-6 py-4 border-b border-blue-500/20">
         <div className="flex items-center justify-between">
           {/* Timeframe Selector */}
           <div className="flex items-center gap-1.5">
@@ -697,8 +697,8 @@ export default function ComparisonWidget({
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   "relative group",
                   selectedTimeframe === tf
-                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
-                    : "text-gray-400 hover:text-cyan-300 hover:bg-cyan-500/10 hover:border hover:border-cyan-500/20"
+                    ? "bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-[0_0_12px_rgba(37,99,235,0.4)]"
+                    : "text-gray-400 hover:text-blue-300 hover:bg-blue-500/10 hover:border hover:border-blue-500/20"
                 )}
                 title={`View ${tf} timeframe`}
               >
@@ -712,12 +712,12 @@ export default function ComparisonWidget({
                   </span>
                 ) : tf}
                 {selectedTimeframe === tf && !isLoadingTimeframe && (
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
+                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/10 via-transparent to-blue-500/10 pointer-events-none" />
                 )}
               </button>
             ))}
             {isLoadingTimeframe && (
-              <span className="ml-2 text-xs text-cyan-400 animate-pulse">Memuat data...</span>
+              <span className="ml-2 text-xs text-blue-400 animate-pulse">Memuat data...</span>
             )}
           </div>
 
@@ -728,7 +728,7 @@ export default function ComparisonWidget({
                 // Calendar picker - could open a date range picker
                 alert('Date range picker - Coming soon!');
               }}
-              className="p-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
               title="Select Date Range"
             >
               <Calendar className="w-4 h-4" />
@@ -742,21 +742,21 @@ export default function ComparisonWidget({
                 setChartType(nextType);
                 onChartTypeChange?.(nextType);
               }}
-              className="p-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
               title="Change Chart Type"
             >
               <BarChart3 className="w-4 h-4" />
             </button>
             <button 
               onClick={handleScreenshot}
-              className="p-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
               title="Take Screenshot"
             >
               <Camera className="w-4 h-4" />
             </button>
             <button 
               onClick={handleDownload}
-              className="p-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
               title="Download Data"
             >
               <Download className="w-4 h-4" />
@@ -769,7 +769,7 @@ export default function ComparisonWidget({
       <div ref={chartContainerRef}>
         <CardContent className="relative px-6 pb-8 pt-6">
         {/* Zoom Controls */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-lg p-1 border border-cyan-500/20">
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-lg p-1 border border-blue-500/20">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -779,7 +779,7 @@ export default function ComparisonWidget({
                   brush.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
               }}
-              className="p-1.5 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-all"
+              className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-all"
               title="Zoom In (Use brush below chart)"
             >
               <ZoomIn className="w-4 h-4" />
@@ -791,7 +791,7 @@ export default function ComparisonWidget({
                 // This will be handled by brush component itself
                 alert('Gunakan brush di bawah chart untuk zoom. Drag untuk memilih range, double-click untuk reset.');
               }}
-              className="p-1.5 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-all"
+              className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-all"
               title="Zoom Out (Double-click brush to reset)"
             >
               <ZoomOut className="w-4 h-4" />
@@ -817,7 +817,7 @@ export default function ComparisonWidget({
             </defs>
             <CartesianGrid 
               strokeDasharray="3 3" 
-              stroke="rgba(6, 182, 212, 0.1)" 
+              stroke="rgba(37, 99, 235, 0.1)" 
               strokeWidth={1}
             />
             <XAxis
@@ -839,16 +839,16 @@ export default function ComparisonWidget({
             <Tooltip
               contentStyle={{
                 backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                border: '1px solid rgba(6, 182, 212, 0.3)',
+                border: '1px solid rgba(37, 99, 235, 0.3)',
                 borderRadius: '12px',
                 color: '#ffffff',
                 fontSize: '12px',
                 padding: '12px',
                 backdropFilter: 'blur(10px)',
-                boxShadow: '0 8px 32px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(6, 182, 212, 0.1)',
+                boxShadow: '0 8px 32px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37, 99, 235, 0.1)',
               }}
               labelStyle={{ 
-                color: '#06b6d4', 
+                color: '#3b82f6', 
                 fontSize: '13px',
                 fontWeight: 700,
                 marginBottom: '10px'
@@ -875,8 +875,8 @@ export default function ComparisonWidget({
             <Brush
               dataKey={xKey}
               height={30}
-              stroke="rgba(6, 182, 212, 0.6)"
-              fill="rgba(6, 182, 212, 0.15)"
+              stroke="rgba(37, 99, 235, 0.6)"
+              fill="rgba(37, 99, 235, 0.15)"
               tickFormatter={(value) => {
                 // Format date for brush
                 if (typeof value === 'string') {
@@ -928,7 +928,7 @@ export default function ComparisonWidget({
         {assets.length >= 2 && (
           <div className={cn(
             "mt-6 p-5 rounded-xl border transition-all duration-300 relative overflow-hidden",
-            "bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 border-cyan-500/20",
+            "bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 border-blue-500/20",
             isAnalyzing && "opacity-60 cursor-wait"
           )}>
             {/* AI Narrative Loading Overlay */}
@@ -936,17 +936,17 @@ export default function ComparisonWidget({
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-10">
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex gap-1">
-                    <div className="w-1.5 h-6 bg-cyan-500 animate-[bounce_1s_infinite_0ms]" />
+                    <div className="w-1.5 h-6 bg-blue-500 animate-[bounce_1s_infinite_0ms]" />
                     <div className="w-1.5 h-6 bg-purple-500 animate-[bounce_1s_infinite_200ms]" />
-                    <div className="w-1.5 h-6 bg-cyan-500 animate-[bounce_1s_infinite_400ms]" />
+                    <div className="w-1.5 h-6 bg-blue-500 animate-[bounce_1s_infinite_400ms]" />
                   </div>
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Re-Analyzing for {userPersona}...</span>
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Re-Analyzing for {userPersona}...</span>
                 </div>
               </div>
             )}
 
             <div className="flex items-start gap-3">
-              <Sparkles className={cn("w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5", isAnalyzing && "animate-pulse")} />
+              <Sparkles className={cn("w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5", isAnalyzing && "animate-pulse")} />
               <div className="flex-1">
                 <div className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed space-y-3">
                   {narrative ? (
@@ -968,10 +968,10 @@ export default function ComparisonWidget({
                     if (diff > 0) {
                       return (
                         <span>
-                          Dalam <strong className="text-cyan-400">{timeframeLabel}</strong>,{' '}
+                          Dalam <strong className="text-blue-400">{timeframeLabel}</strong>,{' '}
                           <strong className="text-white">{winner.symbol}</strong> outperform{' '}
                           <strong className="text-white">{loser.symbol}</strong> sebesar{' '}
-                          <strong className={diff > 5 ? "text-green-400" : "text-cyan-400"}>
+                          <strong className={diff > 5 ? "text-green-400" : "text-blue-400"}>
                             {diff.toFixed(2)}%
                           </strong>
                         </span>
@@ -980,7 +980,7 @@ export default function ComparisonWidget({
                       return (
                         <span>
                           Semua aset menunjukkan performa yang relatif seimbang dalam{' '}
-                          <strong className="text-cyan-400">{timeframeLabel}</strong>.
+                          <strong className="text-blue-400">{timeframeLabel}</strong>.
                         </span>
                       );
                     }
@@ -993,12 +993,12 @@ export default function ComparisonWidget({
                 {(() => {
                   const avgConfidence = assets.reduce((acc, a) => acc + (a.engine?.confidence || 50), 0) / assets.length;
                   return (
-                    <div className="mt-4 pt-3 border-t border-cyan-500/10 space-y-2">
+                    <div className="mt-4 pt-3 border-t border-blue-500/10 space-y-2">
                        <div className="flex items-center justify-between text-[10px]">
                           <span className="text-gray-400 font-bold uppercase tracking-wider">AI Analysis Signal Quality</span>
                           <span className={cn(
                             "font-bold",
-                            avgConfidence > 75 ? "text-green-400" : avgConfidence > 50 ? "text-cyan-400" : "text-yellow-400"
+                            avgConfidence > 75 ? "text-green-400" : avgConfidence > 50 ? "text-blue-400" : "text-yellow-400"
                           )}>{avgConfidence.toFixed(0)}% Confidence</span>
                        </div>
                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex">
@@ -1006,7 +1006,7 @@ export default function ComparisonWidget({
                             className={cn(
                               "h-full transition-all duration-1000 ease-out",
                               avgConfidence > 75 ? "bg-green-500 shadow-[0_0_10px_#22c55e]" : 
-                              avgConfidence > 50 ? "bg-cyan-500 shadow-[0_0_10px_#06b6d4]" : "bg-yellow-500"
+                              avgConfidence > 50 ? "bg-blue-500 shadow-[0_0_10px_#3b82f6]" : "bg-yellow-500"
                             )}
                             style={{ width: `${avgConfidence}%` }}
                           />
@@ -1017,7 +1017,7 @@ export default function ComparisonWidget({
 
                 {/* CTA Buttons */}
                 <div className="flex flex-wrap gap-2 mt-4">
-                  <button className="text-[11px] px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg border border-cyan-500/30 transition-all flex items-center gap-1.5 group">
+                  <button className="text-[11px] px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg border border-blue-500/30 transition-all flex items-center gap-1.5 group">
                     <TrendingUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                     Bandingkan Timeframe Lain
                   </button>
@@ -1036,7 +1036,7 @@ export default function ComparisonWidget({
     </div>
 
       {/* Comparison Table */}
-      <div className="relative px-6 pb-6 pt-4 border-t border-cyan-500/20">
+      <div className="relative px-6 pb-6 pt-4 border-t border-blue-500/20">
         <div className="space-y-2">
           {assets.map((asset, index) => {
             const color = getAssetColor(index);
@@ -1046,13 +1046,13 @@ export default function ComparisonWidget({
                 className={cn(
                   "flex items-center gap-4 p-3 rounded-lg",
                   "bg-black/20",
-                  "border border-cyan-500/10",
-                  "hover:border-cyan-500/30 hover:bg-black/30 transition-all duration-200"
+                  "border border-blue-500/10",
+                  "hover:border-blue-500/30 hover:bg-black/30 transition-all duration-200"
                 )}
               >
                 {/* Logo */}
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-cyan-500/20"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden border border-blue-500/20"
                   style={{ backgroundColor: assetLogos[asset.symbol] ? 'transparent' : color }}
                 >
                   {assetLogos[asset.symbol] ? (
@@ -1163,7 +1163,7 @@ export default function ComparisonWidget({
                   <div className="text-white font-medium text-sm">
                     {assetNames[asset.symbol] || asset.name || asset.symbol}
                   </div>
-                  <div className="text-cyan-400 font-mono text-xs">
+                  <div className="text-blue-400 font-mono text-xs">
                     {asset.symbol}
                   </div>
                 </div>
@@ -1208,7 +1208,7 @@ export default function ComparisonWidget({
           })}
         </div>
       </div>
-      <div className="px-6 py-4 bg-black/40 border-t border-cyan-500/10 text-[10px] text-gray-500 italic text-center rounded-b-2xl">
+      <div className="px-6 py-4 bg-black/40 border-t border-blue-500/10 text-[10px] text-gray-500 italic text-center rounded-b-2xl">
         Catatan: Indikator teknikal (RSI, MA20) dan AI Insight didasarkan pada data historis. Ini bukan merupakan saran investasi atau jaminan performa harga di masa depan.
       </div>
     </Card>

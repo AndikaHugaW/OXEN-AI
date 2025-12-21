@@ -79,10 +79,10 @@ interface ChartRendererProps {
 
 // Web3 Modern Neon Palette for comparisons (stable mapping by key)
 const COLORS = [
-  '#06b6d4', // cyan (primary)
+  '#3b82f6', // cyan (primary)
   '#a855f7', // purple
   '#ec4899', // pink
-  '#22d3ee', // light cyan
+  '#60a5fa', // light cyan
   '#8b5cf6', // violet
   '#f472b6', // light pink
   '#34d399', // emerald
@@ -104,7 +104,7 @@ function colorForKey(key: string): string {
 const TREND_COLORS = {
   up: '#22c55e',      // Green
   down: '#ef4444',    // Red
-  neutral: '#06b6d4', // Cyan
+  neutral: '#3b82f6', // Cyan
 };
 
 // Helper: Get change from previous data point
@@ -125,7 +125,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
   // 🚫 Error State for Sufficiency Validation
   if (chart.error) {
     return (
-      <Card className="w-full bg-black/40 border-cyan-500/30 backdrop-blur-sm shadow-xl overflow-hidden">
+      <Card className="w-full bg-black/40 border-blue-500/30 backdrop-blur-sm shadow-xl overflow-hidden">
         <CardHeader className="border-b border-white/5 pb-4">
           <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
             <span className="text-yellow-500">⚠️</span> {chart.error.title}
@@ -246,8 +246,8 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
       const changeInfo = getChangeFromPrevious(chart.data, currentIndex, yKey);
       
       return (
-        <div className="bg-black/90 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-3 shadow-xl min-w-[160px]">
-          <p className="text-cyan-400 font-medium text-sm mb-2">{label}</p>
+        <div className="bg-black/90 backdrop-blur-sm border border-blue-500/30 rounded-lg p-3 shadow-xl min-w-[160px]">
+          <p className="text-blue-400 font-medium text-sm mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
               <span className="text-gray-400 text-xs">{entry.name || entry.dataKey}:</span>
@@ -307,7 +307,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                     cx="2"
                     cy="2"
                     r="1"
-                    fill="rgba(6,182,212,0.12)"
+                    fill="rgba(37,99,235,0.12)"
                   />
                 </pattern>
                 
@@ -374,7 +374,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                   return `${value}`;
                 }}
               />
-              <Tooltip content={SmartTooltip} cursor={{ stroke: 'rgba(6, 182, 212, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }} />
+              <Tooltip content={SmartTooltip} cursor={{ stroke: 'rgba(37, 99, 235, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }} />
               <Legend 
                 wrapperStyle={{ 
                   color: 'rgba(148, 163, 184, 0.9)', 
@@ -446,14 +446,14 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                     cx="2"
                     cy="2"
                     r="1"
-                    fill="rgba(6,182,212,0.1)"
+                    fill="rgba(37,99,235,0.1)"
                   />
                 </pattern>
                 
                 {/* Hatched pattern for bars */}
                 {barYKeys.map((key) => {
                   const color = primaryTrend === 'up' ? '#22c55e' : 
-                               primaryTrend === 'down' ? '#ef4444' : '#06b6d4';
+                               primaryTrend === 'down' ? '#ef4444' : '#3b82f6';
                   return (
                     <pattern
                       key={`hatched-${key}`}
@@ -520,7 +520,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                   return `${value}`;
                 }}
               />
-              <Tooltip content={SmartTooltip} cursor={{ fill: 'rgba(6, 182, 212, 0.08)' }} />
+              <Tooltip content={SmartTooltip} cursor={{ fill: 'rgba(37, 99, 235, 0.08)' }} />
               <Legend 
                 wrapperStyle={{ 
                   color: 'rgba(148, 163, 184, 0.9)', 
@@ -606,7 +606,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
               </defs>
               <CartesianGrid 
                 strokeDasharray="3 3" 
-                stroke="rgba(6, 182, 212, 0.1)" 
+                stroke="rgba(37, 99, 235, 0.1)" 
                 strokeWidth={1}
               />
               <XAxis
@@ -631,12 +631,12 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                 }
                 contentStyle={{
                   backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
                   borderRadius: '12px',
                   backdropFilter: 'blur(10px)',
-                  boxShadow: '0 8px 32px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(6, 182, 212, 0.1)',
+                  boxShadow: '0 8px 32px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37, 99, 235, 0.1)',
                 }}
-                cursor={{ stroke: 'rgba(6, 182, 212, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }}
+                cursor={{ stroke: 'rgba(37, 99, 235, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }}
               />
               <ChartLegend 
                 content={<ChartLegendContent />}
@@ -693,7 +693,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
               </defs>
               <CartesianGrid 
                 strokeDasharray="3 3" 
-                stroke="rgba(6, 182, 212, 0.1)" 
+                stroke="rgba(37, 99, 235, 0.1)" 
                 strokeWidth={1}
               />
               <XAxis 
@@ -713,16 +713,16 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
                   borderRadius: '12px',
                   color: '#ffffff',
                   fontSize: '12px',
                   padding: '12px',
                   backdropFilter: 'blur(10px)',
-                  boxShadow: '0 8px 32px rgba(6, 182, 212, 0.2), 0 0 0 1px rgba(6, 182, 212, 0.1)',
+                  boxShadow: '0 8px 32px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37, 99, 235, 0.1)',
                 }}
                 labelStyle={{ 
-                  color: '#06b6d4', 
+                  color: '#3b82f6', 
                   fontSize: '12px',
                   fontWeight: 600,
                   marginBottom: '8px'
@@ -731,7 +731,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                   color: '#ffffff',
                   padding: '4px 0'
                 }}
-                cursor={{ stroke: 'rgba(6, 182, 212, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }}
+                cursor={{ stroke: 'rgba(37, 99, 235, 0.3)', strokeWidth: 1, strokeDasharray: '5 5' }}
               />
               <Legend 
                 wrapperStyle={{ 
@@ -996,25 +996,25 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
       className={cn(
       "my-0 max-w-4xl mx-auto",
       "bg-gradient-to-br from-black/60 via-black/40 to-black/60",
-      "backdrop-blur-xl border border-cyan-500/20",
-      "shadow-[0_8px_32px_rgba(6,182,212,0.15),0_0_0_1px_rgba(6,182,212,0.1)]",
-      "hover:shadow-[0_12px_48px_rgba(6,182,212,0.25),0_0_0_1px_rgba(6,182,212,0.2)]",
+      "backdrop-blur-xl border border-blue-500/20",
+      "shadow-[0_8px_32px_rgba(37,99,235,0.15),0_0_0_1px_rgba(37,99,235,0.1)]",
+      "hover:shadow-[0_12px_48px_rgba(37,99,235,0.25),0_0_0_1px_rgba(37,99,235,0.2)]",
       "transition-all duration-300",
       "relative overflow-hidden"
     )}>
       {/* Animated gradient overlay - hidden in download */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" data-html2canvas-ignore="true" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" data-html2canvas-ignore="true" />
       
       {chart.title && (
-        <CardHeader className="relative pb-4 pt-6 px-6 border-b border-cyan-500/20">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" data-html2canvas-ignore="true" />
+        <CardHeader className="relative pb-4 pt-6 px-6 border-b border-blue-500/20">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" data-html2canvas-ignore="true" />
           
           {/* Top row: Title, Badge, and Controls */}
           <div className="flex items-start justify-between gap-4">
             {/* Left side: Title and Badge */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-3">
-                <CardTitle className="text-subtitle text-cyan-400 font-semibold tracking-wide">
+                <CardTitle className="text-subtitle text-blue-400 font-semibold tracking-wide">
                   {chart.title}
                 </CardTitle>
                 {/* Trend Badge */}
@@ -1045,13 +1045,13 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
             <div className="flex items-center gap-2 chart-controls shrink-0" data-html2canvas-ignore="true">
               {/* Chart Type Toggle */}
               {(chart.type === 'bar' || chart.type === 'line') && (
-                <div className="flex items-center gap-1 bg-black/30 rounded-lg p-1 border border-cyan-500/20">
+                <div className="flex items-center gap-1 bg-black/30 rounded-lg p-1 border border-blue-500/20">
                   <button
                     onClick={() => setChartTypeOverride('bar')}
                     className={cn(
                       "px-3 py-1 text-xs rounded-md transition-all duration-200",
                       effectiveChartType === 'bar' 
-                        ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                        ? "bg-blue-500/20 text-blue-400 font-medium" 
                         : "text-gray-400 hover:text-gray-300"
                     )}
                   >
@@ -1062,7 +1062,7 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                     className={cn(
                       "px-3 py-1 text-xs rounded-md transition-all duration-200",
                       effectiveChartType === 'line' 
-                        ? "bg-cyan-500/20 text-cyan-400 font-medium" 
+                        ? "bg-blue-500/20 text-blue-400 font-medium" 
                         : "text-gray-400 hover:text-gray-300"
                     )}
                   >
@@ -1077,8 +1077,8 @@ export default function ChartRenderer({ chart }: ChartRendererProps) {
                 disabled={isDownloading}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-200",
-                  "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400",
-                  "hover:bg-cyan-500/20 hover:border-cyan-500/50",
+                  "bg-blue-500/10 border border-blue-500/30 text-blue-400",
+                  "hover:bg-blue-500/20 hover:border-blue-500/50",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 title="Unduh chart sebagai gambar PNG"

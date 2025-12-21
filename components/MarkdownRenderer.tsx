@@ -32,7 +32,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
         components={{
           // Headers with proper styling
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-white mb-4 mt-6 pb-2 border-b border-cyan-500/30">
+            <h1 className="text-2xl font-bold text-white mb-4 mt-6 pb-2 border-b border-blue-500/30">
               {children}
             </h1>
           ),
@@ -47,12 +47,12 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-base font-semibold text-cyan-400 mb-2 mt-3">
+            <h4 className="text-base font-semibold text-blue-400 mb-2 mt-3">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-sm font-semibold text-cyan-400 mb-1 mt-2">
+            <h5 className="text-sm font-semibold text-blue-400 mb-1 mt-2">
               {children}
             </h5>
           ),
@@ -66,9 +66,9 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             
             if (isConclusion) {
               return (
-                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 border border-cyan-500/30">
-                  <h6 className="text-base font-bold text-cyan-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 border border-blue-500/30">
+                  <h6 className="text-base font-bold text-blue-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
                     {children}
                   </h6>
                 </div>
@@ -92,8 +92,8 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             
             if (isSectionHeader || isConclusion) {
               return (
-                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
-                  <p className="text-base font-semibold text-cyan-300 leading-relaxed">
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 border border-blue-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+                  <p className="text-base font-semibold text-blue-300 leading-relaxed">
                     {children}
                   </p>
                 </div>
@@ -120,7 +120,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           ),
           li: ({ children }) => (
             <li className="flex items-start gap-2 text-gray-300">
-              <span className="text-cyan-400 mt-1.5 flex-shrink-0">•</span>
+              <span className="text-blue-400 mt-1.5 flex-shrink-0">•</span>
               <span className="flex-1">{children}</span>
             </li>
           ),
@@ -137,7 +137,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             
             if (isMainHeader) {
               return (
-                <strong className="block text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mt-2 mb-4 pb-2 border-b border-cyan-500/20">
+                <strong className="block text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mt-2 mb-4 pb-2 border-b border-blue-500/20">
                   {children}
                 </strong>
               );
@@ -145,7 +145,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             
             if (isSectionHeader) {
               return (
-                <strong className="block text-base font-semibold text-cyan-400 mt-5 mb-2">
+                <strong className="block text-base font-semibold text-blue-400 mt-5 mb-2">
                   {children}
                 </strong>
               );
@@ -162,13 +162,13 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             const isInline = !className;
             if (isInline) {
               return (
-                <code className="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-sm font-mono">
+                <code className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-sm font-mono">
                   {children}
                 </code>
               );
             }
             return (
-              <code className={`block p-4 bg-black/50 rounded-lg border border-cyan-500/20 text-sm font-mono overflow-x-auto ${className}`}>
+              <code className={`block p-4 bg-black/50 rounded-lg border border-blue-500/20 text-sm font-mono overflow-x-auto ${className}`}>
                 {children}
               </code>
             );
@@ -181,7 +181,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           
           // Block quotes (for disclaimers, notes)
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-cyan-500/50 pl-4 my-4 py-2 bg-cyan-500/5 rounded-r-lg italic text-gray-400">
+            <blockquote className="border-l-4 border-blue-500/50 pl-4 my-4 py-2 bg-blue-500/5 rounded-r-lg italic text-gray-400">
               {children}
             </blockquote>
           ),
@@ -192,7 +192,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
               href={href} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors"
+              className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
             >
               {children}
             </a>
@@ -200,29 +200,29 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           
           // Tables
           table: ({ children }) => (
-            <div className="my-4 overflow-x-auto rounded-lg border border-cyan-500/20">
+            <div className="my-4 overflow-x-auto rounded-lg border border-blue-500/20">
               <table className="w-full text-sm">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-cyan-500/10 border-b border-cyan-500/20">
+            <thead className="bg-blue-500/10 border-b border-blue-500/20">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="divide-y divide-cyan-500/10">
+            <tbody className="divide-y divide-blue-500/10">
               {children}
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr className="hover:bg-cyan-500/5 transition-colors">
+            <tr className="hover:bg-blue-500/5 transition-colors">
               {children}
             </tr>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-3 text-left font-semibold text-cyan-400">
+            <th className="px-4 py-3 text-left font-semibold text-blue-400">
               {children}
             </th>
           ),
@@ -234,7 +234,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           
           // Horizontal rule
           hr: () => (
-            <hr className="my-6 border-t border-cyan-500/20" />
+            <hr className="my-6 border-t border-blue-500/20" />
           ),
           
           // Hide images - they are rendered separately with rating system

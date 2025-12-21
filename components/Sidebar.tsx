@@ -319,7 +319,7 @@ export default function Sidebar({
               {sidebarOpen && (
                 <div className="flex-1 text-left min-w-0">
                   <p className="text-sm font-medium text-white truncate">{displayName}</p>
-                  <p className="text-xs text-cyan-400/60 truncate">Free Plan</p>
+                  <p className="text-xs text-cyan-400 truncate">Free Plan</p>
                 </div>
               )}
             </button>

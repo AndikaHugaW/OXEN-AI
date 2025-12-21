@@ -168,7 +168,7 @@ function TradingViewWidget({
   return (
     <div 
       className={cn(
-        "tradingview-widget-container rounded-xl overflow-hidden border border-cyan-500/20",
+        "tradingview-widget-container rounded-xl overflow-hidden border border-blue-500/20",
         "bg-gradient-to-br from-black/80 via-black/60 to-black/80",
         className
       )}
@@ -177,7 +177,7 @@ function TradingViewWidget({
       <div ref={containerRef} style={{ height: `${height}px`, width: '100%' }} />
       
       {/* Footer attribution */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-cyan-500/10 bg-black/40">
+      <div className="flex items-center justify-between px-4 py-2 border-t border-blue-500/10 bg-black/40">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
           <span className="text-xs text-gray-400">Live Realtime</span>

@@ -41,7 +41,7 @@ const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
 
 // Chart colors for different coins
 const CHART_COLORS = [
-  '#06b6d4', // cyan (primary)
+  '#3b82f6', // cyan (primary)
   '#a855f7', // purple
   '#22c55e', // green
   '#f59e0b', // amber
@@ -184,16 +184,16 @@ function CandlestickChartEmbed({ symbol, data, timeframe }: CandlestickChartEmbe
       crosshair: {
         mode: 1,
         vertLine: {
-          color: 'rgba(6, 182, 212, 0.5)',
+          color: 'rgba(37, 99, 235, 0.5)',
           width: 1,
           style: 2,
-          labelBackgroundColor: 'rgba(6, 182, 212, 0.9)',
+          labelBackgroundColor: 'rgba(37, 99, 235, 0.9)',
         },
         horzLine: {
-          color: 'rgba(6, 182, 212, 0.5)',
+          color: 'rgba(37, 99, 235, 0.5)',
           width: 1,
           style: 2,
-          labelBackgroundColor: 'rgba(6, 182, 212, 0.9)',
+          labelBackgroundColor: 'rgba(37, 99, 235, 0.9)',
         },
       },
     });
@@ -704,7 +704,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all",
               "bg-black/40 backdrop-blur-sm",
-              index === 0 ? "border-cyan-500/30" : "border-white/10"
+              index === 0 ? "border-blue-500/30" : "border-white/10"
             )}
           >
             {/* Coin Logo */}
@@ -789,7 +789,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
               className={cn(
                 'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all',
                 chartType === 'area'
-                  ? 'bg-cyan-500/20 text-cyan-400'
+                  ? 'bg-blue-500/20 text-blue-400'
                   : 'text-gray-400 hover:text-white'
               )}
               title="Area Chart"
@@ -801,7 +801,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
               className={cn(
                 'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all',
                 chartType === 'candlestick'
-                  ? 'bg-cyan-500/20 text-cyan-400'
+                  ? 'bg-blue-500/20 text-blue-400'
                   : 'text-gray-400 hover:text-white'
               )}
               title="Candlestick Chart"
@@ -816,8 +816,8 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
 
           {/* Compare Mode Indicator - Shows that percentage mode is auto-active */}
           {isCompareMode && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-              <span className="text-xs text-cyan-400 font-medium">% Mode</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <span className="text-xs text-blue-400 font-medium">% Mode</span>
             </div>
           )}
 
@@ -834,7 +834,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
             >
               Compare
               {compareCoins.length > 0 && (
-                <span className="bg-cyan-500 text-black rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                <span className="bg-blue-500 text-black rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                   {compareCoins.length}
                 </span>
               )}
@@ -869,8 +869,8 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
 
       {/* Compare Mode Info Banner */}
       {isCompareMode && (
-        <div className="mb-3 px-3 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-          <p className="text-xs text-cyan-400">
+        <div className="mb-3 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <p className="text-xs text-blue-400">
             <strong>Perbandingan {allSymbols.join(' vs ')}:</strong> Menampilkan perubahan % dari titik awal periode.
           </p>
         </div>
@@ -881,7 +881,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
         {loading && (chartData.length === 0 || (isCompareMode && normalizedChartData.length === 0)) ? (
           <div className="h-[300px] flex items-center justify-center">
             <div className="flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-gray-400">Memuat data...</span>
             </div>
           </div>
@@ -891,7 +891,7 @@ export default function CoinGeckoWidgetChart({ symbol, className }: CoinGeckoWid
               <p className="text-red-400 text-sm">{error}</p>
               <button 
                 onClick={fetchData}
-                className="mt-2 text-xs text-cyan-400 hover:underline"
+                className="mt-2 text-xs text-blue-400 hover:underline"
               >
                 Coba lagi
               </button>

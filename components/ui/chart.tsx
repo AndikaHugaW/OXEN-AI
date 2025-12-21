@@ -81,15 +81,15 @@ export function ChartTooltipContent({
   const formatLabel = labelFormatter ?? ((l) => String(l ?? ''));
 
   return (
-    <div className="rounded-xl border border-cyan-500/30 bg-black/85 px-4 py-3 text-xs text-white backdrop-blur-xl shadow-[0_8px_32px_rgba(6,182,212,0.25),0_0_0_1px_rgba(6,182,212,0.15)]">
-      <div className="mb-2 text-cyan-400 font-semibold text-xs">{formatLabel(label)}</div>
+    <div className="rounded-xl border border-blue-500/30 bg-black/85 px-4 py-3 text-xs text-white backdrop-blur-xl shadow-[0_8px_32px_rgba(37, 99, 235, 0.25),0_0_0_1px_rgba(37, 99, 235, 0.15)]">
+      <div className="mb-2 text-blue-400 font-semibold text-xs">{formatLabel(label)}</div>
       <div className="space-y-2">
         {payload
           .filter((p) => p && p.dataKey && p.value !== undefined && p.value !== null)
           .map((p, idx) => {
             const key = String(p.dataKey);
             const conf = config[key] || {};
-            const color = conf.color || p.color || '#06b6d4';
+            const color = conf.color || p.color || '#3b82f6';
             return (
               <div key={`${key}-${idx}`} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2.5">
@@ -125,7 +125,7 @@ export function ChartLegendContent({
       {payload.map((p, idx) => {
         const key = String(p.dataKey || p.value || idx);
         const conf = config[key] || {};
-        const color = conf.color || p.color || '#06b6d4';
+        const color = conf.color || p.color || '#3b82f6';
         return (
           <div key={key} className="flex items-center gap-2.5">
             <span 

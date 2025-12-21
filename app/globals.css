@@ -32,19 +32,19 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 187 85% 43%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 187 85% 43%;
+    --accent: 221 83% 53%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 85%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 187 85% 43%;
+    --ring: 221 83% 53%;
     --radius: 0.5rem;
     
     /* Sidebar specific for light mode */
@@ -65,13 +65,13 @@
     --muted-foreground: 0 0% 65%;
     
     /* Accent color - biru/turquoise konsisten */
-    --primary: 187 85% 45%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 98%;
     
     /* Secondary colors */
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
-    --accent: 187 85% 45%;
+    --accent: 221 83% 53%;
     --accent-foreground: 0 0% 98%;
     
     /* Status colors */
@@ -81,7 +81,7 @@
     /* Borders & inputs */
     --border: 0 0% 18%;
     --input: 0 0% 12%;
-    --ring: 187 85% 45%;
+    --ring: 221 83% 53%;
     
     /* Custom tokens untuk spacing & typography */
     --spacing-xs: 0.5rem;
@@ -167,10 +167,10 @@ body {
 }
 
 /* Border Colors */
-.light .border-cyan-500\/30,
-.light .border-cyan-500\/20,
-.light .border-cyan-400\/50 {
-  border-color: hsl(187 85% 43% / 0.3) !important;
+.light .border-blue-500\/30,
+.light .border-blue-500\/20,
+.light .border-blue-400\/50 {
+  border-color: hsl(221 83% 53% / 0.3) !important;
 }
 
 .light .border-white\/5,
@@ -196,38 +196,38 @@ body {
   color: #71717a !important;
 }
 
-.light .text-cyan-400 {
-  color: #0891b2 !important;
+.light .text-blue-400 {
+  color: #2563eb !important;
 }
 
-.light .text-cyan-400\/50,
-.light .text-cyan-400\/60 {
-  color: hsl(187 85% 35% / 0.7) !important;
+.light .text-blue-400\/50,
+.light .text-blue-400\/60 {
+  color: hsl(221 83% 45% / 0.7) !important;
 }
 
-.light .text-cyan-200\/70 {
-  color: #0891b2 !important;
+.light .text-blue-200\/70 {
+  color: #2563eb !important;
 }
 
 /* Gradient Text */
-.light .bg-gradient-to-r.from-cyan-400.to-blue-500 {
-  background: linear-gradient(to right, #0891b2, #2563eb) !important;
+.light .bg-gradient-to-r.from-blue-400.to-blue-600 {
+  background: linear-gradient(to right, #3b82f6, #2563eb) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
 }
 
-/* Cyan Accent Colors */
-.light .bg-cyan-500 {
-  background-color: #06b6d4 !important;
+/* Blue Accent Colors */
+.light .bg-blue-500 {
+  background-color: #2563eb !important;
 }
 
-.light .bg-cyan-500\/10,
-.light .bg-cyan-500\/20 {
-  background-color: hsl(187 85% 43% / 0.15) !important;
+.light .bg-blue-500\/10,
+.light .bg-blue-500\/20 {
+  background-color: hsl(221 83% 53% / 0.15) !important;
 }
 
-.light .shadow-cyan-500\/50 {
-  --tw-shadow-color: hsl(187 85% 43% / 0.3) !important;
+.light .shadow-blue-500\/50 {
+  --tw-shadow-color: hsl(221 83% 53% / 0.3) !important;
 }
 
 /* Chat Input */
@@ -254,7 +254,7 @@ body {
   background-color: hsl(0 0% 0% / 0.03) !important;
 }
 
-.light .hover\:bg-cyan-500\/10:hover {
+.light .hover\:bg-blue-500\/10:hover {
   background-color: hsl(187 85% 43% / 0.1) !important;
 }
 
@@ -263,14 +263,14 @@ body {
 }
 
 /* Icons in boxes */
-.light .bg-cyan-500\/10,
+.light .bg-blue-500\/10,
 .light .bg-indigo-500\/10,
 .light .bg-pink-500\/10 {
   background-color: hsl(187 85% 43% / 0.1) !important;
 }
 
 /* Message bubbles */
-.light .bg-cyan-500\/10 {
+.light .bg-blue-500\/10 {
   background-color: hsl(187 85% 43% / 0.08) !important;
 }
 
@@ -293,7 +293,7 @@ body {
 }
 
 /* Profile dropdown */
-.light .bg-\[\#09090b\].border.border-cyan-500\/30 {
+.light .bg-\[\#09090b\].border.border-blue-500\/30 {
   background-color: #ffffff !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
 }
@@ -318,11 +318,11 @@ body {
 }
 
 /* Icon backgrounds in cards */
-.light .bg-cyan-500\/10,
+.light .bg-blue-500\/10,
 .light .bg-indigo-500\/10,
 .light .bg-pink-500\/10,
 .light .bg-purple-500\/10 {
-  background-color: rgba(6, 182, 212, 0.1) !important;
+  background-color: rgba(37, 99, 235, 0.1) !important;
 }
 
 /* Main container */
@@ -346,14 +346,14 @@ body {
 }
 
 /* Ensure links and buttons are visible */
-.light a.text-cyan-400,
-.light button.text-cyan-400 {
-  color: #0891b2 !important;
+.light a.text-blue-400,
+.light button.text-blue-400 {
+  color: #2563eb !important;
 }
 
 /* Chat messages */
-.light .rounded-2xl.bg-cyan-500\/10 {
-  background-color: rgba(6, 182, 212, 0.08) !important;
+.light .rounded-2xl.bg-blue-500\/10 {
+  background-color: rgba(37, 99, 235, 0.08) !important;
 }
 
 .light .rounded-2xl.bg-\[\#18181b\] {
@@ -372,7 +372,7 @@ body {
 }
 
 .light .rounded-2xl.bg-\[\#18181b\].border-2:focus-within {
-  border-color: #06b6d4 !important;
+  border-color: #3b82f6 !important;
 }
 
 /* Data table in light mode */
@@ -423,17 +423,17 @@ body {
 /* Gradient text fix for hero */
 .light .text-transparent.bg-clip-text {
   -webkit-text-fill-color: transparent !important;
-  background: linear-gradient(to right, #0891b2, #2563eb) !important;
+  background: linear-gradient(to right, #2563eb, #2563eb) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
 }
 
 /* Chat history items */
-.light .hover\:bg-cyan-500\/10:hover {
-  background-color: rgba(6, 182, 212, 0.08) !important;
+.light .hover\:bg-blue-500\/10:hover {
+  background-color: rgba(37, 99, 235, 0.08) !important;
 }
 
-.light .bg-cyan-500\/20 {
+.light .bg-blue-500\/20 {
   background-color: rgba(6, 182, 212, 0.12) !important;
 }
 
@@ -446,13 +446,13 @@ body {
   background-color: #f0f9ff !important;
 }
 
-.light .p-2.rounded-lg.cursor-pointer.bg-cyan-500\/20 {
-  background-color: rgba(6, 182, 212, 0.1) !important;
+.light .p-2.rounded-lg.cursor-pointer.bg-blue-500\/20 {
+  background-color: rgba(37, 99, 235, 0.1) !important;
 }
 
 /* Footer links */
-.light .text-cyan-400\/80 {
-  color: #0891b2 !important;
+.light .text-blue-400\/80 {
+  color: #2563eb !important;
 }
 
 /* All dark bg overrides */
@@ -468,14 +468,14 @@ body {
 }
 
 /* Focus states */
-.light .focus\:border-cyan-500:focus,
-.light .focus\:ring-cyan-500:focus {
-  border-color: #06b6d4 !important;
+.light .focus\:border-blue-500:focus,
+.light .focus\:ring-blue-500:focus {
+  border-color: #3b82f6 !important;
 }
 
 /* Card borders in light mode */
-.light .border.border-cyan-500\/30,
-.light .border.border-cyan-400\/50 {
+.light .border.border-blue-500\/30,
+.light .border.border-blue-400\/50 {
   border-color: rgba(6, 182, 212, 0.25) !important;
 }
 
@@ -486,12 +486,12 @@ body {
   background-color: #f4f4f5 !important;
 }
 /* Navigation buttons */
-.light .p-3.rounded-xl.text-cyan-200\/70 {
-  color: #0891b2 !important;
+.light .p-3.rounded-xl.text-blue-200\/70 {
+  color: #2563eb !important;
 }
 
-.light .p-3.rounded-xl.bg-cyan-500\/20 {
-  background-color: rgba(6, 182, 212, 0.1) !important;
+.light .p-3.rounded-xl.bg-blue-500\/20 {
+  background-color: rgba(37, 99, 235, 0.1) !important;
 }
 
 /* ==========================================
@@ -761,21 +761,21 @@ canvas {
   }
   
   ::-webkit-scrollbar-thumb {
-    background: #06b6d4;
+    background: #3b82f6;
     border-radius: 10px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: #22d3ee;
+    background: #60a5fa;
   }
   
   /* Web3 Glow Effects */
   .glow-cyan {
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1);
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.3), 0 0 40px rgba(37, 99, 235, 0.1);
   }
   
-  .glow-cyan-strong {
-    box-shadow: 0 0 30px rgba(6, 182, 212, 0.5), 0 0 60px rgba(6, 182, 212, 0.2);
+  .glow-blue-strong {
+    box-shadow: 0 0 30px rgba(37, 99, 235, 0.5), 0 0 60px rgba(37, 99, 235, 0.2);
   }
   
   /* Neon Text Effect */
@@ -790,12 +790,12 @@ canvas {
   /* Animated Border Glow */
   @keyframes borderGlow {
     0%, 100% {
-      border-color: rgba(6, 182, 212, 0.3);
-      box-shadow: 0 0 20px rgba(6, 182, 212, 0.1);
+      border-color: rgba(37, 99, 235, 0.3);
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.1);
     }
     50% {
-      border-color: rgba(6, 182, 212, 0.6);
-      box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+      border-color: rgba(37, 99, 235, 0.6);
+      box-shadow: 0 0 30px rgba(37, 99, 235, 0.3);
     }
   }
   
@@ -963,9 +963,9 @@ canvas {
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(6, 182, 212, 0.1) 0%,
-    rgba(6, 182, 212, 0.3) 50%,
-    rgba(6, 182, 212, 0.1) 100%
+    rgba(37, 99, 235, 0.1) 0%,
+    rgba(37, 99, 235, 0.3) 50%,
+    rgba(37, 99, 235, 0.1) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
@@ -1053,10 +1053,10 @@ canvas {
 /* Highlight box pulse for conclusions */
 @keyframes highlightPulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.2);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2);
   }
   50% {
-    box-shadow: 0 0 20px 4px rgba(6, 182, 212, 0.15);
+    box-shadow: 0 0 20px 4px rgba(37, 99, 235, 0.15);
   }
 }
 
@@ -1071,7 +1071,7 @@ canvas {
 
 .hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.2);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
 }
 
 /* Data point highlight animation */

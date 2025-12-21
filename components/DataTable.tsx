@@ -112,14 +112,14 @@ export default function DataTable({ table }: DataTableProps) {
     <Card className={cn(
       "my-4 max-w-full overflow-hidden",
       "bg-gradient-to-br from-black/80 via-black/60 to-black/80",
-      "backdrop-blur-xl border border-cyan-500/30",
+      "backdrop-blur-xl border border-blue-500/30",
       "shadow-[0_8px_32px_rgba(6,182,212,0.15)]",
       "rounded-xl"
     )}>
       {/* Header with gradient */}
       {table.title && (
-        <CardHeader className="pb-0 pt-4 px-4 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5">
-          <CardTitle className="text-center text-cyan-400 text-lg font-bold flex items-center justify-center gap-2">
+        <CardHeader className="pb-0 pt-4 px-4 border-b border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5">
+          <CardTitle className="text-center text-blue-400 text-lg font-bold flex items-center justify-center gap-2">
             <BarChart3 className="w-5 h-5" />
             {table.title}
           </CardTitle>
@@ -131,13 +131,13 @@ export default function DataTable({ table }: DataTableProps) {
           <table className="w-full border-collapse text-sm">
             {/* Table Header */}
             <thead>
-              <tr className="border-b border-cyan-500/30">
+              <tr className="border-b border-blue-500/30">
                 {columns.map((col, index) => (
                   <th
                     key={index}
                     className={cn(
                       "px-4 py-3 text-center font-semibold text-gray-400 text-xs uppercase tracking-wider",
-                      "bg-gradient-to-b from-cyan-500/10 to-transparent",
+                      "bg-gradient-to-b from-blue-500/10 to-transparent",
                       "first:rounded-tl-lg last:rounded-tr-lg"
                     )}
                   >
@@ -153,8 +153,8 @@ export default function DataTable({ table }: DataTableProps) {
                 <tr
                   key={rowIndex}
                   className={cn(
-                    "border-b border-cyan-500/10 transition-all duration-200",
-                    "hover:bg-cyan-500/5 hover:border-cyan-500/20",
+                    "border-b border-blue-500/10 transition-all duration-200",
+                    "hover:bg-blue-500/5 hover:border-blue-500/20",
                     rowIndex % 2 === 0 ? "bg-black/30" : "bg-black/10"
                   )}
                 >
@@ -172,7 +172,7 @@ export default function DataTable({ table }: DataTableProps) {
                           "px-4 py-3 text-center",
                           "transition-colors duration-200",
                           // Symbol column styling
-                          isSymbol && "font-bold text-cyan-400 text-base",
+                          isSymbol && "font-bold text-blue-400 text-base",
                           // Value-based coloring
                           !isSymbol && valueType === 'positive' && "text-green-400 font-medium",
                           !isSymbol && valueType === 'negative' && "text-red-400 font-medium",
@@ -204,7 +204,7 @@ export default function DataTable({ table }: DataTableProps) {
         </div>
         
         {/* Footer with gradient line */}
-        <div className="h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+        <div className="h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
       </CardContent>
     </Card>
   );

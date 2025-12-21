@@ -614,17 +614,17 @@ export default function CandlestickChart({
       crosshair: {
         mode: 1, // Normal mode - show crosshair on hover
         vertLine: {
-          color: 'rgba(6, 182, 212, 0.7)', // Cyan highlight color saat hover (lebih terang)
+          color: 'rgba(37, 99, 235, 0.7)', // Cyan highlight color saat hover (lebih terang)
           width: 2, // Slightly thicker untuk visibility
           style: 0, // Solid line
-          labelBackgroundColor: 'rgba(6, 182, 212, 0.95)', // Cyan background untuk label
+          labelBackgroundColor: 'rgba(37, 99, 235, 0.95)', // Cyan background untuk label
           labelVisible: true,
         },
         horzLine: {
-          color: 'rgba(6, 182, 212, 0.7)', // Cyan highlight color saat hover (lebih terang)
+          color: 'rgba(37, 99, 235, 0.7)', // Cyan highlight color saat hover (lebih terang)
           width: 2, // Slightly thicker untuk visibility
           style: 0, // Solid line
-          labelBackgroundColor: 'rgba(6, 182, 212, 0.95)', // Cyan background untuk label
+          labelBackgroundColor: 'rgba(37, 99, 235, 0.95)', // Cyan background untuk label
           labelVisible: true,
         },
       },
@@ -1006,14 +1006,14 @@ export default function CandlestickChart({
   });
 
   return (
-    <Card className={cn("my-0 border-cyan-500/20 shadow-xl max-w-4xl mx-auto bg-[hsl(var(--card))]")}>
+    <Card className={cn("my-0 border-blue-500/20 shadow-xl max-w-4xl mx-auto bg-[hsl(var(--card))]")}>
       {/* Header Section */}
-      <CardHeader className="pb-4 pt-6 px-6 border-b border-cyan-500/10">
+      <CardHeader className="pb-4 pt-6 px-6 border-b border-blue-500/10">
         <div className="flex items-start justify-between gap-6 mb-4">
           {/* Left: Asset Info */}
           <div className="flex items-center gap-3 flex-1">
             {/* Asset Icon/Logo */}
-            <div className="w-10 h-10 rounded bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-10 h-10 rounded bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {assetLogoUrl ? (
                 <img
                   key={`${symbol}-logo-${assetLogoUrl}`}
@@ -1130,7 +1130,7 @@ export default function CandlestickChart({
                 />
               ) : (
                 // Show first 2 letters of symbol as temporary placeholder while logo loads
-                <span className="text-xs font-bold text-cyan-400">
+                <span className="text-xs font-bold text-blue-400">
                   {symbol ? symbol.toUpperCase().substring(0, 2) : '??'}
                 </span>
               )}
@@ -1167,11 +1167,11 @@ export default function CandlestickChart({
               className={cn(
                 "px-3 py-1.5 text-sm transition-colors flex items-center gap-1.5 cursor-pointer rounded-md",
                 isFollowing 
-                  ? "text-cyan-400 bg-cyan-500/10" 
+                  ? "text-blue-400 bg-blue-500/10" 
                   : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--card-foreground))]"
               )}
             >
-              <svg className={cn("w-4 h-4", isFollowing && "fill-cyan-400")} fill={isFollowing ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={cn("w-4 h-4", isFollowing && "fill-blue-400")} fill={isFollowing ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
               </svg>
               <span>{isFollowing ? 'Following' : 'Follow'}</span>
@@ -1199,7 +1199,7 @@ export default function CandlestickChart({
                   {formatPrice(currentPriceState ?? currentPrice ?? 0)}
                 </div>
                 {isLoading && (
-                  <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
             )}
@@ -1262,7 +1262,7 @@ export default function CandlestickChart({
                 disabled={isDisabled}
                 className={cn(
                   "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                  "focus:outline-none focus:ring-2 focus:ring-cyan-500/50",
+                  "focus:outline-none focus:ring-2 focus:ring-blue-500/50",
                   isActive
                     ? "bg-[hsl(var(--secondary))] text-[hsl(var(--card-foreground))] font-semibold shadow-sm cursor-default"
                     : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--secondary))] cursor-pointer",
@@ -1286,7 +1286,7 @@ export default function CandlestickChart({
               className={cn(
                 "p-1.5 transition-colors cursor-pointer rounded hover:bg-[hsl(var(--secondary))]",
                 chartType === 'line' 
-                  ? "text-cyan-400 bg-cyan-500/10"
+                  ? "text-blue-400 bg-blue-500/10"
                   : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--card-foreground))]"
               )}
               aria-label="Toggle chart type"
@@ -1358,7 +1358,7 @@ export default function CandlestickChart({
         
         {/* Market Metrics Table */}
         {(calculatedPrevClose !== undefined || calculatedOpen !== undefined || calculatedHigh !== undefined || calculatedLow !== undefined || calculatedVolume > 0) && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-6 border-t border-cyan-500/10">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-6 border-t border-blue-500/10">
             {calculatedPrevClose !== undefined && (
               <div className="space-y-1">
                 <div className="text-xs text-[hsl(var(--muted-foreground))]">Prev Close</div>

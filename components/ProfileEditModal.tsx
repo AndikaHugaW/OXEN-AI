@@ -122,7 +122,7 @@ export default function ProfileEditModal({
   const displayAvatarUrl = avatarUrl || 
     profile?.avatar_url || 
     user?.user_metadata?.avatar_url || 
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || 'User')}&background=06b6d4&color=fff&size=128`;
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || 'User')}&background=2563eb&color=fff&size=128`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -146,7 +146,7 @@ export default function ProfileEditModal({
               className="relative group cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-cyan-900/30 ring-4 ring-[#27272a]">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-blue-900/30 ring-4 ring-[#27272a]">
                 <img 
                   src={displayAvatarUrl} 
                   alt="Profile" 
@@ -154,7 +154,7 @@ export default function ProfileEditModal({
                 />
                 {uploading && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
                   </div>
                 )}
               </div>
@@ -184,7 +184,7 @@ export default function ProfileEditModal({
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-transparent border border-[#27272a] rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                className="w-full bg-transparent border border-[#27272a] rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="Enter your name"
               />
             </div>
@@ -197,7 +197,7 @@ export default function ProfileEditModal({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-transparent border border-[#27272a] rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                className="w-full bg-transparent border border-[#27272a] rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="Enter your username"
               />
             </div>

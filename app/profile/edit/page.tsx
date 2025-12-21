@@ -129,7 +129,7 @@ export default function EditProfilePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -140,13 +140,13 @@ export default function EditProfilePage() {
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors mb-4"
+            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
           <h1 className="text-3xl font-bold text-white mb-2">Edit Profile</h1>
-          <p className="text-cyan-400/70">Update your profile information</p>
+          <p className="text-blue-400/70">Update your profile information</p>
         </div>
 
         {error && (
@@ -163,16 +163,16 @@ export default function EditProfilePage() {
 
         <form onSubmit={handleSave} className="space-y-6">
           {/* Avatar Section */}
-          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6">
-            <label className="text-sm font-medium text-cyan-400 mb-4 block">Profile Picture</label>
+          <div className="bg-gray-900 border border-blue-500/30 rounded-2xl p-6">
+            <label className="text-sm font-medium text-blue-400 mb-4 block">Profile Picture</label>
             <div className="flex items-center gap-6">
-              <div className="w-24 h-24 rounded-full bg-cyan-500/20 border border-cyan-500/30 overflow-hidden flex-shrink-0">
+              <div className="w-24 h-24 rounded-full bg-blue-500/20 border border-blue-500/30 overflow-hidden flex-shrink-0">
                 <img
-                  src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=06b6d4&color=fff&size=128`}
+                  src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=2563eb&color=fff&size=128`}
                   alt="Avatar"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=06b6d4&color=fff&size=128`;
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=2563eb&color=fff&size=128`;
                   }}
                 />
               </div>
@@ -182,48 +182,48 @@ export default function EditProfilePage() {
                   value={profile.avatar_url}
                   onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })}
                   placeholder="Enter avatar URL"
-                  className="w-full px-4 py-2 bg-gray-800 border border-cyan-500/30 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-blue-500/30 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 />
-                <p className="text-xs text-cyan-400/60 mt-2">Enter a URL for your profile picture</p>
+                <p className="text-xs text-blue-400/60 mt-2">Enter a URL for your profile picture</p>
               </div>
             </div>
           </div>
 
           {/* Full Name */}
-          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6">
-            <label className="text-sm font-medium text-cyan-400 mb-2 block">Full Name</label>
+          <div className="bg-gray-900 border border-blue-500/30 rounded-2xl p-6">
+            <label className="text-sm font-medium text-blue-400 mb-2 block">Full Name</label>
             <input
               type="text"
               value={profile.full_name}
               onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
               placeholder="Enter your full name"
-              className="w-full px-4 py-3 bg-gray-800 border border-cyan-500/30 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-3 bg-gray-800 border border-blue-500/30 rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
           {/* Username */}
-          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6">
-            <label className="text-sm font-medium text-cyan-400 mb-2 block">Username</label>
+          <div className="bg-gray-900 border border-blue-500/30 rounded-2xl p-6">
+            <label className="text-sm font-medium text-blue-400 mb-2 block">Username</label>
             <input
               type="text"
               value={profile.username}
               onChange={(e) => setProfile({ ...profile, username: e.target.value })}
               placeholder="Enter your username"
-              className="w-full px-4 py-3 bg-gray-800 border border-cyan-500/30 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-3 bg-gray-800 border border-blue-500/30 rounded-lg text-white focus:outline-none focus:border-blue-500"
             />
-            <p className="text-xs text-cyan-400/60 mt-2">This will be your unique username</p>
+            <p className="text-xs text-blue-400/60 mt-2">This will be your unique username</p>
           </div>
 
           {/* Email (Read-only) */}
-          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6">
-            <label className="text-sm font-medium text-cyan-400 mb-2 block">Email</label>
+          <div className="bg-gray-900 border border-blue-500/30 rounded-2xl p-6">
+            <label className="text-sm font-medium text-blue-400 mb-2 block">Email</label>
             <input
               type="email"
               value={user?.email || ''}
               disabled
-              className="w-full px-4 py-3 bg-gray-800/50 border border-cyan-500/20 rounded-lg text-gray-400 cursor-not-allowed"
+              className="w-full px-4 py-3 bg-gray-800/50 border border-blue-500/20 rounded-lg text-gray-400 cursor-not-allowed"
             />
-            <p className="text-xs text-cyan-400/60 mt-2">Email cannot be changed</p>
+            <p className="text-xs text-blue-400/60 mt-2">Email cannot be changed</p>
           </div>
 
           {/* Action Buttons */}
@@ -231,7 +231,7 @@ export default function EditProfilePage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg font-semibold transition-all shadow-lg shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-black rounded-lg font-semibold transition-all shadow-lg shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Changes'}

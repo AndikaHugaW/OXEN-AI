@@ -344,7 +344,7 @@ export default function AdminDashboardPage() {
                               // Feature Mapping Configuration
                               const featureMap: Record<string, { label: string, icon: any, color: string, bg: string }> = {
                                  'general': { label: 'General Chat', icon: Menu, color: 'text-zinc-400', bg: 'bg-zinc-800' },
-                                 'market_analysis': { label: 'Market Intelligence', icon: Activity, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+                                 'market_analysis': { label: 'Market Intelligence', icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/10' },
                                  'letter_generator': { label: 'Letter Generator', icon: Calendar, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
                                  'report_generator': { label: 'Report Generator', icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
                                  'visualization': { label: 'Data Visualization', icon: Zap, color: 'text-pink-400', bg: 'bg-pink-500/10' },
