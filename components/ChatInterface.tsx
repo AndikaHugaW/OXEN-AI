@@ -240,7 +240,7 @@ function DefaultHero({
                 className="flex items-center gap-2.5 px-6 py-3 bg-cyan-500/5 border border-cyan-500/20 rounded-full text-[13px] font-semibold text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/40 transition-all backdrop-blur-md shadow-lg"
             >
                 <FileUp className="w-4 h-4 shadow-sm" />
-                <span>Unggah Dokumen</span>
+                <span>Upload Document</span>
             </button>
             <button 
                 type="button"
@@ -252,7 +252,7 @@ function DefaultHero({
                 }`}
             >
                 <Globe className="w-4 h-4" />
-                <span>Pencarian Web</span>
+                <span>Web Search</span>
             </button>
             <button 
                 type="button"
@@ -264,7 +264,7 @@ function DefaultHero({
                 }`}
             >
                 <ImageIcon className="w-4 h-4" />
-                <span>Buat Gambar AI</span>
+                <span>AI Image Gen</span>
             </button>
         </div>
     </div>
@@ -2475,7 +2475,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     )}
                   >
                     <Globe className={cn("w-3.5 h-3.5 group-hover:scale-110 transition-transform", isWebSearchEnabled && "animate-pulse")} />
-                    <span>Pencarian Web {isWebSearchEnabled ? 'On' : ''}</span>
+                    <span>Web Search {isWebSearchEnabled ? 'On' : ''}</span>
                   </button>
 
                   <button 
@@ -2486,14 +2486,14 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
                         : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
                     )}
-                    title={isImageGenEnabled ? "Klik untuk kembali ke mode chat" : "Aktifkan untuk membuat gambar AI"}
+                    title={isImageGenEnabled ? "Click to return to chat mode" : "Enable to generate AI images"}
                   >
                     {isImageGenEnabled ? (
                       <Paintbrush className="w-3.5 h-3.5 animate-pulse" />
                     ) : (
                       <ImageIcon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                     )}
-                    <span>{isImageGenEnabled ? 'Mode: Gambar' : 'Buat Gambar'}</span>
+                    <span>{isImageGenEnabled ? 'Mode: Image' : 'AI Image'}</span>
                   </button>
 
                   {/* Style Selector - shows when image mode is enabled */}
