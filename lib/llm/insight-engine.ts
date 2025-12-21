@@ -1,11 +1,39 @@
 // Insight Engine - AI-powered business insights
 // Generates actionable recommendations, not just descriptions
 
+// ============================================
+// CONFIGURATION CONSTANTS (Magic Numbers)
+// ============================================
+
+const THRESHOLDS = {
+  // Growth thresholds (percentage)
+  HIGH_GROWTH: 20,
+  MODERATE_GROWTH: 10,
+  SIGNIFICANT_DECLINE: -20,
+  FLAT_RANGE: 5,           // ±5% considered flat
+  DIRECTION_CHANGE: 2,     // ±2% to count as up/down
+  
+  // Consistency thresholds (0-1)
+  HIGH_CONSISTENCY: 0.7,
+  MEDIUM_CONSISTENCY: 0.4,
+  PREDICTION_THRESHOLD: 0.5,
+  
+  // Data requirements
+  MIN_DATA_HIGH_CONFIDENCE: 6,
+  MIN_DATA_MEDIUM_CONFIDENCE: 3,
+  MIN_DATA_PREDICTION: 3,
+} as const;
+
+// ============================================
+// INTERFACES
+// ============================================
+
 export interface InsightData {
   values: number[];
   labels: string[];
   unit?: 'juta' | 'miliar' | 'ribu' | 'unit' | null;
   context?: 'penjualan' | 'revenue' | 'expense' | 'profit' | 'growth' | 'general';
+  currency?: 'IDR' | 'USD'; // Support multi-currency
 }
 
 export interface GeneratedInsight {
@@ -30,6 +58,31 @@ interface TrendAnalysis {
   lastChange: number;         // Last period change percentage
 }
 
+/**
+ * Safe percentage change calculation
+ * Handles zero, negative, and edge cases
+ */
+function safePercentageChange(current: number, previous: number): number {
+  // If previous is zero, avoid division by zero
+  if (previous === 0) {
+    return current > 0 ? 100 : current < 0 ? -100 : 0;
+  }
+  
+  // Handle negative to positive or vice versa transitions
+  if (previous < 0 && current >= 0) {
+    // From loss to profit: calculate improvement
+    return Math.abs(current - previous) / Math.abs(previous) * 100;
+  }
+  
+  if (previous > 0 && current < 0) {
+    // From profit to loss: calculate decline
+    return -Math.abs(current - previous) / Math.abs(previous) * 100;
+  }
+  
+  // Normal calculation
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
 function analyzeTrend(data: InsightData): TrendAnalysis {
   const { values, labels } = data;
   const n = values.length;
@@ -46,33 +99,33 @@ function analyzeTrend(data: InsightData): TrendAnalysis {
     };
   }
   
-  // Overall change
+  // Overall change (use safe calculation)
   const firstValue = values[0];
   const lastValue = values[n - 1];
-  const overallChange = firstValue > 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0;
+  const overallChange = safePercentageChange(lastValue, firstValue);
   
   // Period-over-period changes
   const changes: number[] = [];
   for (let i = 1; i < n; i++) {
     const prev = values[i - 1];
     const curr = values[i];
-    const change = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+    const change = safePercentageChange(curr, prev);
     changes.push(change);
   }
   
   const avgGrowth = changes.length > 0 ? changes.reduce((a, b) => a + b, 0) / changes.length : 0;
   const lastChange = changes.length > 0 ? changes[changes.length - 1] : 0;
   
-  // Direction
+  // Direction (using threshold constants)
   let direction: TrendAnalysis['direction'];
-  const positiveChanges = changes.filter(c => c > 2).length;
-  const negativeChanges = changes.filter(c => c < -2).length;
+  const positiveChanges = changes.filter(c => c > THRESHOLDS.DIRECTION_CHANGE).length;
+  const negativeChanges = changes.filter(c => c < -THRESHOLDS.DIRECTION_CHANGE).length;
   
   if (positiveChanges > negativeChanges * 2) {
     direction = 'up';
   } else if (negativeChanges > positiveChanges * 2) {
     direction = 'down';
-  } else if (Math.abs(overallChange) < 5) {
+  } else if (Math.abs(overallChange) < THRESHOLDS.FLAT_RANGE) {
     direction = 'flat';
   } else {
     direction = 'volatile';
@@ -105,24 +158,43 @@ function analyzeTrend(data: InsightData): TrendAnalysis {
 }
 
 // ============================================
-// INSIGHT GENERATION
+// VALUE FORMATTING (Modern Intl.NumberFormat)
 // ============================================
 
 /**
- * Format number for display
+ * Format number for display using modern Intl.NumberFormat
+ * Supports compact notation (1M, 1jt, etc.) and multi-currency
  */
-function formatValue(value: number, unit?: string | null): string {
-  if (unit === 'miliar' || value >= 1_000_000_000) {
-    return `Rp${(value / 1_000_000_000).toFixed(1)} Miliar`;
+function formatValue(value: number, unit?: string | null, currency: 'IDR' | 'USD' = 'IDR'): string {
+  try {
+    // Use compact notation for large numbers
+    const formatter = new Intl.NumberFormat(currency === 'IDR' ? 'id-ID' : 'en-US', {
+      style: 'currency',
+      currency: currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+      compactDisplay: 'short'
+    });
+    
+    return formatter.format(value);
+  } catch (e) {
+    // Fallback for older environments
+    if (value >= 1_000_000_000) {
+      return `Rp${(value / 1_000_000_000).toFixed(1)} M`;
+    }
+    if (value >= 1_000_000) {
+      return `Rp${(value / 1_000_000).toFixed(0)} jt`;
+    }
+    if (value >= 1_000) {
+      return `Rp${(value / 1_000).toFixed(0)} rb`;
+    }
+    return new Intl.NumberFormat('id-ID').format(value);
   }
-  if (unit === 'juta' || value >= 1_000_000) {
-    return `Rp${(value / 1_000_000).toFixed(0)} Juta`;
-  }
-  if (unit === 'ribu' || value >= 1_000) {
-    return `Rp${(value / 1_000).toFixed(0)} Ribu`;
-  }
-  return value.toLocaleString('id-ID');
 }
+
+// ============================================
+// INSIGHT GENERATION
+// ============================================
 
 /**
  * Generate business insight with recommendations
@@ -140,11 +212,12 @@ export function generateInsight(data: InsightData): GeneratedInsight {
   
   let summary: string;
   const changeText = trend.overallChange >= 0 ? `+${trend.overallChange.toFixed(1)}%` : `${trend.overallChange.toFixed(1)}%`;
+  const currency = data.currency || 'IDR';
   
   switch (trend.direction) {
     case 'up':
       summary = `Tren ${context === 'expense' ? 'kenaikan biaya' : 'pertumbuhan'} positif (${changeText}) dari ${data.labels[0]} hingga ${data.labels[data.labels.length - 1]}.`;
-      if (trend.consistency > 0.7) {
+      if (trend.consistency > THRESHOLDS.HIGH_CONSISTENCY) {
         summary += ` Pertumbuhan berlangsung stabil dan konsisten.`;
       }
       break;
@@ -157,7 +230,7 @@ export function generateInsight(data: InsightData): GeneratedInsight {
       break;
       
     case 'volatile':
-      summary = `Data menunjukkan fluktuasi dengan perubahan keseluruhan ${changeText}. Titik tertinggi di ${trend.highPoint.label} (${formatValue(trend.highPoint.value, data.unit)}), terendah di ${trend.lowPoint.label}.`;
+      summary = `Data menunjukkan fluktuasi dengan perubahan keseluruhan ${changeText}. Titik tertinggi di ${trend.highPoint.label} (${formatValue(trend.highPoint.value, data.unit, currency)}), terendah di ${trend.lowPoint.label}.`;
       alerts.push('📊 Pola tidak konsisten - perlu analisis lebih dalam');
       break;
       
@@ -172,15 +245,15 @@ export function generateInsight(data: InsightData): GeneratedInsight {
   let recommendation: string;
   
   if (trend.direction === 'up' && context !== 'expense') {
-    if (trend.avgGrowth > 20) {
+    if (trend.avgGrowth > THRESHOLDS.HIGH_GROWTH) {
       recommendation = `💡 Pertumbuhan agresif! Rekomendasi: (1) Tingkatkan kapasitas produksi/stok, (2) Alokasikan budget marketing untuk sustain momentum, (3) Siapkan rekrutmen tim jika diperlukan.`;
-    } else if (trend.avgGrowth > 10) {
+    } else if (trend.avgGrowth > THRESHOLDS.MODERATE_GROWTH) {
       recommendation = `💡 Pertumbuhan sehat. Rekomendasi: Pertahankan strategi saat ini, optimalkan operational efficiency untuk margin lebih baik.`;
     } else {
       recommendation = `💡 Pertumbuhan moderat. Rekomendasi: Evaluasi strategi akuisisi pelanggan baru untuk akselerasi.`;
     }
   } else if (trend.direction === 'down' && context !== 'expense') {
-    if (trend.overallChange < -20) {
+    if (trend.overallChange < THRESHOLDS.SIGNIFICANT_DECLINE) {
       recommendation = `🚨 Penurunan signifikan memerlukan tindakan segera: (1) Review pricing strategy, (2) Analisis kompetitor, (3) Survei kepuasan pelanggan, (4) Identifikasi channel underperforming.`;
     } else {
       recommendation = `⚡ Penurunan perlu diperhatikan. Rekomendasi: Fokus pada retensi pelanggan existing dan evaluasi product-market fit.`;
@@ -202,14 +275,14 @@ export function generateInsight(data: InsightData): GeneratedInsight {
   
   let prediction: string | undefined;
   
-  if (data.values.length >= 3 && trend.consistency > 0.5) {
+  if (data.values.length >= THRESHOLDS.MIN_DATA_PREDICTION && trend.consistency > THRESHOLDS.PREDICTION_THRESHOLD) {
     const lastValue = data.values[data.values.length - 1];
     const projectedValue = lastValue * (1 + trend.avgGrowth / 100);
     
     if (trend.direction === 'up') {
-      prediction = `📈 Proyeksi: Jika pola berlanjut, periode berikutnya berpotensi mencapai ${formatValue(projectedValue, data.unit)}.`;
+      prediction = `📈 Proyeksi: Jika pola berlanjut, periode berikutnya berpotensi mencapai ${formatValue(projectedValue, data.unit, currency)}.`;
     } else if (trend.direction === 'down') {
-      prediction = `📉 Proyeksi: Tanpa intervensi, periode berikutnya mungkin turun ke ${formatValue(projectedValue, data.unit)}.`;
+      prediction = `📉 Proyeksi: Tanpa intervensi, periode berikutnya mungkin turun ke ${formatValue(projectedValue, data.unit, currency)}.`;
     }
   }
   
@@ -218,9 +291,9 @@ export function generateInsight(data: InsightData): GeneratedInsight {
   // =============================================
   
   let confidence: GeneratedInsight['confidence'];
-  if (data.values.length >= 6 && trend.consistency > 0.7) {
+  if (data.values.length >= THRESHOLDS.MIN_DATA_HIGH_CONFIDENCE && trend.consistency > THRESHOLDS.HIGH_CONSISTENCY) {
     confidence = 'high';
-  } else if (data.values.length >= 3 && trend.consistency > 0.4) {
+  } else if (data.values.length >= THRESHOLDS.MIN_DATA_MEDIUM_CONFIDENCE && trend.consistency > THRESHOLDS.MEDIUM_CONSISTENCY) {
     confidence = 'medium';
   } else {
     confidence = 'low';
