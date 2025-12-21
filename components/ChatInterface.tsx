@@ -267,7 +267,7 @@ function DefaultHero({
                   src="/icon/Image-Gen.svg" 
                   alt="AI Image" 
                   className="w-4 h-4" 
-                  style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 8px rgba(6, 182, 212, 0.8))' }} 
+                  style={{ filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.7))' }} 
                 />
                 <span>AI Image Gen</span>
             </button>
@@ -2500,7 +2500,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                         src="/icon/Image-Gen.svg" 
                         alt="AI Image" 
                         className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" 
-                        style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))' }} 
+                        style={{ filter: 'drop-shadow(0 0 5px rgba(6, 182, 212, 0.6))' }} 
                       />
                     )}
                     <span>{isImageGenEnabled ? 'Mode: Image' : 'AI Image'}</span>
