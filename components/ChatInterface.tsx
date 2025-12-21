@@ -2439,12 +2439,12 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       uploadStatus === 'uploading' 
-                        ? "bg-blue-500/20 border-blue-500/40 text-blue-300 cursor-wait" 
+                        ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 cursor-wait" 
                         : uploadStatus === 'success'
                         ? "bg-green-500/20 border-green-500/40 text-green-400"
                         : uploadStatus === 'error'
                         ? "bg-red-500/20 border-red-500/40 text-red-400"
-                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60 shadow-[0_0_15px_-5px_rgba(59,130,246,0.3)]"
+                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)]"
                     )}
                     title="Upload documents (PDF, Word, Excel, CSV) to analyze instantly"
                   >
@@ -2470,8 +2470,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       isWebSearchEnabled 
-                        ? "bg-blue-500/20 border-blue-500/60 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60"
+                        ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
+                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
                     )}
                   >
                     <Globe className={cn("w-3.5 h-3.5 group-hover:scale-110 transition-transform", isWebSearchEnabled && "animate-pulse")} />
@@ -2483,8 +2483,8 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                     className={cn(
                       "transition-all flex items-center gap-2 group border rounded-full px-5 py-2.5 backdrop-blur-sm",
                       isImageGenEnabled 
-                        ? "bg-blue-500/20 border-blue-500/60 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                        : "bg-blue-500/5 border-blue-500/30 text-blue-400/80 hover:bg-blue-500/10 hover:border-blue-400/60"
+                        ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
+                        : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400/80 hover:bg-cyan-500/10 hover:border-cyan-400/60"
                     )}
                     title={isImageGenEnabled ? "Klik untuk kembali ke mode chat" : "Aktifkan untuk membuat gambar AI"}
                   >

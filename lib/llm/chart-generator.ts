@@ -327,7 +327,8 @@ export function generateTableData(query: string): TableData | null {
 }
 
 // Detect chart type from user query
-export function detectChartType(query: string): 'candlestick' | 'line' | 'bar' | 'pie' | 'area' {
+// IMPORTANT: Only return 'candlestick' for explicit market/trading requests
+export function detectChartType(query: string, isMarketRequest: boolean = false): 'candlestick' | 'line' | 'bar' | 'pie' | 'area' {
   const queryLower = query.toLowerCase();
   
   // Priority order: explicit mentions first
@@ -347,8 +348,14 @@ export function detectChartType(query: string): 'candlestick' | 'line' | 'bar' |
     return 'candlestick';
   }
   
-  // Default for stocks/crypto is candlestick
-  return 'candlestick';
+  // CRITICAL: Only default to candlestick for EXPLICIT market/stock/crypto requests
+  // This prevents TradingView charts from appearing for business data analysis
+  if (isMarketRequest) {
+    return 'candlestick';
+  }
+  
+  // Default for business data is bar chart (most versatile)
+  return 'bar';
 }
 
 // Detect if query is about stocks/crypto - MORE SENSITIVE
@@ -498,8 +505,8 @@ export function isMarketDataRequest(query: string): { isMarket: boolean; symbol?
   if (days > 3650) days = 3650;
   if (days < 1) days = 1;
   
-  // Detect chart type
-  const chartType = detectChartType(query);
+  // Detect chart type - pass true since we're checking for market request
+  const chartType = detectChartType(query, true);
   
   // EXCLUDE general business questions that don't need market data
   // If query is about business problems, strategy, or general questions, it's NOT a market request
