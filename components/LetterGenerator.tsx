@@ -174,11 +174,11 @@ export default function LetterGenerator() {
         <div className="w-full max-w-2xl">
           {/* Header */}
           <div className="mb-10 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold italic text-blue-400 mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold italic text-cyan-400 mb-3" style={{textShadow: '0 0 20px rgba(34, 211, 238, 0.5), 0 0 40px rgba(34, 211, 238, 0.3)'}}>
               Letter Generator
             </h1>
             <p className="text-sm text-gray-500">
-              <span className="text-blue-500 hover:underline cursor-pointer">Feature</span>
+              <span className="text-cyan-400 hover:underline cursor-pointer">Feature</span>
               <span className="mx-2">/</span>
               <span>Create Letter</span>
             </p>
@@ -200,7 +200,7 @@ export default function LetterGenerator() {
                   placeholder="e.g. Business Letter, Formal Request, Invitation"
                   className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
                            text-white placeholder-gray-500
-                           focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50
+                           focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50
                            transition-all"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 text-gray-500">
@@ -228,7 +228,7 @@ export default function LetterGenerator() {
                   placeholder="Enter the recipient's name or organization"
                   className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
                            text-white placeholder-gray-500
-                           focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50
+                           focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50
                            transition-all"
                 />
               </div>
@@ -244,7 +244,7 @@ export default function LetterGenerator() {
                   placeholder="e.g. Partnership Proposal"
                   className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
                            text-white placeholder-gray-500
-                           focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50
+                           focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50
                            transition-all"
                 />
               </div>
@@ -263,7 +263,7 @@ export default function LetterGenerator() {
                 placeholder="Describe what you want to say in this letter"
                 className="w-full px-4 py-3 bg-[#1a1a1f] border border-gray-800 rounded-lg 
                          text-white placeholder-gray-500 resize-none
-                         focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50
+                         focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50
                          transition-all"
               />
             </div>
@@ -277,19 +277,19 @@ export default function LetterGenerator() {
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
-                className="border-2 border-dashed border-blue-500/30 rounded-lg p-8
+                className="border-2 border-dashed border-cyan-400/40 rounded-lg p-8
                          flex flex-col items-center justify-center gap-3
-                         cursor-pointer hover:border-blue-500/50 transition-colors
+                         cursor-pointer hover:border-cyan-400/70 transition-colors
                          bg-transparent"
               >
                 <Upload className="w-8 h-8 text-gray-500" />
-                <p className="text-xs text-blue-400">
+                <p className="text-xs text-cyan-400">
                   Max 120mb, PNG, JPEG, MP3, MP4
                 </p>
                 <button
                   type="button"
-                  className="px-4 py-1.5 text-xs bg-blue-500/20 text-blue-400 rounded-md
-                           border border-blue-500/30 hover:bg-blue-500/30 transition-colors"
+                  className="px-4 py-1.5 text-xs bg-cyan-500/20 text-cyan-400 rounded-md
+                           border border-cyan-400/40 hover:bg-cyan-500/30 transition-colors"
                 >
                   Browse File
                 </button>
@@ -315,8 +315,9 @@ export default function LetterGenerator() {
                 type="submit"
                 disabled={isLoading}
                 className="flex items-center justify-center gap-2 px-8 py-3
-                         bg-blue-500 hover:bg-blue-400 text-black font-medium
-                         rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                         bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-medium
+                         rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                         shadow-[0_0_20px_rgba(34,211,238,0.4)]"
               >
                 <Sparkles className="w-4 h-4" />
                 {isLoading ? 'Generating...' : 'Generate Letter'}
@@ -325,8 +326,8 @@ export default function LetterGenerator() {
                 type="button"
                 onClick={handleReset}
                 className="flex items-center justify-center gap-2 px-8 py-3
-                         bg-transparent border border-blue-500/50 text-blue-400
-                         rounded-full hover:bg-blue-500/10 transition-all"
+                         bg-transparent border border-cyan-400/50 text-cyan-400
+                         rounded-full hover:bg-cyan-500/10 hover:border-cyan-400 transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset Form
