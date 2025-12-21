@@ -2452,21 +2452,21 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                       className={cn(
                         "w-full px-6 py-5 pr-24 bg-[#18181b] rounded-2xl focus:outline-none focus:ring-1 text-white transition-all text-lg",
                         isImageGenEnabled 
-                          ? "placeholder-blue-400/60 focus:ring-blue-500/40" 
-                          : "placeholder-blue-400/50 focus:ring-blue-500/30"
+                          ? "placeholder-cyan-400/60 focus:ring-cyan-500/40" 
+                          : "placeholder-cyan-400/50 focus:ring-cyan-500/30"
                       )}
                       disabled={isLoading}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
                       <button
                         type="button"
-                        className="p-2 text-blue-400/60 hover:text-blue-400 hover:bg-blue-500/5 rounded-lg transition-all"
+                        className="p-2 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/5 rounded-lg transition-all"
                       >
                         <img 
                           src="/icon/microphone.svg" 
                           alt="Mic" 
                           className="w-[22px] h-[22px]" 
-                          style={{ filter: 'invert(48%) sepia(100%) saturate(8000%) hue-rotate(195deg) brightness(1.6) contrast(1.2) drop-shadow(0 0 12px rgba(37, 99, 235, 1))' }} 
+                          style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 12px rgba(6, 182, 212, 1))' }} 
                         />
                       </button>
                       <button
@@ -2478,7 +2478,7 @@ ${hasSpreadsheet ? `- "Analisis file ini. Kolomnya: Date, Open, High, Low, Close
                           src="/icon/send.svg" 
                           alt="Send" 
                           className="w-[22px] h-[22px] transition-all group-hover:scale-110" 
-                          style={{ filter: 'invert(48%) sepia(100%) saturate(8000%) hue-rotate(195deg) brightness(1.6) contrast(1.2) drop-shadow(0 0 12px rgba(37, 99, 235, 1))' }} 
+                          style={{ filter: 'invert(65%) sepia(80%) saturate(1000%) hue-rotate(150deg) brightness(1.4) contrast(1.1) drop-shadow(0 0 12px rgba(6, 182, 212, 1))' }} 
                         />
                       </button>
                     </div>
