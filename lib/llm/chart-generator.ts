@@ -16,14 +16,18 @@ export function needsVisualization(query: string): boolean {
   // Must contain explicit visualization action verbs
   const explicitActions = [
     'tampilkan grafik', 'tampilkan chart', 'tampilkan tabel', 'tampilkan data',
-    'buat grafik', 'buat chart', 'buat tabel',
+    'buat grafik', 'buat chart', 'buat tabel', 'buat visualisasi',
     'show chart', 'show graph', 'show table', 'show data',
     'create chart', 'create graph', 'create table',
     'lihat grafik', 'lihat chart', 'lihat tabel',
     'display chart', 'display graph', 'display table',
     'generate chart', 'generate graph',
     'visualisasi', 'visualization', 'visualize',
-    'tampilkan visualisasi', 'show visualization'
+    'tampilkan visualisasi', 'show visualization',
+    // Common business data analysis patterns
+    'analisis data', 'analisis file', 'analyze data', 'analyze file',
+    'visualisasikan data', 'visualisasikan file',
+    'buatkan chart', 'buatkan grafik', 'buatkan visualisasi',
   ];
   
   // Check for explicit visualization requests (must include action verb)
@@ -42,6 +46,19 @@ export function needsVisualization(query: string): boolean {
   
   const hasChartType = chartTypeKeywords.some(keyword => queryLower.includes(keyword));
   if (hasChartType) {
+    return true;
+  }
+  
+  // ✅ NEW: Detect request mentioning uploaded document with analysis intent
+  // This catches "analisis file ini", "buat chart dari data", etc.
+  const fileAnalysisPatterns = [
+    /(?:analisis|analyze|buatkan|buat|tampilkan|lihat|show).{0,30}(?:file|dokumen|document|data|csv|excel|spreadsheet)/i,
+    /(?:file|dokumen|document|data|csv|excel).{0,30}(?:analisis|analyze|buatkan|buat|tampilkan|lihat|show|chart|grafik)/i,
+    /(?:ini|this).{0,20}(?:analisis|analyze|buatkan|buat|tampilkan|chart|grafik|visualisasi)/i,
+    /(?:dari|from).{0,20}(?:data|file|dokumen).{0,20}(?:chart|grafik|visualisasi|visualize)/i,
+  ];
+  
+  if (fileAnalysisPatterns.some(pattern => pattern.test(query))) {
     return true;
   }
   
