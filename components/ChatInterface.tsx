@@ -106,19 +106,19 @@ function ReportGeneratorHero({ setInput, documents = [] }: { setInput: (s: strin
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-3xl">
          {[
            { 
-             icon: TrendingUp,
+             iconSrc: "/icon/startup.svg",
              title: "Startup Analysis", 
              desc: "Evaluate market fit & growth", 
              prompt: "Create a startup market analysis report" 
            },
            { 
-             icon: BarChart3,
+             iconSrc: "/icon/monthly-report.svg",
              title: "Monthly Report", 
              desc: "Track KPIs and performance", 
              prompt: "Generate a monthly performance report" 
            },
            { 
-             icon: FileText,
+             iconSrc: "/icon/business-report.svg",
              title: "Business Proposal", 
              desc: "Win new client with data", 
              prompt: "Create a business proposal document" 
@@ -131,7 +131,12 @@ function ReportGeneratorHero({ setInput, documents = [] }: { setInput: (s: strin
            >
               <div className="flex items-center gap-3 mb-2">
                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors border border-blue-500/20">
-                    <item.icon className="w-4 h-4 text-blue-400" />
+                    <img 
+                      src={item.iconSrc} 
+                      alt={item.title} 
+                      className="w-4 h-4" 
+                      style={{ filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.5))' }} 
+                    />
                  </div>
                  <h3 className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">{item.title}</h3>
               </div>
