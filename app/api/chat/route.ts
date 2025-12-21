@@ -266,8 +266,8 @@ export async function POST(request: NextRequest) {
              menuContext = mode === 'chat' ? 'chat' : 'data-visualization';
           }
           
-          // Get menu-specific system prompt
-          const menuPrompt = getMenuSystemPrompt(menuContext);
+          // Get menu-specific system prompt with language
+          const menuPrompt = getMenuSystemPrompt(menuContext, language);
           
           // Build context-aware prompt - pass language to global rules
           const globalRules = getGlobalPromptRules(language);

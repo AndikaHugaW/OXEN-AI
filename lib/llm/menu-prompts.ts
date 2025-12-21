@@ -186,10 +186,40 @@ ATURAN MASTER:
 };
 
 /**
- * Get system prompt based on active menu
+ * Get system prompt based on active menu and language
+ * @param menu - The current menu context
+ * @param language - The detected language code ('id' or 'en')
  */
-export function getMenuSystemPrompt(menu: MenuContext): string {
-  return menuPrompts[menu]?.systemPrompt || menuPrompts.chat.systemPrompt;
+export function getMenuSystemPrompt(menu: MenuContext, language: 'id' | 'en' = 'id'): string {
+  const basePrompt = menuPrompts[menu]?.systemPrompt || menuPrompts.chat.systemPrompt;
+  
+  // Add CRITICAL language instruction to force response in correct language
+  const languageInstruction = language === 'id' 
+    ? `
+
+═══════════════════════════════════════════════════════════════
+🌐 INSTRUKSI BAHASA (KRITIS - HARUS DIPATUHI):
+═══════════════════════════════════════════════════════════════
+
+User berbicara dalam BAHASA INDONESIA.
+Kamu WAJIB menjawab 100% dalam BAHASA INDONESIA.
+- Gunakan bahasa yang natural, profesional, dan mudah dipahami.
+- DILARANG menjawab dalam Bahasa Inggris.
+- Istilah teknis boleh dalam Bahasa Inggris jika tidak ada padanan yang tepat.
+- Ini adalah ATURAN MUTLAK yang tidak boleh dilanggar.`
+    : `
+
+═══════════════════════════════════════════════════════════════
+🌐 LANGUAGE INSTRUCTION (CRITICAL - MUST FOLLOW):
+═══════════════════════════════════════════════════════════════
+
+User is speaking in ENGLISH.
+You MUST respond 100% in ENGLISH.
+- Use natural, professional, and easy to understand language.
+- DO NOT respond in any other language.
+- This is an ABSOLUTE rule that cannot be violated.`;
+
+  return basePrompt + languageInstruction;
 }
 
 /**
